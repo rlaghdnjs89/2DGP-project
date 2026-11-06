@@ -1,4 +1,4 @@
-from pico2d import draw_rectangle
+from pico2d import SDL_KEYDOWN, SDLK_w, draw_rectangle
 
 import config
 
@@ -10,10 +10,34 @@ class Run:
         self.player = player
 
     def enter(self):
+        self.player.air_jumps = config.AIR_JUMPS
+
+    def update(self, dt):
+        player = self.player
+        if player.jump_buffer > 0:
+            player.jump()
+        elif not player.on_ground:
+            player.change_state(player.jump_state)
+
+
+class Jump:
+    COLOR = (40, 160, 90)
+
+    def __init__(self, player):
+        self.player = player
+
+    def enter(self):
         pass
 
     def update(self, dt):
-        pass
+        player = self.player
+        if player.on_ground:
+            player.change_state(player.run_state)
+            # 착지 직전에 누른 입력이 같은 프레임에 이어지도록 Run에 바로 넘긴다.
+            player.run_state.update(dt)
+        elif player.jump_buffer > 0 and player.air_jumps > 0:
+            player.air_jumps -= 1
+            player.jump()
 
 
 class Player:
@@ -24,19 +48,29 @@ class Player:
         self.vy = 0
         self.h = config.PLAYER_H
         self.on_ground = True
+        self.air_jumps = config.AIR_JUMPS
+        self.jump_buffer = 0
 
-        self.run = Run(self)
-        self.state = self.run
+        self.run_state = Run(self)
+        self.jump_state = Jump(self)
+        self.state = self.run_state
 
     def change_state(self, state):
         self.state = state
         state.enter()
 
+    def jump(self):
+        self.vy = config.JUMP_SPEED
+        self.jump_buffer = 0
+        self.change_state(self.jump_state)
+
     def handle_event(self, event):
-        pass
+        if event.type == SDL_KEYDOWN and event.key == SDLK_w:
+            self.jump_buffer = config.INPUT_BUFFER
 
     def update(self, dt):
         self.state.update(dt)
+        self.jump_buffer = max(0, self.jump_buffer - dt)
 
         self.x += config.SCROLL_SPEED * dt
 
