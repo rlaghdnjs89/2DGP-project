@@ -1,4 +1,4 @@
-from pico2d import SDL_KEYDOWN, SDLK_w, draw_rectangle
+from pico2d import SDL_KEYDOWN, SDL_KEYUP, SDLK_s, SDLK_w, draw_rectangle
 
 import config
 
@@ -16,8 +16,30 @@ class Run:
         player = self.player
         if player.jump_buffer > 0:
             player.jump()
+        elif player.slide_buffer > 0 and player.s_held:
+            player.change_state(player.slide_state)
         elif not player.on_ground:
             player.change_state(player.jump_state)
+
+
+class Slide:
+    COLOR = (200, 140, 40)
+
+    def __init__(self, player):
+        self.player = player
+        self.timer = 0
+
+    def enter(self):
+        self.timer = 0
+        self.player.slide_buffer = 0
+
+    def update(self, dt):
+        player = self.player
+        self.timer += dt
+        if not player.on_ground:
+            player.change_state(player.jump_state)
+        elif not player.s_held or self.timer >= config.SLIDE_MAX_TIME:
+            player.change_state(player.run_state)
 
 
 class Jump:
@@ -46,12 +68,14 @@ class Player:
         self.y = config.GROUND_TOP
         self.prev_y = self.y
         self.vy = 0
-        self.h = config.PLAYER_H
         self.on_ground = True
         self.air_jumps = config.AIR_JUMPS
         self.jump_buffer = 0
+        self.slide_buffer = 0
+        self.s_held = False
 
         self.run_state = Run(self)
+        self.slide_state = Slide(self)
         self.jump_state = Jump(self)
         self.state = self.run_state
 
@@ -67,10 +91,16 @@ class Player:
     def handle_event(self, event):
         if event.type == SDL_KEYDOWN and event.key == SDLK_w:
             self.jump_buffer = config.INPUT_BUFFER
+        elif event.type == SDL_KEYDOWN and event.key == SDLK_s:
+            self.s_held = True
+            self.slide_buffer = config.INPUT_BUFFER
+        elif event.type == SDL_KEYUP and event.key == SDLK_s:
+            self.s_held = False
 
     def update(self, dt):
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
+        self.slide_buffer = max(0, self.slide_buffer - dt)
 
         self.x += config.SCROLL_SPEED * dt
 
@@ -88,7 +118,8 @@ class Player:
 
     def get_bb(self):
         half_w = config.PLAYER_W / 2
-        return self.x - half_w, self.y, self.x + half_w, self.y + self.h
+        h = config.SLIDE_H if self.state is self.slide_state else config.PLAYER_H
+        return self.x - half_w, self.y, self.x + half_w, self.y + h
 
     def handle_collision(self, group, other):
         if group == 'player:ground' and self.vy <= 0 and self.prev_y >= other.top:
