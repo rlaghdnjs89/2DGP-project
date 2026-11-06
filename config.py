@@ -26,14 +26,24 @@ SLIDE_MAX_TIME = 1.0
 SLIDE_H = PLAYER_H * 0.5
 
 PHASES = (
-    {'name': '무너지는 고성', 'score': 0, 'gravity': 1.0,
+    {'name': '무너지는 고성', 'score': 0, 'gravity': 1.0, 'speed': 1.0, 'score_rate': 1,
+     'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
+     'gate': 'assets/map/gate.png',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png'},
-    {'name': '무중력 균열', 'score': 3000, 'gravity': 0.5,
+    {'name': '무중력 균열', 'score': 3000, 'gravity': 0.5, 'speed': 1.0, 'score_rate': 1,
+     'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
+     'gate': 'assets/map/gate.png',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
      'ground': 'assets/map/ground_phase2.png',
      'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png'},
+    {'name': '폭주하는 심연', 'score': 8000, 'gravity': 1.0, 'speed': 1.5, 'score_rate': 2,
+     'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
+     'gate': 'assets/map/gate_phase3.png',
+     'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
+     'ground': 'assets/map/ground_phase3.png',
+     'platform': 'assets/map/platform_phase3.png', 'platform_cap': 'assets/map/platform_cap_phase3.png'},
 )
 PHASE_INVINCIBLE_TIME = 1.0
 GATE_W = 40
@@ -99,7 +109,7 @@ PIT_W_LONG = 360
 PIT_CHANCE = 0.3
 
 # 일섬을 막 쓴 직후에 진입해도 쿨타임이 돌도록 스크롤 속도 × 2초 이상 평지를 둔다 (DS-8).
-CLIFF_RUN_UP = SCROLL_SPEED * 2
+CLIFF_RUN_UP_TIME = 2
 CLIFF_W = 1100
 # 낭떠러지 시작점 기준 (x, 지면 위 높이). 간격은 사거리 400px 안이다 (DS-7).
 CLIFF_FAMILIARS = ((220, 200), (560, 250), (900, 200))
@@ -134,9 +144,10 @@ CHUNK_D = {
     'platforms': ((1500, 1900, 130),),
     'mages': ((1150, 0), (1700, 130)),
 }
-PHASE_CHUNKS = (('A', 'B', 'C', 'D'), ('E1', 'E2', 'E3'))
+# 페이즈 3은 D를 두 번 넣어 마법사 비중을 높인다.
+PHASE_CHUNKS = (('A', 'B', 'C', 'D'), ('E1', 'E2', 'E3'), ('A', 'B', 'C', 'D', 'D'))
 # 지면에서 싸우는 페이즈. 나머지 페이즈의 장벽 청크에는 근접병 대신 사역마를 둔다.
-GROUND_FIGHT_PHASES = (0,)
+GROUND_FIGHT_PHASES = (0, 2)
 
 GRUNT_W = 60
 GRUNT_H = 90

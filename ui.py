@@ -154,7 +154,9 @@ class HUD:
 
         right = config.SCREEN_W - MARGIN
         top = config.SCREEN_H - MARGIN - SCORE_SIZE / 2
-        draw_text(SCORE_SIZE, right, top, f'SCORE {self.player.score:,}', align=1)
+        rate = config.PHASES[self.player.phase]['score_rate']
+        rate_text = f' ×{rate}' if rate > 1 else ''
+        draw_text(SCORE_SIZE, right, top, f'SCORE {self.player.score:,}{rate_text}', align=1)
         draw_text(SCORE_SIZE, right, top - SCORE_SIZE - 6, f'BEST {max(self.best, self.player.score):,}', align=1)
         if self.player.combo > 0:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2, f'COMBO {self.player.combo}', align=1)

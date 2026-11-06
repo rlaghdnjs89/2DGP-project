@@ -13,7 +13,7 @@ def grunt_gap():
     return random.randint(config.GRUNT_GAP_MIN, config.GRUNT_GAP_MAX)
 
 
-def build_chunk_a():
+def build_chunk_a(phase):
     obstacles = []
     monsters = []
     x = random.randint(config.CHUNK_MARGIN, config.CHUNK_MARGIN + 150)
@@ -27,7 +27,7 @@ def build_chunk_a():
     return Chunk(config.CHUNK_A_LENGTH, obstacles, monsters=monsters)
 
 
-def build_chunk_b():
+def build_chunk_b(phase):
     length = config.CHUNK_B_LENGTH
     kinds = [(make_low_obstacle, config.LOW_OBSTACLE_W), (make_high_obstacle, config.HIGH_OBSTACLE_W)]
     random.shuffle(kinds)
@@ -46,14 +46,14 @@ def build_chunk_b():
     return Chunk(length, obstacles, pits)
 
 
-def build_chunk_c():
-    start = config.CLIFF_RUN_UP
+def build_chunk_c(phase):
+    start = int(config.SCROLL_SPEED * config.PHASES[phase]['speed'] * config.CLIFF_RUN_UP_TIME)
     pits = [(start, config.CLIFF_W)]
     monsters = [(Familiar, start + x, config.GROUND_TOP + y) for x, y in config.CLIFF_FAMILIARS]
     return Chunk(start + config.CLIFF_W + config.CHUNK_MARGIN, pits=pits, monsters=monsters)
 
 
-def build_chunk_d():
+def build_chunk_d(phase):
     layout = config.CHUNK_D
     obstacles = [(make_high_obstacle, layout['high_obstacle'])]
     monsters = [(Mage, x, config.GROUND_TOP + y) for x, y in layout['mages']]
@@ -66,7 +66,7 @@ def build_island(name):
     return Chunk(layout['length'], pits=layout['pits'], monsters=monsters, platforms=layout['platforms'])
 
 
-def build_wall_chunk(phase):
+def build_chunk_f(phase):
     if phase in config.GROUND_FIGHT_PHASES:
         monsters = [(Grunt, x, config.GROUND_TOP) for x in config.WALL_MONSTER_OFFSETS]
     else:
@@ -79,9 +79,10 @@ CHUNK_BUILDERS = {
     'B': build_chunk_b,
     'C': build_chunk_c,
     'D': build_chunk_d,
-    'E1': lambda: build_island('E1'),
-    'E2': lambda: build_island('E2'),
-    'E3': lambda: build_island('E3'),
+    'E1': lambda phase: build_island('E1'),
+    'E2': lambda phase: build_island('E2'),
+    'E3': lambda phase: build_island('E3'),
+    'F': build_chunk_f,
 }
 
 
@@ -134,16 +135,7 @@ class ChunkManager:
         game_world.add_collision_pair('player:wall', None, wall)
 
     def spawn_chunk(self, chunk):
-        self.place(CHUNK_BUILDERS[chunk]())
-        self.last_chunk = chunk
-
-    def spawn_wall_chunk(self):
-        self.place(build_wall_chunk(self.phase))
-        self.last_chunk = 'F'
-        self.cycle_time = 0
-        self.cycle_enemies = 0
-
-    def place(self, built):
+        built = CHUNK_BUILDERS[chunk](self.phase)
         ground_left = self.end_x
         for offset, width in built.pits:
             self.add_ground(ground_left, self.end_x + offset)
@@ -152,12 +144,13 @@ class ChunkManager:
         for left, right, height in built.platforms:
             self.add_platform(self.end_x + left, self.end_x + right, height)
         for make, offset in built.obstacles:
-            self.add_obstacle(make(self.end_x + offset))
+            self.add_obstacle(make(self.end_x + offset, self.phase))
         for make, offset, y in built.monsters:
             self.add_monster(make(self.end_x + offset, y, self.player))
         if built.wall is not None:
             self.add_wall(self.end_x + built.wall)
         self.end_x += built.length
+        self.last_chunk = chunk
 
     def pick_chunk(self):
         candidates = [chunk for chunk in config.PHASE_CHUNKS[self.phase] if chunk != self.last_chunk]
@@ -174,7 +167,9 @@ class ChunkManager:
                 self.phase = next_phase
                 self.add_gate(next_phase)
             if self.cycle_time >= config.WALL_CYCLE:
-                self.spawn_wall_chunk()
+                self.spawn_chunk('F')
+                self.cycle_time = 0
+                self.cycle_enemies = 0
             else:
                 self.spawn_chunk(self.pick_chunk())
 

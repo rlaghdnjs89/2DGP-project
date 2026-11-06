@@ -310,7 +310,7 @@ class Player:
         self.bullet_wall.cut()
         self.bullet_wall = None
         self.gauge = 0
-        self.score += config.CUT_SCORE
+        self.add_score(config.CUT_SCORE)
         self.change_state(self.cut_state)
         self.camera.shake(config.CUT_SHAKE_TIME, config.CUT_SHAKE_AMP)
         center_x = self.camera.base_x + config.SCREEN_W / 2
@@ -346,17 +346,17 @@ class Player:
         self.dash_cooldown = max(0, self.dash_cooldown - dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
-        self.distance_score += config.DISTANCE_SCORE_RATE * dt
+        self.distance_score += config.DISTANCE_SCORE_RATE * config.PHASES[self.phase]['speed'] * dt
         # 소수점이 쌓이도록 따로 누적하고 정수 부분만 점수로 옮긴다.
         gained = int(self.distance_score)
         self.distance_score -= gained
-        self.score += gained
+        self.add_score(gained)
 
         # 돌진 중에는 Dash가 위치를 직접 정한다.
         if self.state is self.dash_state:
             return
 
-        self.x += config.SCROLL_SPEED * dt
+        self.x += self.speed() * dt
         self.prev_y = self.y
         if self.hang_timer > 0:
             self.hang_timer -= dt
@@ -405,12 +405,19 @@ class Player:
         if self.on_ground:
             self.change_state(self.hit_state)
 
+    def speed(self):
+        return config.SCROLL_SPEED * config.PHASES[self.phase]['speed']
+
+    def add_score(self, points):
+        # 진입 순간 총점이 뛰지 않도록 얻는 시점에 배율을 곱한다 (Q1).
+        self.score += points * config.PHASES[self.phase]['score_rate']
+
     def on_parry(self):
-        self.score += config.PARRY_SCORE
+        self.add_score(config.PARRY_SCORE)
         self.gauge = min(config.GAUGE_MAX, self.gauge + config.GAUGE_PARRY)
 
     def on_kill(self, monster, by_dash=False, bonus=0):
-        self.score += monster.SCORE + bonus + (monster.DASH_BONUS if by_dash else 0)
+        self.add_score(monster.SCORE + bonus + (monster.DASH_BONUS if by_dash else 0))
         self.gauge = min(config.GAUGE_MAX, self.gauge + (config.GAUGE_DASH_KILL if by_dash else config.GAUGE_SLASH_KILL))
         self.kills += 1
         self.combo += 1

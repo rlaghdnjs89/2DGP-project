@@ -355,6 +355,17 @@ def make_player():
     save(strip(white), 'player/hit.png')
 
 
+def tinted(img, color, amount):
+    out = img.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if a != 0:
+                px[x, y] = (int(r + (color[0] - r) * amount), int(g + (color[1] - g) * amount), int(b + (color[2] - b) * amount), a)
+    return out
+
+
 def tint_all(img, color):
     out = img.copy()
     px = out.load()
@@ -799,6 +810,30 @@ def floating_rocks(rng, tone):
     return img
 
 
+def jagged_spires(rng, tone, rim):
+    """심연에 솟은 바위 기둥. 아래에서 올라오는 빛을 옆면 가장자리로 표현한다."""
+    img = new_frame(BG_W, BG_H)
+    px = img.load()
+    tone_c, rim_c = hex_color(tone), hex_color(rim)
+    tops = [BG_H] * BG_W
+    for x0 in range(0, BG_W, 44):
+        cx = x0 + rng.randint(-10, 10)
+        half = rng.randint(10, 26)
+        height = rng.randint(70, 210)
+        for i in range(-half, half + 1):
+            column = (cx + i) % BG_W
+            top = BG_H - 40 - int(height * (1 - abs(i) / half) ** 0.7) + rng.randint(-2, 2)
+            tops[column] = min(tops[column], top)
+    for x in range(BG_W):
+        for y in range(tops[x], BG_H):
+            px[x, y] = tone_c
+    for x in range(BG_W):
+        if tops[x] < tops[(x + 1) % BG_W] - 2 or tops[x] < tops[x - 1] - 2:
+            for y in range(tops[x], min(BG_H, tops[x] + 3)):
+                px[x, y] = mix(rim_c, tone_c, 0.35)
+    return img
+
+
 def rift(img, rng, x, color, core, width=3):
     y = 0
     points = []
@@ -836,6 +871,12 @@ def make_backgrounds():
     rift(void, rng, 500, '7f45e0', 'd8c2ff', 2)
     save(void, 'bg/phase2_far.png')
     save(floating_rocks(rng, '1a1040'), 'bg/phase2_near.png')
+
+    abyss = gradient(['0f0308', '1c060e', '300913', '4a0d14', '6e1413', '9c2410', 'c84412'])
+    add_noise_tone(abyss, streaks(rng), 0.58, 'e0601f', 0.28)
+    stars(abyss, rng, 200, ['ffb347', 'ff7a2f', 'ffe9a8'], top=60)
+    save(abyss, 'bg/phase3_far.png')
+    save(jagged_spires(rng, '1a070c', 'ff5a1f'), 'bg/phase3_near.png')
 
 
 # 지면과 발판 ----------------------------------------------------------------
@@ -914,6 +955,10 @@ def make_map():
     platform, cap = make_platform(rng, '8f78f0', 'e9dcff', '55449a', '352a70')
     save(platform, 'map/platform_phase2.png')
     save(cap, 'map/platform_cap_phase2.png')
+    save(brick_ground(rng, '3a1a1e', '2e1418', '46201f', '180a0e', 'c2401a', 'ff8a3d', accent='ff6a20'), 'map/ground_phase3.png')
+    platform, cap = make_platform(rng, 'c2401a', 'ff8a3d', '46201f', '2a1014')
+    save(platform, 'map/platform_phase3.png')
+    save(cap, 'map/platform_cap_phase3.png')
     platform, cap = make_platform(rng, '6f8a58', '9ab86f', '5a506e', '3a3350')
     save(platform, 'map/platform_phase1.png')
     save(cap, 'map/platform_cap_phase1.png')
@@ -1026,6 +1071,11 @@ def make_obstacles():
     save(make_crate(), 'map/low_crate.png')
     save(make_rock(), 'map/low_rock.png')
     save(make_pillar(), 'map/high_pillar.png')
+    # 페이즈 3은 같은 모양을 심연의 붉은 빛으로 물들인다.
+    glow = (255, 90, 40)
+    save(tinted(make_crate(), glow, 0.32), 'map/low_crate_phase3.png')
+    save(tinted(make_rock(), glow, 0.32), 'map/low_rock_phase3.png')
+    save(tinted(make_pillar(), glow, 0.32), 'map/high_pillar_phase3.png')
     whole, top, bottom = make_wall_pieces()
     save(top, 'map/wall_top.png')
     save(bottom, 'map/wall_bottom.png')
@@ -1065,6 +1115,7 @@ def make_gate():
             rect(img, x, y, x + 2, y + 2, hex_color(rng.choice(['ffffff', 'cdb8ff', 'a860ff'])))
         frames.append(img)
     save(strip(frames), 'map/gate.png')
+    save(strip([tinted(frame, (255, 70, 30), 0.55) for frame in frames]), 'map/gate_phase3.png')
 
 
 # UI -----------------------------------------------------------------------

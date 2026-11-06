@@ -5,8 +5,6 @@ import game_world
 from sprite import OneShot, Strip, get_image
 from ui import draw_text
 
-LOW_IMAGES = ('assets/map/low_crate.png', 'assets/map/low_rock.png')
-HIGH_IMAGE = 'assets/map/high_pillar.png'
 GATE_FRAME_W = 64
 GATE_FPS = 14
 PLATFORM_CAP_W = 32
@@ -57,14 +55,15 @@ class Obstacle:
         pass
 
 
-def make_low_obstacle(left):
-    return Obstacle(left, config.GROUND_TOP, config.LOW_OBSTACLE_W, config.LOW_OBSTACLE_H, random.choice(LOW_IMAGES))
+def make_low_obstacle(left, phase):
+    image = random.choice(config.PHASES[phase]['low'])
+    return Obstacle(left, config.GROUND_TOP, config.LOW_OBSTACLE_W, config.LOW_OBSTACLE_H, image)
 
 
-def make_high_obstacle(left):
+def make_high_obstacle(left, phase):
     bottom = config.GROUND_TOP + config.HIGH_OBSTACLE_CLEARANCE
     # 천장까지 막아 점프로는 넘을 수 없게 한다.
-    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, HIGH_IMAGE)
+    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, config.PHASES[phase]['high'])
 
 
 class PhaseGate:
@@ -72,7 +71,7 @@ class PhaseGate:
         self.x = x
         self.phase = phase
         self.time = 0
-        self.sprite = Strip('assets/map/gate.png', GATE_FRAME_W)
+        self.sprite = Strip(config.PHASES[phase]['gate'], GATE_FRAME_W)
 
     def update(self, dt):
         self.time += dt
@@ -106,7 +105,7 @@ class Wall:
             return
         gap = self.x - (self.player.x + config.PLAYER_W / 2)
         ready = self.player.gauge >= config.GAUGE_MAX
-        if ready and not self.bullet_time_started and gap <= config.SCROLL_SPEED * config.WALL_ENTRY_TIME:
+        if ready and not self.bullet_time_started and gap <= self.player.speed() * config.WALL_ENTRY_TIME:
             self.bullet_time_started = True
             self.player.enter_bullet_time(self)
 
@@ -128,7 +127,7 @@ class Wall:
 
     def draw_warning(self):
         gap = self.x - self.player.x
-        if self.player.bullet_wall or not 0 < gap <= config.SCROLL_SPEED * config.WALL_WARNING_TIME:
+        if self.player.bullet_wall or not 0 < gap <= self.player.speed() * config.WALL_WARNING_TIME:
             return
         ready = self.player.gauge >= config.GAUGE_MAX
         text = '거대 장벽! 발도술 준비 완료' if ready else '거대 장벽! 게이지 부족'
