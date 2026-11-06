@@ -1,8 +1,10 @@
 import ctypes
+import random
 
 from pico2d import TTF_SizeUTF8, load_font
 
 import config
+import record
 from sprite import get_image
 
 HP_SIZE = 32
@@ -15,6 +17,10 @@ COMBO_SIZE = 24
 DASH_SIZE = 24
 DASH_COOLDOWN_COLOR = (130, 130, 130)
 PHASE_SIZE = 24
+HEART_SHAKE_TIME = 0.3
+HEART_SHAKE = 4
+HEAL_NOTICE_TIME = 1.2
+HEAL_COLOR = (120, 240, 140)
 FLASH_TIME = 0.5
 BANNER_HOLD_TIME = 1.0
 BANNER_SHRINK_TIME = 0.5
@@ -47,12 +53,24 @@ class HUD:
     def __init__(self, player):
         self.player = player
         self.shown_phase = player.phase
+        self.shown_hp = player.hp
+        self.best = record.load_best()
         self.flash = 0
-        self.banner_time = 0
+        self.heart_shake = 0
+        self.heal_notice = 0
+        # 배너는 페이즈가 바뀔 때만 나오므로 처음에는 이미 끝난 상태로 둔다.
+        self.banner_time = BANNER_HOLD_TIME + BANNER_SHRINK_TIME
 
     def update(self, dt):
         self.flash = max(0, self.flash - dt)
+        self.heart_shake = max(0, self.heart_shake - dt)
+        self.heal_notice = max(0, self.heal_notice - dt)
         self.banner_time += dt
+        if self.player.hp < self.shown_hp:
+            self.heart_shake = HEART_SHAKE_TIME
+        elif self.player.hp > self.shown_hp:
+            self.heal_notice = HEAL_NOTICE_TIME
+        self.shown_hp = self.player.hp
         if self.shown_phase != self.player.phase:
             self.shown_phase = self.player.phase
             self.flash = FLASH_TIME
@@ -70,7 +88,7 @@ class HUD:
             return
         t = max(0, t)
         size = BANNER_SIZES[min(len(BANNER_SIZES) - 1, int(t * len(BANNER_SIZES)))]
-        y = config.SCREEN_H * 0.6 + (top_y - config.SCREEN_H * 0.6) * t
+        y = config.SCREEN_H * 0.72 + (top_y - config.SCREEN_H * 0.72) * t
         draw_text(size, center_x, y, self.phase_label(), align=0.5)
 
     def draw(self, camera):
@@ -79,6 +97,9 @@ class HUD:
         for i in range(config.HP_MAX):
             left = MARGIN + i * (HP_SIZE + HP_GAP)
             bottom = config.SCREEN_H - MARGIN - HP_SIZE
+            if self.heart_shake > 0:
+                left += random.randint(-HEART_SHAKE, HEART_SHAKE)
+                bottom += random.randint(-HEART_SHAKE, HEART_SHAKE)
             image = full if i < self.player.hp else empty
             image.draw_to_origin(left, bottom, HP_SIZE, HP_SIZE)
 
@@ -87,8 +108,11 @@ class HUD:
         right = config.SCREEN_W - MARGIN
         top = config.SCREEN_H - MARGIN - SCORE_SIZE / 2
         draw_text(SCORE_SIZE, right, top, f'SCORE {self.player.score:,}', align=1)
+        draw_text(SCORE_SIZE, right, top - SCORE_SIZE - 6, f'BEST {max(self.best, self.player.score):,}', align=1)
         if self.player.combo > 0:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2, f'COMBO {self.player.combo}', align=1)
+        if self.heal_notice > 0:
+            draw_text(COMBO_SIZE, right, config.SCREEN_H / 2 - COMBO_SIZE - 8, 'HP +1', HEAL_COLOR, align=1)
 
         if self.player.dash_cooldown > 0:
             draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, f'일섬 {self.player.dash_cooldown:.1f}', DASH_COOLDOWN_COLOR)
