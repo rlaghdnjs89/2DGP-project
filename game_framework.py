@@ -3,9 +3,24 @@ from pico2d import SDL_QUIT, clear_canvas, get_events, get_time, update_canvas
 import config
 
 
-def run(mode):
+current_mode = None
+running = True
+
+
+def change_mode(mode):
+    global current_mode
+    current_mode = mode
     mode.init()
-    running = True
+
+
+def quit():
+    global running
+    running = False
+
+
+def run(mode):
+    global running
+    change_mode(mode)
     last = get_time()
     while running:
         now = get_time()
@@ -17,9 +32,9 @@ def run(mode):
             if event.type == SDL_QUIT:
                 running = False
             else:
-                mode.handle_event(event)
+                current_mode.handle_event(event)
 
-        mode.update(dt)
+        current_mode.update(dt)
         clear_canvas()
-        mode.draw()
+        current_mode.draw()
         update_canvas()
