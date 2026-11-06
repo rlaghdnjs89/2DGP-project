@@ -1,20 +1,30 @@
 import random
+from collections import namedtuple
 
 import config
 import game_world
+from monster import Grunt
 from obstacle import Ground, make_high_obstacle, make_low_obstacle
+
+Chunk = namedtuple('Chunk', 'length obstacles pits monsters', defaults=((), (), ()))
+
+
+def grunt_gap():
+    return random.randint(config.GRUNT_GAP_MIN, config.GRUNT_GAP_MAX)
 
 
 def build_chunk_a():
-    length = config.CHUNK_A_LENGTH
-    half_gap = config.OBSTACLE_GAP_MIN // 2
-    first_end = length // 2 - half_gap - config.LOW_OBSTACLE_W
-    second_end = length - config.CHUNK_MARGIN - config.LOW_OBSTACLE_W
-    obstacles = [
-        (make_low_obstacle, random.randint(config.CHUNK_MARGIN, first_end)),
-        (make_low_obstacle, random.randint(length // 2 + half_gap, second_end)),
-    ]
-    return length, obstacles, []
+    obstacles = []
+    monsters = []
+    x = random.randint(config.CHUNK_MARGIN, config.CHUNK_MARGIN + 150)
+    for _ in range(2):
+        obstacles.append((make_low_obstacle, x))
+        x += config.LOW_OBSTACLE_W + grunt_gap()
+        monsters.append((Grunt, x, config.GROUND_TOP))
+        x += random.randint(config.OBSTACLE_GAP_MIN // 2, config.OBSTACLE_GAP_MAX // 2)
+    if random.random() < config.GRUNT_3RD_CHANCE:
+        monsters.append((Grunt, x, config.GROUND_TOP))
+    return Chunk(config.CHUNK_A_LENGTH, obstacles, monsters=monsters)
 
 
 def build_chunk_b():
@@ -33,14 +43,15 @@ def build_chunk_b():
             make, width = kinds[len(obstacles) % 2]
             obstacles.append((make, x))
         x += width + random.randint(config.OBSTACLE_GAP_MIN, config.OBSTACLE_GAP_MAX)
-    return length, obstacles, pits
+    return Chunk(length, obstacles, pits)
 
 
 CHUNK_BUILDERS = {'A': build_chunk_a, 'B': build_chunk_b}
 
 
 class ChunkManager:
-    def __init__(self):
+    def __init__(self, player):
+        self.player = player
         self.objects = []
         self.last_chunk = None
         # 시작 지점에서 반응할 시간을 주도록 첫 화면은 평지로 둔다.
@@ -58,16 +69,23 @@ class ChunkManager:
         game_world.add_object(obstacle, game_world.LAYER_MAP)
         game_world.add_collision_pair('player:obstacle', None, obstacle)
 
+    def add_monster(self, monster):
+        self.objects.append(monster)
+        game_world.add_object(monster, game_world.LAYER_MONSTER)
+        game_world.add_collision_pair('player:monster', None, monster)
+
     def spawn_chunk(self, chunk):
-        length, obstacles, pits = CHUNK_BUILDERS[chunk]()
+        built = CHUNK_BUILDERS[chunk]()
         ground_left = self.end_x
-        for offset, width in pits:
+        for offset, width in built.pits:
             self.add_ground(ground_left, self.end_x + offset)
             ground_left = self.end_x + offset + width
-        self.add_ground(ground_left, self.end_x + length)
-        for make, offset in obstacles:
+        self.add_ground(ground_left, self.end_x + built.length)
+        for make, offset in built.obstacles:
             self.add_obstacle(make(self.end_x + offset))
-        self.end_x += length
+        for make, offset, y in built.monsters:
+            self.add_monster(make(self.end_x + offset, y, self.player))
+        self.end_x += built.length
         self.last_chunk = chunk
 
     def update(self, camera):

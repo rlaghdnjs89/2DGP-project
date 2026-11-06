@@ -14,11 +14,12 @@ def init():
     game_world.clear()
     player = Player()
     camera = Camera()
-    chunks = ChunkManager()
+    chunks = ChunkManager(player)
     game_world.add_object(player, game_world.LAYER_PLAYER)
     game_world.add_object(HUD(player), game_world.LAYER_UI)
     game_world.add_collision_pair('player:ground', player, None)
     game_world.add_collision_pair('player:obstacle', player, None)
+    game_world.add_collision_pair('player:monster', player, None)
 
 
 def handle_event(event):
