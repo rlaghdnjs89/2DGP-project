@@ -1,5 +1,6 @@
 import config
 import game_world
+from background import Background
 from camera import Camera
 from chunk_manager import ChunkManager
 from player import Player
@@ -18,6 +19,7 @@ def init():
     camera = Camera()
     chunks = ChunkManager(player)
     game_over_timer = None
+    game_world.add_object(Background(player), game_world.LAYER_BACKGROUND)
     game_world.add_object(player, game_world.LAYER_PLAYER)
     game_world.add_object(HUD(player), game_world.LAYER_UI)
     game_world.add_collision_pair('player:ground', player, None)

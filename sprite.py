@@ -1,0 +1,93 @@
+import json
+
+from pico2d import load_image
+
+import config
+import game_world
+
+images = {}
+sheets = {}
+
+
+def get_image(path):
+    if path not in images:
+        images[path] = load_image(path)
+    return images[path]
+
+
+class Strip:
+    """프레임을 가로로 늘어놓은 이미지. 원본 픽셀을 SPRITE_SCALE배로 그린다."""
+
+    def __init__(self, path, frame_w):
+        self.image = get_image(path)
+        self.frame_w = frame_w
+        self.count = self.image.w // frame_w
+
+    def draw(self, frame, x, y):
+        w, h = self.frame_w, self.image.h
+        scale = config.SPRITE_SCALE
+        self.image.clip_draw(frame * w, 0, w, h, x, y, w * scale, h * scale)
+
+
+class OneShot:
+    """한 번 재생하고 사라지는 애니메이션. 몬스터 사망에 쓴다."""
+
+    def __init__(self, strip, fps, x, y):
+        self.strip = strip
+        self.fps = fps
+        self.x = x
+        self.y = y
+        self.time = 0
+
+    def update(self, dt):
+        self.time += dt
+        if self.time * self.fps >= self.strip.count:
+            game_world.remove_object(self)
+
+    def draw(self, camera):
+        self.strip.draw(int(self.time * self.fps), self.x - camera.x, self.y)
+
+
+def load_fx_sheet(name):
+    if name not in sheets:
+        with open(f'assets/fx/{name}.json', encoding='utf-8') as f:
+            sheets[name] = json.load(f)
+    return get_image(f'assets/fx/{name}.png'), sheets[name]
+
+
+class Effect:
+    """pixelfx 시트를 재생한다. anchor를 주면 anchor를 따라다닌다."""
+
+    def __init__(self, name, x, y, anchor=None, speed=1):
+        self.image, data = load_fx_sheet(name)
+        self.frames = data['frames']
+        self.pivot = data['meta']['pixelfx']['pivot']
+        self.x = x
+        self.y = y
+        self.anchor = anchor
+        self.speed = speed
+        self.index = 0
+        self.elapsed = 0
+
+    def update(self, dt):
+        self.elapsed += dt * self.speed * 1000
+        while self.elapsed >= self.frames[self.index]['duration']:
+            self.elapsed -= self.frames[self.index]['duration']
+            self.index += 1
+            if self.index == len(self.frames):
+                game_world.remove_object(self)
+                self.index -= 1
+                return
+
+    def draw(self, camera):
+        x, y = self.x, self.y
+        if self.anchor:
+            x += self.anchor.x
+            y += self.anchor.y
+        r = self.frames[self.index]['frame']
+        scale = config.SPRITE_SCALE
+        px, py = self.pivot
+        # JSON의 y는 위에서, pico2d의 bottom은 아래에서 센다.
+        self.image.clip_draw(r['x'], self.image.h - r['y'] - r['h'], r['w'], r['h'],
+                             x - camera.x + (r['w'] / 2 - px) * scale, y + (py - r['h'] / 2) * scale,
+                             r['w'] * scale, r['h'] * scale)

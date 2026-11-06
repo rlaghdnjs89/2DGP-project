@@ -1,12 +1,18 @@
-from pico2d import (SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_s,
-                    SDLK_w, draw_rectangle)
+from pico2d import SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_s, SDLK_w
 
 import config
 import game_world
+from sprite import Effect, Strip
+
+FRAME_W = 64
+ANIMATION_FPS = {'run': 16, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16}
+# 시트에서 검기가 빠르게 끝나도록 빨리 재생한다.
+SLASH_FX_SPEED = 1.6
+SLASH_FX_Y = 8
 
 
 class Run:
-    COLOR = (40, 90, 200)
+    ANIMATION = 'run'
 
     def __init__(self, player):
         self.player = player
@@ -27,7 +33,7 @@ class Run:
 
 
 class Slide:
-    COLOR = (200, 140, 40)
+    ANIMATION = 'slide'
 
     def __init__(self, player):
         self.player = player
@@ -50,8 +56,6 @@ class Slide:
 
 
 class Jump:
-    COLOR = (40, 160, 90)
-
     def __init__(self, player):
         self.player = player
 
@@ -72,7 +76,7 @@ class Jump:
 
 
 class Slash:
-    COLOR = (225, 225, 240)
+    ANIMATION = 'slash'
 
     def __init__(self, player):
         self.player = player
@@ -92,7 +96,7 @@ class Slash:
 
 
 class Dash:
-    COLOR = (90, 220, 240)
+    ANIMATION = 'dash'
 
     def __init__(self, player):
         self.player = player
@@ -128,8 +132,7 @@ class Sword:
             game_world.remove_object(self)
 
     def draw(self, camera):
-        left, bottom, right, top = self.get_bb()
-        draw_rectangle(left - camera.x, bottom, right - camera.x, top, 240, 240, 255, 255, True)
+        pass
 
     def get_bb(self):
         left = self.player.x + config.PLAYER_W / 2
@@ -141,7 +144,7 @@ class Sword:
 
 
 class Hit:
-    COLOR = (200, 60, 60)
+    ANIMATION = 'hit'
 
     def __init__(self, player):
         self.player = player
@@ -180,6 +183,8 @@ class Player:
         self.kills = 0
         self.combo = 0
         self.phase = 0
+        self.animation_time = 0
+        self.sprites = {name: Strip(f'assets/player/{name}.png', FRAME_W) for name in ANIMATION_FPS}
 
         self.run_state = Run(self)
         self.slide_state = Slide(self)
@@ -191,6 +196,7 @@ class Player:
 
     def change_state(self, state):
         self.state = state
+        self.animation_time = 0
         state.enter()
 
     def jump(self):
@@ -216,6 +222,7 @@ class Player:
         self.change_state(self.slash_state)
         self.sword = Sword(self)
         game_world.add_object(self.sword, game_world.LAYER_EFFECT)
+        game_world.add_object(Effect('sword-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
         game_world.add_collision_pair('sword:monster', self.sword, None)
 
     def find_dash_target(self):
@@ -239,7 +246,7 @@ class Player:
 
     def finish_dash(self, target):
         self.on_kill(target, by_dash=True)
-        game_world.remove_object(target)
+        target.die()
         self.dash_cooldown = 0
         if target.AIRBORNE:
             self.hang_timer = config.DASH_HANG_TIME
@@ -259,6 +266,7 @@ class Player:
             self.dash_buffer = config.INPUT_BUFFER
 
     def update(self, dt):
+        self.animation_time += dt
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
         self.slide_buffer = max(0, self.slide_buffer - dt)
@@ -295,9 +303,16 @@ class Player:
         # 다음 충돌 처리에서 지면에 닿으면 다시 True가 된다.
         self.on_ground = False
 
+    def animation_name(self):
+        if self.state is self.jump_state:
+            return 'rise' if self.vy > 0 else 'fall'
+        return self.state.ANIMATION
+
     def draw(self, camera):
-        left, bottom, right, top = self.get_bb()
-        draw_rectangle(left - camera.x, bottom, right - camera.x, top, *self.state.COLOR, 255, True)
+        name = self.animation_name()
+        sprite = self.sprites[name]
+        frame = int(self.animation_time * ANIMATION_FPS[name]) % sprite.count
+        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y)
 
     def get_bb(self):
         half_w = config.PLAYER_W / 2

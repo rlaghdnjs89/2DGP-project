@@ -80,7 +80,7 @@ class ChunkManager:
         self.end_x = config.SCREEN_W
 
     def add_ground(self, left, right):
-        ground = Ground(left, right)
+        ground = Ground(left, right, self.phase)
         self.objects.append(ground)
         game_world.add_object(ground, game_world.LAYER_MAP)
         game_world.add_collision_pair('player:ground', None, ground)

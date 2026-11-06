@@ -1,6 +1,9 @@
 SCREEN_W = 1280
 SCREEN_H = 720
 MAX_DT = 0.05
+SPRITE_SCALE = 2
+# 64칸 스프라이트의 발바닥은 아래에서 4칸 위에 있다. 발 위치에서 그림 중심까지의 높이다.
+SPRITE_CENTER_Y = 56
 
 SCROLL_SPEED = 400
 GROUND_TOP = 120
@@ -23,8 +26,12 @@ SLIDE_MAX_TIME = 1.0
 SLIDE_H = PLAYER_H * 0.5
 
 PHASES = (
-    {'name': '무너지는 고성', 'score': 0, 'gravity': 1.0},
-    {'name': '무중력 균열', 'score': 3000, 'gravity': 0.5},
+    {'name': '무너지는 고성', 'score': 0, 'gravity': 1.0,
+     'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
+     'ground': 'assets/map/ground_phase1.png'},
+    {'name': '무중력 균열', 'score': 3000, 'gravity': 0.5,
+     'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
+     'ground': 'assets/map/ground_phase2.png'},
 )
 PHASE_INVINCIBLE_TIME = 1.0
 GATE_W = 40
@@ -99,11 +106,11 @@ GRUNT_W = 60
 GRUNT_H = 90
 GRUNT_SPEED = 160
 GRUNT_SIGHT = 600
-GRUNT_ATTACK_RANGE = 260
+GRUNT_ATTACK_RANGE = 240
 GRUNT_WINDUP_TIME = 0.25
 GRUNT_ATTACK_TIME = 0.15
 GRUNT_RECOVER_TIME = 0.4
-GRUNT_ATTACK_REACH = 80
+GRUNT_ATTACK_REACH = 50
 # 근접병은 시야에 들어온 뒤 100px쯤 달려오므로 장애물 뒤에 이만큼 비워 착지 자리를 남긴다.
 GRUNT_GAP_MIN = 350
 GRUNT_GAP_MAX = 450

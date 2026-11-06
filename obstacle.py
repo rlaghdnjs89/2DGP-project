@@ -1,26 +1,41 @@
-from pico2d import draw_rectangle
+import random
 
 import config
+from sprite import Strip, get_image
 
-GROUND_MARK_GAP = 200
+LOW_IMAGES = ('assets/map/low_crate.png', 'assets/map/low_rock.png')
+HIGH_IMAGE = 'assets/map/high_pillar.png'
+GATE_FRAME_W = 64
+GATE_FPS = 14
+PLATFORM_IMAGE = 'assets/map/platform.png'
+PLATFORM_CAP_IMAGE = 'assets/map/platform_cap.png'
+PLATFORM_CAP_W = 32
 
-LOW_COLOR = (120, 110, 100)
-HIGH_COLOR = (70, 70, 90)
+
+def draw_strip(image, left, right, bottom, camera):
+    """가로로 이어지는 이미지를 [left, right] 구간에 깔되 화면에 보이는 부분만 그린다."""
+    x = int(max(left, camera.x))
+    end = int(min(right, camera.x + config.SCREEN_W))
+    while x < end:
+        src = x % image.w
+        w = min(image.w - src, end - x)
+        image.clip_draw_to_origin(src, 0, w, image.h, x - camera.x, bottom, w, image.h)
+        x += w
 
 
 class Obstacle:
-    def __init__(self, left, bottom, w, h, color):
+    def __init__(self, left, bottom, w, h, image_path):
         self.left = left
         self.bottom = bottom
         self.right = left + w
         self.top = bottom + h
-        self.color = color
+        self.image = get_image(image_path)
 
     def update(self, dt):
         pass
 
     def draw(self, camera):
-        draw_rectangle(self.left - camera.x, self.bottom, self.right - camera.x, self.top, *self.color, 255, True)
+        self.image.draw_to_origin(self.left - camera.x, self.bottom, self.right - self.left, self.top - self.bottom)
 
     def get_bb(self):
         return self.left, self.bottom, self.right, self.top
@@ -30,28 +45,29 @@ class Obstacle:
 
 
 def make_low_obstacle(left):
-    return Obstacle(left, config.GROUND_TOP, config.LOW_OBSTACLE_W, config.LOW_OBSTACLE_H, LOW_COLOR)
+    return Obstacle(left, config.GROUND_TOP, config.LOW_OBSTACLE_W, config.LOW_OBSTACLE_H, random.choice(LOW_IMAGES))
 
 
 def make_high_obstacle(left):
     bottom = config.GROUND_TOP + config.HIGH_OBSTACLE_CLEARANCE
     # 천장까지 막아 점프로는 넘을 수 없게 한다.
-    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, HIGH_COLOR)
+    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, HIGH_IMAGE)
 
 
 class PhaseGate:
-    COLOR = (150, 90, 230)
-
     def __init__(self, x, phase):
         self.x = x
         self.phase = phase
+        self.time = 0
+        self.sprite = Strip('assets/map/gate.png', GATE_FRAME_W)
 
     def update(self, dt):
-        pass
+        self.time += dt
 
     def draw(self, camera):
-        left, bottom, right, top = self.get_bb()
-        draw_rectangle(left - camera.x, bottom, right - camera.x, top, *self.COLOR, 255, True)
+        frame = int(self.time * GATE_FPS) % self.sprite.count
+        center_y = config.GROUND_TOP + self.sprite.image.h * config.SPRITE_SCALE / 2
+        self.sprite.draw(frame, self.x + config.GATE_W / 2 - camera.x, center_y)
 
     def get_bb(self):
         # 2단 점프로 넘어가지 못하도록 화면 위까지 막는다.
@@ -62,8 +78,6 @@ class PhaseGate:
 
 
 class Platform:
-    COLOR = (110, 90, 140)
-
     def __init__(self, left, right, top):
         self.left = left
         self.right = right
@@ -73,8 +87,14 @@ class Platform:
         pass
 
     def draw(self, camera):
-        left, bottom, right, top = self.get_bb()
-        draw_rectangle(left - camera.x, bottom, right - camera.x, top, *self.COLOR, 255, True)
+        image = get_image(PLATFORM_IMAGE)
+        bottom = self.top - image.h
+        draw_strip(image, self.left + PLATFORM_CAP_W, self.right - PLATFORM_CAP_W, bottom, camera)
+        cap = get_image(PLATFORM_CAP_IMAGE)
+        center_y = bottom + image.h / 2
+        half_cap = PLATFORM_CAP_W / 2
+        cap.draw(self.left + half_cap - camera.x, center_y, PLATFORM_CAP_W, image.h)
+        cap.composite_draw(0, 'h', self.right - half_cap - camera.x, center_y, PLATFORM_CAP_W, image.h)
 
     def get_bb(self):
         return self.left, self.top - config.PLATFORM_H, self.right, self.top
@@ -84,24 +104,17 @@ class Platform:
 
 
 class Ground:
-    def __init__(self, left, right):
+    def __init__(self, left, right, phase):
         self.left = left
         self.right = right
         self.top = config.GROUND_TOP
+        self.image = get_image(config.PHASES[phase]['ground'])
 
     def update(self, dt):
         pass
 
     def draw(self, camera):
-        left = self.left - camera.x
-        right = self.right - camera.x
-        draw_rectangle(left, 0, right, self.top, 90, 80, 70, 255, True)
-        # 배경이 없어도 달리는 속도가 보이도록 일정 간격으로 표시한다.
-        mark = self.left + (-self.left % GROUND_MARK_GAP)
-        while mark < self.right:
-            screen_x = mark - camera.x
-            draw_rectangle(screen_x, self.top - 12, screen_x + 8, self.top, 60, 52, 45, 255, True)
-            mark += GROUND_MARK_GAP
+        draw_strip(self.image, self.left, self.right, 0, camera)
 
     def get_bb(self):
         return self.left, 0, self.right, self.top

@@ -1,18 +1,20 @@
 import math
 
-from pico2d import draw_rectangle
-
 import config
 import game_world
+from sprite import OneShot, Strip
 
-GRUNT_COLORS = {'run': (170, 60, 70), 'windup': (230, 150, 60), 'attack': (250, 80, 40), 'recover': (120, 70, 80)}
+GRUNT_FRAME_W = 64
+GRUNT_FPS = {'run': 14, 'windup': 8, 'attack': 14, 'recover': 6}
+DEATH_FPS = 16
 GRUNT_NEXT = {
     'windup': ('attack', config.GRUNT_ATTACK_TIME),
     'attack': ('recover', config.GRUNT_RECOVER_TIME),
     'recover': ('run', 0),
 }
 
-FAMILIAR_COLOR = (130, 70, 190)
+FAMILIAR_FRAME_W = 48
+FAMILIAR_FPS = 12
 
 
 class Monster:
@@ -24,7 +26,11 @@ class Monster:
     def handle_collision(self, group, other):
         if group == 'sword:monster':
             other.player.on_kill(self)
-            game_world.remove_object(self)
+            self.die()
+
+    def die(self):
+        game_world.remove_object(self)
+        game_world.add_object(self.make_death(), game_world.LAYER_EFFECT)
 
 
 class Grunt(Monster):
@@ -36,23 +42,33 @@ class Grunt(Monster):
         super().__init__(x, y, player)
         self.state = 'run'
         self.timer = 0
+        self.time = 0
+        self.sprites = {name: Strip(f'assets/monster/grunt_{name}.png', GRUNT_FRAME_W) for name in GRUNT_FPS}
 
     def update(self, dt):
+        self.time += dt
         gap = self.x - self.player.x
         if self.state == 'run':
             if 0 <= gap <= config.GRUNT_ATTACK_RANGE:
                 self.state = 'windup'
                 self.timer = config.GRUNT_WINDUP_TIME
+                self.time = 0
             elif 0 <= gap <= config.GRUNT_SIGHT:
                 self.x -= config.GRUNT_SPEED * dt
         else:
             self.timer -= dt
             if self.timer <= 0:
                 self.state, self.timer = GRUNT_NEXT[self.state]
+                self.time = 0
 
     def draw(self, camera):
-        left, bottom, right, top = self.get_bb()
-        draw_rectangle(left - camera.x, bottom, right - camera.x, top, *GRUNT_COLORS[self.state], 255, True)
+        sprite = self.sprites[self.state]
+        frame = int(self.time * GRUNT_FPS[self.state]) % sprite.count
+        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y)
+
+    def make_death(self):
+        strip = Strip('assets/monster/grunt_death.png', GRUNT_FRAME_W)
+        return OneShot(strip, DEATH_FPS, self.x, self.y + config.SPRITE_CENTER_Y)
 
     def get_bb(self):
         half_w = config.GRUNT_W / 2
@@ -72,14 +88,19 @@ class Familiar(Monster):
         super().__init__(x, y, player)
         self.base_y = y
         self.time = 0
+        self.sprite = Strip('assets/monster/familiar_float.png', FAMILIAR_FRAME_W)
 
     def update(self, dt):
         self.time += dt
         self.y = self.base_y + config.FAMILIAR_FLOAT * math.sin(self.time * config.FAMILIAR_FLOAT_SPEED)
 
     def draw(self, camera):
-        left, bottom, right, top = self.get_bb()
-        draw_rectangle(left - camera.x, bottom, right - camera.x, top, *FAMILIAR_COLOR, 255, True)
+        frame = int(self.time * FAMILIAR_FPS) % self.sprite.count
+        self.sprite.draw(frame, self.x - camera.x, self.y)
+
+    def make_death(self):
+        strip = Strip('assets/monster/familiar_death.png', FAMILIAR_FRAME_W)
+        return OneShot(strip, DEATH_FPS, self.x, self.y)
 
     def get_bb(self):
         half = config.FAMILIAR_SIZE / 2
