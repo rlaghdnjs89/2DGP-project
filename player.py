@@ -144,6 +144,10 @@ class Player:
         self.s_held = False
         self.hp = config.HP_MAX
         self.invincible_timer = 0
+        self.score = 0
+        self.distance_score = 0
+        self.kills = 0
+        self.combo = 0
 
         self.run_state = Run(self)
         self.slide_state = Slide(self)
@@ -191,6 +195,11 @@ class Player:
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
         self.x += config.SCROLL_SPEED * dt
+        self.distance_score += config.DISTANCE_SCORE_RATE * dt
+        # 소수점이 쌓이도록 따로 누적하고 정수 부분만 점수로 옮긴다.
+        gained = int(self.distance_score)
+        self.distance_score -= gained
+        self.score += gained
 
         # 등가속도 공식을 그대로 써서 프레임 수와 무관하게 점프 높이가 같게 한다.
         gravity = config.GRAVITY if self.vy > 0 else config.GRAVITY * config.FALL_GRAVITY_RATIO
@@ -214,9 +223,17 @@ class Player:
             return
         self.hp -= 1
         self.invincible_timer = config.INVINCIBLE_TIME
+        self.combo = 0
         # player:ground 그룹을 먼저 처리하므로 이번 프레임의 착지 여부가 이미 반영되어 있다.
         if self.on_ground:
             self.change_state(self.hit_state)
+
+    def on_kill(self, monster):
+        self.score += monster.SCORE
+        self.kills += 1
+        self.combo += 1
+        if self.combo % config.COMBO_HEAL == 0:
+            self.hp = min(config.HP_MAX, self.hp + 1)
 
     def handle_collision(self, group, other):
         if group == 'player:ground':

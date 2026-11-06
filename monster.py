@@ -1,3 +1,5 @@
+import math
+
 from pico2d import draw_rectangle
 
 import config
@@ -10,12 +12,26 @@ GRUNT_NEXT = {
     'recover': ('run', 0),
 }
 
+FAMILIAR_COLOR = (130, 70, 190)
 
-class Grunt:
+
+class Monster:
     def __init__(self, x, y, player):
         self.x = x
         self.y = y
         self.player = player
+
+    def handle_collision(self, group, other):
+        if group == 'sword:monster':
+            other.player.on_kill(self)
+            game_world.remove_object(self)
+
+
+class Grunt(Monster):
+    SCORE = config.GRUNT_SCORE
+
+    def __init__(self, x, y, player):
+        super().__init__(x, y, player)
         self.state = 'run'
         self.timer = 0
 
@@ -41,6 +57,23 @@ class Grunt:
         reach = config.GRUNT_ATTACK_REACH if self.state == 'attack' else 0
         return self.x - half_w - reach, self.y, self.x + half_w, self.y + config.GRUNT_H
 
-    def handle_collision(self, group, other):
-        if group == 'sword:monster':
-            game_world.remove_object(self)
+
+class Familiar(Monster):
+    SCORE = config.FAMILIAR_SCORE
+
+    def __init__(self, x, y, player):
+        super().__init__(x, y, player)
+        self.base_y = y
+        self.time = 0
+
+    def update(self, dt):
+        self.time += dt
+        self.y = self.base_y + config.FAMILIAR_FLOAT * math.sin(self.time * config.FAMILIAR_FLOAT_SPEED)
+
+    def draw(self, camera):
+        left, bottom, right, top = self.get_bb()
+        draw_rectangle(left - camera.x, bottom, right - camera.x, top, *FAMILIAR_COLOR, 255, True)
+
+    def get_bb(self):
+        half = config.FAMILIAR_SIZE / 2
+        return self.x - half, self.y - half, self.x + half, self.y + half

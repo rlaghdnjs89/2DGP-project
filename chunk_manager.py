@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import config
 import game_world
-from monster import Grunt
+from monster import Familiar, Grunt
 from obstacle import Ground, make_high_obstacle, make_low_obstacle
 
 Chunk = namedtuple('Chunk', 'length obstacles pits monsters', defaults=((), (), ()))
@@ -46,7 +46,13 @@ def build_chunk_b():
     return Chunk(length, obstacles, pits)
 
 
-CHUNK_BUILDERS = {'A': build_chunk_a, 'B': build_chunk_b}
+def build_chunk_c():
+    # 낭떠러지는 일섬이 생기면 넣는다. 그전에는 점프해서 베는 평지 구간이다.
+    monsters = [(Familiar, x, config.GROUND_TOP + 200) for x in (900, 1250, 1600)]
+    return Chunk(config.CHUNK_C_LENGTH, monsters=monsters)
+
+
+CHUNK_BUILDERS = {'A': build_chunk_a, 'B': build_chunk_b, 'C': build_chunk_c}
 
 
 class ChunkManager:
