@@ -1,21 +1,31 @@
+from pico2d import SDL_KEYDOWN, SDL_KEYUP, SDLK_ESCAPE, SDLK_q
+
 import config
 import game_framework
 import game_world
 import result_mode
+import title_mode
 from background import Background
 from camera import Camera
 from chunk_manager import ChunkManager
 from player import Player
-from ui import HUD
+from sprite import get_image
+from ui import HUD, draw_text
+
+PAUSE_OPACITY = 0.6
+PAUSE_TITLE_SIZE = 60
+PAUSE_MENU_SIZE = 24
 
 player = None
 camera = None
 chunks = None
 game_over_timer = None
+paused = False
 
 
 def init():
-    global player, camera, chunks, game_over_timer
+    global player, camera, chunks, game_over_timer, paused
+    paused = False
     game_world.clear()
     player = Player()
     camera = Camera()
@@ -33,12 +43,23 @@ def init():
 
 
 def handle_event(event):
-    if game_over_timer is None:
+    global paused
+    if event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE and game_over_timer is None:
+        paused = not paused
+    elif paused:
+        if event.type == SDL_KEYDOWN and event.key == SDLK_q:
+            game_framework.change_mode(title_mode)
+        # 멈춘 동안 S를 떼어도 슬라이딩 입력이 눌린 채로 남지 않게 한다.
+        elif event.type == SDL_KEYUP:
+            player.handle_event(event)
+    elif game_over_timer is None:
         player.handle_event(event)
 
 
 def update(dt):
     global game_over_timer
+    if paused:
+        return
     if game_over_timer is not None:
         game_over_timer -= dt
         if game_over_timer <= 0:
@@ -57,3 +78,10 @@ def update(dt):
 
 def draw():
     game_world.render(camera)
+    if paused:
+        overlay = get_image('assets/ui/black.png')
+        overlay.opacify(PAUSE_OPACITY)
+        overlay.draw_to_origin(0, 0, config.SCREEN_W, config.SCREEN_H)
+        x = config.SCREEN_W / 2
+        draw_text(PAUSE_TITLE_SIZE, x, config.SCREEN_H * 0.6, '일시 정지', align=0.5)
+        draw_text(PAUSE_MENU_SIZE, x, config.SCREEN_H * 0.45, 'ESC 계속     Q 타이틀', align=0.5)
