@@ -18,6 +18,8 @@ def init():
     game_world.add_object(player, game_world.LAYER_PLAYER)
     game_world.add_object(HUD(player), game_world.LAYER_UI)
     game_world.add_collision_pair('player:ground', player, None)
+    # 같은 프레임에 닿으면 베기가 이기도록 피격 그룹보다 먼저 처리한다.
+    game_world.add_collision_pair('sword:monster', None, None)
     game_world.add_collision_pair('player:obstacle', player, None)
     game_world.add_collision_pair('player:monster', player, None)
 

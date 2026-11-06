@@ -25,6 +25,12 @@ HP_MAX = 3
 INVINCIBLE_TIME = 1.5
 HIT_STUN_TIME = 0.3
 
+SLASH_TIME = 0.25
+# 판정이 살아 있는 시간. 이후 SLASH_TIME까지는 다음 베기를 막는 후딜레이다.
+SWORD_TIME = 0.1
+SWORD_REACH = 140
+SWORD_H = 140
+
 CHUNK_A_LENGTH = 2400
 CHUNK_B_LENGTH = 2800
 # 청크가 이어지는 곳에서도 장애물 간격이 좁아지지 않게 양 끝을 비운다.

@@ -1,6 +1,8 @@
-from pico2d import SDL_KEYDOWN, SDL_KEYUP, SDLK_s, SDLK_w, draw_rectangle
+from pico2d import (SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_s, SDLK_w,
+                    draw_rectangle)
 
 import config
+import game_world
 
 
 class Run:
@@ -16,6 +18,8 @@ class Run:
         player = self.player
         if player.jump_buffer > 0:
             player.jump()
+        elif player.try_slash():
+            pass
         elif player.slide_buffer > 0 and player.s_held:
             player.change_state(player.slide_state)
         elif not player.on_ground:
@@ -36,6 +40,8 @@ class Slide:
     def update(self, dt):
         player = self.player
         self.timer += dt
+        # 슬라이딩 중에 누른 공격이 끝난 뒤에 뒤늦게 나가지 않게 버린다.
+        player.slash_buffer = 0
         if not player.on_ground:
             player.change_state(player.jump_state)
         elif not player.s_held or self.timer >= config.SLIDE_MAX_TIME:
@@ -60,6 +66,51 @@ class Jump:
         elif player.jump_buffer > 0 and player.air_jumps > 0:
             player.air_jumps -= 1
             player.jump()
+        else:
+            player.try_slash()
+
+
+class Slash:
+    COLOR = (225, 225, 240)
+
+    def __init__(self, player):
+        self.player = player
+        self.timer = 0
+        self.prev_state = None
+
+    def enter(self):
+        self.timer = 0
+
+    def update(self, dt):
+        player = self.player
+        self.timer += dt
+        # 왼손과 오른손 조작을 분리하므로 베는 중에도 점프와 슬라이딩은 그대로 받는다.
+        self.prev_state.update(dt)
+        if player.state is self and self.timer >= config.SLASH_TIME:
+            player.change_state(self.prev_state)
+
+
+class Sword:
+    def __init__(self, player):
+        self.player = player
+        self.timer = config.SWORD_TIME
+
+    def update(self, dt):
+        self.timer -= dt
+        if self.timer <= 0:
+            game_world.remove_object(self)
+
+    def draw(self, camera):
+        left, bottom, right, top = self.get_bb()
+        draw_rectangle(left - camera.x, bottom, right - camera.x, top, 240, 240, 255, 255, True)
+
+    def get_bb(self):
+        left = self.player.x + config.PLAYER_W / 2
+        bottom = self.player.y + (config.PLAYER_H - config.SWORD_H) / 2
+        return left, bottom, left + config.SWORD_REACH, bottom + config.SWORD_H
+
+    def handle_collision(self, group, other):
+        pass
 
 
 class Hit:
@@ -89,6 +140,7 @@ class Player:
         self.air_jumps = config.AIR_JUMPS
         self.jump_buffer = 0
         self.slide_buffer = 0
+        self.slash_buffer = 0
         self.s_held = False
         self.hp = config.HP_MAX
         self.invincible_timer = 0
@@ -96,6 +148,7 @@ class Player:
         self.run_state = Run(self)
         self.slide_state = Slide(self)
         self.jump_state = Jump(self)
+        self.slash_state = Slash(self)
         self.hit_state = Hit(self)
         self.state = self.run_state
 
@@ -108,6 +161,17 @@ class Player:
         self.jump_buffer = 0
         self.change_state(self.jump_state)
 
+    def try_slash(self):
+        if self.slash_buffer <= 0 or self.state is self.slash_state:
+            return False
+        self.slash_buffer = 0
+        self.slash_state.prev_state = self.state
+        self.change_state(self.slash_state)
+        sword = Sword(self)
+        game_world.add_object(sword, game_world.LAYER_EFFECT)
+        game_world.add_collision_pair('sword:monster', sword, None)
+        return True
+
     def handle_event(self, event):
         if event.type == SDL_KEYDOWN and event.key == SDLK_w:
             self.jump_buffer = config.INPUT_BUFFER
@@ -116,11 +180,14 @@ class Player:
             self.slide_buffer = config.INPUT_BUFFER
         elif event.type == SDL_KEYUP and event.key == SDLK_s:
             self.s_held = False
+        elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT:
+            self.slash_buffer = config.INPUT_BUFFER
 
     def update(self, dt):
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
         self.slide_buffer = max(0, self.slide_buffer - dt)
+        self.slash_buffer = max(0, self.slash_buffer - dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
         self.x += config.SCROLL_SPEED * dt

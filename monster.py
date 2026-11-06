@@ -1,6 +1,7 @@
 from pico2d import draw_rectangle
 
 import config
+import game_world
 
 GRUNT_COLORS = {'run': (170, 60, 70), 'windup': (230, 150, 60), 'attack': (250, 80, 40), 'recover': (120, 70, 80)}
 GRUNT_NEXT = {
@@ -41,4 +42,5 @@ class Grunt:
         return self.x - half_w - reach, self.y, self.x + half_w, self.y + config.GRUNT_H
 
     def handle_collision(self, group, other):
-        pass
+        if group == 'sword:monster':
+            game_world.remove_object(self)

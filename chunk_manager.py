@@ -73,6 +73,7 @@ class ChunkManager:
         self.objects.append(monster)
         game_world.add_object(monster, game_world.LAYER_MONSTER)
         game_world.add_collision_pair('player:monster', None, monster)
+        game_world.add_collision_pair('sword:monster', None, monster)
 
     def spawn_chunk(self, chunk):
         built = CHUNK_BUILDERS[chunk]()

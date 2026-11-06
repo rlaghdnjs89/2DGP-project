@@ -2,9 +2,10 @@ LAYER_PLAYER = 0
 # 플레이어가 구덩이로 떨어질 때 지면 뒤로 가려지도록 지면을 앞에 그린다.
 LAYER_MAP = 1
 LAYER_MONSTER = 2
-LAYER_UI = 3
+LAYER_EFFECT = 3
+LAYER_UI = 4
 
-layers = [[], [], [], []]
+layers = [[], [], [], [], []]
 collision_pairs = {}
 
 
@@ -31,7 +32,7 @@ def clear():
 
 def update(dt):
     for layer in layers:
-        for obj in layer:
+        for obj in layer[:]:
             obj.update(dt)
 
 
@@ -58,8 +59,9 @@ def collide(a, b):
 
 def handle_collisions():
     for group, (group_a, group_b) in collision_pairs.items():
-        for a in group_a:
-            for b in group_b:
+        # 처리 중에 처치된 객체가 그룹에서 빠져도 순회가 어긋나지 않게 복사본을 돈다.
+        for a in group_a[:]:
+            for b in group_b[:]:
                 if collide(a, b):
                     a.handle_collision(group, b)
                     b.handle_collision(group, a)
