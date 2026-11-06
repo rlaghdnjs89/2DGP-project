@@ -3,7 +3,7 @@ from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, S
 
 import config
 import game_world
-from sprite import Effect, Strip
+from sprite import Effect, Strip, load_fx_sheet
 
 FRAME_W = 64
 ANIMATION_FPS = {'run': 16, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'cut': 16}
@@ -11,6 +11,9 @@ OTHER_BUTTON = {SDL_BUTTON_LEFT: SDL_BUTTON_RIGHT, SDL_BUTTON_RIGHT: SDL_BUTTON_
 # 시트에서 검기가 빠르게 끝나도록 빨리 재생한다.
 SLASH_FX_SPEED = 1.6
 SLASH_FX_Y = 8
+KILL_FX_SPEED = 1.5
+KILL_FX_SCALE = 2
+DASH_KILL_FX_SPEED = 2
 
 
 class Run:
@@ -175,6 +178,8 @@ class Hit:
     def update(self, dt):
         player = self.player
         self.timer += dt
+        # 맞은 순간 뒤로 밀렸다가 경직이 풀릴 때쯤 다시 달리는 속도를 되찾는다.
+        player.x -= config.KNOCKBACK_SPEED * max(0, 1 - self.timer / config.HIT_STUN_TIME) * dt
         if self.timer >= config.HIT_STUN_TIME:
             player.change_state(player.run_state if player.on_ground else player.jump_state)
 
@@ -208,6 +213,8 @@ class Player:
         self.bullet_timer = 0
         self.press_times = {}
         self.animation_time = 0
+        self.hit_stop = 0
+        self.trail = []
         self.sprites = {name: Strip(f'assets/player/{name}.png', FRAME_W) for name in ANIMATION_FPS}
 
         self.run_state = Run(self)
@@ -313,6 +320,7 @@ class Player:
         self.add_score(config.CUT_SCORE)
         self.change_state(self.cut_state)
         self.camera.shake(config.CUT_SHAKE_TIME, config.CUT_SHAKE_AMP)
+        self.freeze(config.CUT_HIT_STOP)
         center_x = self.camera.base_x + config.SCREEN_W / 2
         game_world.add_object(Effect('impact-frame', center_x, config.SCREEN_H / 2, scale=config.IMPACT_FRAME_SCALE), game_world.LAYER_EFFECT)
 
@@ -336,8 +344,14 @@ class Player:
         elif event.type == SDL_KEYDOWN and event.key == SDLK_SPACE:
             self.dash_buffer = config.INPUT_BUFFER
 
+    def freeze(self, time):
+        self.hit_stop = max(self.hit_stop, time)
+
     def update(self, dt):
         self.animation_time += dt
+        self.trail = [(x, y, age + dt) for x, y, age in self.trail if age + dt < config.TRAIL_TIME]
+        if self.state is self.dash_state:
+            self.trail.append((self.x, self.y, 0))
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
         self.slide_buffer = max(0, self.slide_buffer - dt)
@@ -380,10 +394,17 @@ class Player:
         return self.state.ANIMATION
 
     def draw(self, camera):
+        dash_sprite = self.sprites['dash']
+        for x, y, age in self.trail:
+            opacity = config.TRAIL_OPACITY * (1 - age / config.TRAIL_TIME)
+            dash_sprite.draw(0, x - camera.x, y + config.SPRITE_CENTER_Y - camera.y, opacity)
+
         name = self.animation_name()
         sprite = self.sprites[name]
         frame = int(self.animation_time * ANIMATION_FPS[name]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y)
+        blink = self.invincible_timer > 0 and int(self.invincible_timer * config.BLINK_HZ) % 2 == 0
+        opacity = config.BLINK_OPACITY if blink else 1
+        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y, opacity)
 
     def get_bb(self):
         half_w = config.PLAYER_W / 2
@@ -401,6 +422,8 @@ class Player:
         self.hp -= 1
         self.invincible_timer = config.INVINCIBLE_TIME
         self.combo = 0
+        self.freeze(config.HURT_HIT_STOP)
+        self.camera.shake(config.HURT_SHAKE_TIME, config.HURT_SHAKE_AMP)
         # player:ground 그룹을 먼저 처리하므로 이번 프레임의 착지 여부가 이미 반영되어 있다.
         if self.on_ground:
             self.change_state(self.hit_state)
@@ -412,12 +435,26 @@ class Player:
         # 진입 순간 총점이 뛰지 않도록 얻는 시점에 배율을 곱한다 (Q1).
         self.score += points * config.PHASES[self.phase]['score_rate']
 
+    def play_kill_feedback(self, monster, by_dash):
+        y = monster.dash_y() + config.PLAYER_H / 2
+        if by_dash:
+            self.freeze(config.DASH_HIT_STOP)
+            self.camera.shake(config.DASH_SHAKE_TIME, config.DASH_SHAKE_AMP)
+            effect = Effect('crit-hit', monster.x, y, speed=DASH_KILL_FX_SPEED)
+        else:
+            hit = load_fx_sheet('sword-slash')[1]['meta']['pixelfx']['act']['hits'][0]
+            self.freeze(hit['freeze'] * config.SLASH_HIT_STOP_RATIO)
+            self.camera.shake(hit['shake'], hit['amp'] * config.SPRITE_SCALE)
+            effect = Effect('hit-spark', monster.x, y, speed=KILL_FX_SPEED, scale=KILL_FX_SCALE)
+        game_world.add_object(effect, game_world.LAYER_EFFECT)
+
     def on_parry(self):
         self.add_score(config.PARRY_SCORE)
         self.gauge = min(config.GAUGE_MAX, self.gauge + config.GAUGE_PARRY)
 
     def on_kill(self, monster, by_dash=False, bonus=0):
         self.add_score(monster.SCORE + bonus + (monster.DASH_BONUS if by_dash else 0))
+        self.play_kill_feedback(monster, by_dash)
         self.gauge = min(config.GAUGE_MAX, self.gauge + (config.GAUGE_DASH_KILL if by_dash else config.GAUGE_SLASH_KILL))
         self.kills += 1
         self.combo += 1

@@ -63,6 +63,11 @@ def update(dt):
     global game_over_timer
     if paused:
         return
+    camera.update_shake(dt)
+    # 멈춤 동안 로직만 쉬고 입력은 handle_event로 계속 받아 버퍼에 남는다.
+    if player.hit_stop > 0:
+        player.hit_stop -= dt
+        return
     if game_over_timer is not None:
         game_over_timer -= dt
         if game_over_timer <= 0:
