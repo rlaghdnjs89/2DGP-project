@@ -33,3 +33,8 @@ LOW_OBSTACLE_H = 60
 HIGH_OBSTACLE_W = 150
 # 슬라이딩 높이(50)는 지나가고 서 있는 높이(100)는 부딪힌다.
 HIGH_OBSTACLE_CLEARANCE = 70
+
+# 1단 점프 체공 거리는 약 250px, 2단 점프는 약 440px다.
+PIT_W_SHORT = 160
+PIT_W_LONG = 360
+PIT_CHANCE = 0.3

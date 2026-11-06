@@ -28,6 +28,9 @@ def update(dt):
     game_world.handle_collisions()
     camera.follow(player)
     chunks.update(camera)
+    # 게임 오버와 결과 화면이 생기기 전까지 추락하면 바로 다시 시작한다.
+    if player.get_bb()[3] < 0:
+        init()
 
 
 def draw():

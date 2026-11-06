@@ -14,7 +14,7 @@ def build_chunk_a():
         (make_low_obstacle, random.randint(config.CHUNK_MARGIN, first_end)),
         (make_low_obstacle, random.randint(length // 2 + half_gap, second_end)),
     ]
-    return length, obstacles
+    return length, obstacles, []
 
 
 def build_chunk_b():
@@ -22,13 +22,18 @@ def build_chunk_b():
     kinds = [(make_low_obstacle, config.LOW_OBSTACLE_W), (make_high_obstacle, config.HIGH_OBSTACLE_W)]
     random.shuffle(kinds)
     obstacles = []
+    pits = []
     x = config.CHUNK_MARGIN
     # 낮은 장애물과 높은 장애물을 번갈아 놓아 점프와 슬라이딩을 교대로 요구한다.
-    while x + config.HIGH_OBSTACLE_W <= length - config.CHUNK_MARGIN:
-        make, width = kinds[len(obstacles) % 2]
-        obstacles.append((make, x))
+    while x + config.PIT_W_LONG <= length - config.CHUNK_MARGIN:
+        if random.random() < config.PIT_CHANCE:
+            width = random.choice((config.PIT_W_SHORT, config.PIT_W_LONG))
+            pits.append((x, width))
+        else:
+            make, width = kinds[len(obstacles) % 2]
+            obstacles.append((make, x))
         x += width + random.randint(config.OBSTACLE_GAP_MIN, config.OBSTACLE_GAP_MAX)
-    return length, obstacles
+    return length, obstacles, pits
 
 
 CHUNK_BUILDERS = {'A': build_chunk_a, 'B': build_chunk_b}
@@ -54,8 +59,12 @@ class ChunkManager:
         game_world.add_collision_pair('player:obstacle', None, obstacle)
 
     def spawn_chunk(self, chunk):
-        length, obstacles = CHUNK_BUILDERS[chunk]()
-        self.add_ground(self.end_x, self.end_x + length)
+        length, obstacles, pits = CHUNK_BUILDERS[chunk]()
+        ground_left = self.end_x
+        for offset, width in pits:
+            self.add_ground(ground_left, self.end_x + offset)
+            ground_left = self.end_x + offset + width
+        self.add_ground(ground_left, self.end_x + length)
         for make, offset in obstacles:
             self.add_obstacle(make(self.end_x + offset))
         self.end_x += length
