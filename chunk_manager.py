@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import config
 import game_world
-from monster import Familiar, Grunt
+from monster import Familiar, Grunt, Mage
 from obstacle import Ground, PhaseGate, Platform, Wall, make_high_obstacle, make_low_obstacle
 
 Chunk = namedtuple('Chunk', 'length obstacles pits monsters platforms wall', defaults=((), (), (), (), None))
@@ -53,6 +53,13 @@ def build_chunk_c():
     return Chunk(start + config.CLIFF_W + config.CHUNK_MARGIN, pits=pits, monsters=monsters)
 
 
+def build_chunk_d():
+    layout = config.CHUNK_D
+    obstacles = [(make_high_obstacle, layout['high_obstacle'])]
+    monsters = [(Mage, x, config.GROUND_TOP + y) for x, y in layout['mages']]
+    return Chunk(layout['length'], obstacles, monsters=monsters, platforms=layout['platforms'])
+
+
 def build_island(name):
     layout = config.ISLAND_CHUNKS[name]
     monsters = [(Familiar, x, config.GROUND_TOP + y) for x, y in layout['familiars']]
@@ -71,6 +78,7 @@ CHUNK_BUILDERS = {
     'A': build_chunk_a,
     'B': build_chunk_b,
     'C': build_chunk_c,
+    'D': build_chunk_d,
     'E1': lambda: build_island('E1'),
     'E2': lambda: build_island('E2'),
     'E3': lambda: build_island('E3'),
@@ -96,7 +104,7 @@ class ChunkManager:
         game_world.add_collision_pair('player:ground', None, ground)
 
     def add_platform(self, left, right, height):
-        platform = Platform(left, right, config.GROUND_TOP + height)
+        platform = Platform(left, right, config.GROUND_TOP + height, self.phase)
         self.objects.append(platform)
         game_world.add_object(platform, game_world.LAYER_MAP)
         game_world.add_collision_pair('player:ground', None, platform)

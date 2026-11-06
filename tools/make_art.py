@@ -537,6 +537,80 @@ def make_familiar():
     save(strip(death), 'monster/familiar_death.png')
 
 
+# 탄막 마법사: 불꽃 눈의 후드 로브, 구슬 지팡이 ---------------------------------------
+
+M = {
+    'outline': hex_color('14081c'),
+    'robe': hex_color('b0442e'),
+    'robe_light': hex_color('e0703f'),
+    'robe_dark': hex_color('6f2530'),
+    'hood': hex_color('4a1c34'),
+    'face': hex_color('1c0d22'),
+    'eye': hex_color('ffe16a'),
+    'staff': hex_color('8a6036'),
+    'orb': hex_color('ffb347'),
+    'orb_core': hex_color('fff3c4'),
+    'trim': hex_color('e9b949'),
+}
+
+
+def draw_mage(bob, staff_lift, glow):
+    img = new_frame()
+    cx, base = CENTER_X, FEET_Y
+    hem = base
+    waist = base - 22 + bob
+    shoulder = base - 34 + bob
+    polygon(img, [(cx - 15, hem), (cx + 15, hem), (cx + 8, waist), (cx + 7, shoulder), (cx - 7, shoulder), (cx - 8, waist)], M['robe'])
+    polygon(img, [(cx + 15, hem), (cx + 5, hem), (cx + 3, shoulder), (cx + 7, shoulder), (cx + 8, waist)], M['robe_dark'])
+    polygon(img, [(cx - 15, hem), (cx - 9, hem), (cx - 5, shoulder), (cx - 7, shoulder), (cx - 8, waist)], M['robe_light'])
+    rect(img, cx - 14, hem - 3, cx + 15, hem - 1, M['trim'])
+    rect(img, cx - 8, waist, cx + 9, waist + 2, M['trim'])
+    head_y = shoulder - 6
+    disc(img, cx, head_y, 8, M['hood'])
+    polygon(img, [(cx - 8, head_y - 2), (cx - 2, head_y - 16), (cx + 7, head_y - 3)], M['hood'])
+    disc(img, cx + 2, head_y + 1, 5, M['face'])
+    rect(img, cx + 1, head_y, cx + 3, head_y + 2, M['eye'])
+    rect(img, cx + 5, head_y, cx + 7, head_y + 2, M['eye'])
+
+    hand = (cx + 13, shoulder + 7 - staff_lift)
+    capsule(img, (cx + 4, shoulder + 3), hand, 2.6, 2.2, M['robe'])
+    capsule(img, (hand[0], hand[1] + 15), (hand[0], hand[1] - 18), 1.1, 1.1, M['staff'])
+    orb = (hand[0], hand[1] - 22)
+    if glow:
+        disc(img, orb[0], orb[1], 7.5, mix(M['orb'], (120, 40, 20), 0.6))
+    disc(img, orb[0], orb[1], 5, M['orb'])
+    disc(img, orb[0], orb[1], 2.5, M['orb_core'])
+    return flipped(outlined(img, M['outline']))
+
+
+def make_mage():
+    idle = [draw_mage(math.sin(i / 4 * math.pi * 2) * 1.2, 0, False) for i in range(4)]
+    save(strip(idle), 'monster/mage_idle.png')
+    cast = [draw_mage(-1, 4, True), draw_mage(-2, 8, True), draw_mage(-1, 8, True)]
+    save(strip(cast), 'monster/mage_cast.png')
+    body = draw_mage(0, 0, False)
+    death = [
+        tint_all(body, (255, 240, 210)),
+        dissolve(body, 0.2, 31, (255, 200, 150), 4),
+        dissolve(body, 0.45, 32, (240, 130, 80), 9),
+        dissolve(body, 0.7, 33, (180, 80, 60), 15),
+        dissolve(body, 0.9, 34, (110, 50, 60), 21),
+    ]
+    save(strip(death), 'monster/mage_death.png')
+
+    for name, glow_c, body_c, core_c in (('bullet', 'a8341c', 'ff7a2f', 'fff0b0'), ('bullet_reflected', '1f6fb0', '5fd8ff', 'f0fcff')):
+        frames = []
+        for i in range(4):
+            img = new_frame(16, 16)
+            disc(img, 8, 8, 7.5, hex_color(glow_c))
+            disc(img, 8, 8, 5.2, hex_color(body_c))
+            disc(img, 8, 8, 2.8, hex_color(core_c))
+            a = i / 4 * math.pi * 2
+            rect(img, 8 + math.cos(a) * 5, 8 + math.sin(a) * 5, 8 + math.cos(a) * 5 + 2, 8 + math.sin(a) * 5 + 2, hex_color(core_c))
+            frames.append(img)
+        save(strip(frames), f'monster/{name}.png')
+
+
 # 배경 --------------------------------------------------------------------
 
 BG_W = 640
@@ -838,8 +912,11 @@ def make_map():
     save(brick_ground(rng, '4f4660', '443c54', '5a506e', '2a2438', '6f8a58', '9ab86f'), 'map/ground_phase1.png')
     save(brick_ground(rng, '453690', '3a2c80', '5040a4', '221a50', '8f78f0', 'e9dcff', accent='a890ff'), 'map/ground_phase2.png')
     platform, cap = make_platform(rng, '8f78f0', 'e9dcff', '55449a', '352a70')
-    save(platform, 'map/platform.png')
-    save(cap, 'map/platform_cap.png')
+    save(platform, 'map/platform_phase2.png')
+    save(cap, 'map/platform_cap_phase2.png')
+    platform, cap = make_platform(rng, '6f8a58', '9ab86f', '5a506e', '3a3350')
+    save(platform, 'map/platform_phase1.png')
+    save(cap, 'map/platform_cap_phase1.png')
 
 
 # 장애물 --------------------------------------------------------------------
@@ -1018,6 +1095,7 @@ if __name__ == '__main__':
     make_player()
     make_grunt()
     make_familiar()
+    make_mage()
     make_backgrounds()
     make_map()
     make_obstacles()

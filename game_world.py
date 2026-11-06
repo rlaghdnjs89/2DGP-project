@@ -25,6 +25,14 @@ def remove_object(obj):
             group_b.remove(obj)
 
 
+def remove_collision(group, obj):
+    group_a, group_b = collision_pairs[group]
+    if obj in group_a:
+        group_a.remove(obj)
+    if obj in group_b:
+        group_b.remove(obj)
+
+
 def clear():
     for layer in layers:
         layer.clear()

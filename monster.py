@@ -2,6 +2,7 @@ import math
 
 import config
 import game_world
+from bullet import Bullet
 from sprite import OneShot, Strip
 
 GRUNT_FRAME_W = 64
@@ -13,6 +14,8 @@ GRUNT_NEXT = {
     'recover': ('run', 0),
 }
 
+MAGE_FRAME_W = 64
+MAGE_FPS = {'idle': 6, 'cast': 8}
 FAMILIAR_FRAME_W = 48
 FAMILIAR_FPS = 12
 
@@ -112,3 +115,66 @@ class Familiar(Monster):
 
     def dash_y(self):
         return self.y - config.PLAYER_H / 2
+
+
+class Mage(Monster):
+    SCORE = config.MAGE_SCORE
+    DASH_BONUS = 0
+    AIRBORNE = False
+
+    def __init__(self, x, y, player):
+        super().__init__(x, y, player)
+        self.state = 'idle'
+        self.time = 0
+        self.timer = 0
+        self.sprites = {name: Strip(f'assets/monster/mage_{name}.png', MAGE_FRAME_W) for name in MAGE_FPS}
+        game_world.add_collision_pair('reflected:mage', None, self)
+
+    def muzzle_y(self):
+        return self.y + config.MAGE_MUZZLE_Y
+
+    def fire(self):
+        bullet = Bullet(self.x - config.MAGE_W / 2, self.muzzle_y(), self.player.x, self.player.y + config.MAGE_MUZZLE_Y, self)
+        game_world.add_object(bullet, game_world.LAYER_EFFECT)
+        game_world.add_collision_pair('player:bullet', None, bullet)
+        game_world.add_collision_pair('sword:bullet', None, bullet)
+
+    def update(self, dt):
+        self.time += dt
+        # 불릿 타임에는 공격이 멈춘다 (CT-3).
+        if self.player.bullet_wall or not 0 < self.x - self.player.x <= config.MAGE_SIGHT:
+            return
+        self.timer -= dt
+        if self.timer > 0:
+            return
+        if self.state == 'idle':
+            self.state = 'cast'
+            self.timer = config.MAGE_CAST_TIME
+        else:
+            self.fire()
+            self.state = 'idle'
+            self.timer = config.MAGE_FIRE_INTERVAL - config.MAGE_CAST_TIME
+        self.time = 0
+
+    def draw(self, camera):
+        sprite = self.sprites[self.state]
+        frame = int(self.time * MAGE_FPS[self.state]) % sprite.count
+        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y)
+
+    def make_death(self):
+        strip = Strip('assets/monster/mage_death.png', MAGE_FRAME_W)
+        return OneShot(strip, DEATH_FPS, self.x, self.y + config.SPRITE_CENTER_Y)
+
+    def get_bb(self):
+        half_w = config.MAGE_W / 2
+        return self.x - half_w, self.y, self.x + half_w, self.y + config.MAGE_H
+
+    def dash_y(self):
+        return self.y
+
+    def handle_collision(self, group, other):
+        if group == 'reflected:mage':
+            self.player.on_kill(self, bonus=config.MAGE_REFLECT_BONUS)
+            self.die()
+        else:
+            super().handle_collision(group, other)

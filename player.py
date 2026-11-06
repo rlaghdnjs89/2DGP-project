@@ -249,6 +249,7 @@ class Player:
         game_world.add_object(self.sword, game_world.LAYER_EFFECT)
         game_world.add_object(Effect('sword-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
         game_world.add_collision_pair('sword:monster', self.sword, None)
+        game_world.add_collision_pair('sword:bullet', self.sword, None)
 
     def find_dash_target(self):
         def dist2(monster):
@@ -389,8 +390,13 @@ class Player:
         h = config.SLIDE_H if self.state is self.slide_state else config.PLAYER_H
         return self.x - half_w, self.y, self.x + half_w, self.y + h
 
+    def is_invincible(self):
+        # 불릿 타임에는 장벽 외의 피해를 받지 않는다. 장벽에 닿으면 불릿 타임을 먼저 끝낸다.
+        return (self.invincible_timer > 0 or self.bullet_wall is not None
+                or self.state is self.dash_state or self.state is self.cut_state)
+
     def take_damage(self):
-        if self.invincible_timer > 0 or self.state is self.dash_state or self.state is self.cut_state:
+        if self.is_invincible():
             return
         self.hp -= 1
         self.invincible_timer = config.INVINCIBLE_TIME
@@ -399,8 +405,12 @@ class Player:
         if self.on_ground:
             self.change_state(self.hit_state)
 
-    def on_kill(self, monster, by_dash=False):
-        self.score += monster.SCORE + (monster.DASH_BONUS if by_dash else 0)
+    def on_parry(self):
+        self.score += config.PARRY_SCORE
+        self.gauge = min(config.GAUGE_MAX, self.gauge + config.GAUGE_PARRY)
+
+    def on_kill(self, monster, by_dash=False, bonus=0):
+        self.score += monster.SCORE + bonus + (monster.DASH_BONUS if by_dash else 0)
         self.gauge = min(config.GAUGE_MAX, self.gauge + (config.GAUGE_DASH_KILL if by_dash else config.GAUGE_SLASH_KILL))
         self.kills += 1
         self.combo += 1
@@ -424,5 +434,5 @@ class Player:
             # 입력하지 못한 채 닿으면 절단 기회는 끝난다. 무적이면 HP는 그대로이고 장벽만 부서진다 (Q4).
             self.bullet_wall = None
             self.take_damage()
-        elif not self.bullet_wall:
+        else:
             self.take_damage()

@@ -37,9 +37,12 @@ def init():
     game_world.add_collision_pair('player:gate', player, None)
     # 같은 프레임에 닿으면 베기가 이기도록 피격 그룹보다 먼저 처리한다.
     game_world.add_collision_pair('sword:monster', None, None)
+    game_world.add_collision_pair('sword:bullet', None, None)
     game_world.add_collision_pair('player:obstacle', player, None)
     game_world.add_collision_pair('player:monster', player, None)
+    game_world.add_collision_pair('player:bullet', player, None)
     game_world.add_collision_pair('player:wall', player, None)
+    game_world.add_collision_pair('reflected:mage', None, None)
 
 
 def handle_event(event):

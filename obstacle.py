@@ -9,8 +9,6 @@ LOW_IMAGES = ('assets/map/low_crate.png', 'assets/map/low_rock.png')
 HIGH_IMAGE = 'assets/map/high_pillar.png'
 GATE_FRAME_W = 64
 GATE_FPS = 14
-PLATFORM_IMAGE = 'assets/map/platform.png'
-PLATFORM_CAP_IMAGE = 'assets/map/platform_cap.png'
 PLATFORM_CAP_W = 32
 WALL_TOP_IMAGE = 'assets/map/wall_top.png'
 WALL_BOTTOM_IMAGE = 'assets/map/wall_bottom.png'
@@ -144,7 +142,7 @@ class Wall:
 
     def cut(self):
         self.state = 'cut'
-        game_world.collision_pairs['player:wall'][1].remove(self)
+        game_world.remove_collision('player:wall', self)
 
     def shatter(self):
         game_world.remove_object(self)
@@ -154,23 +152,24 @@ class Wall:
 
 
 class Platform:
-    def __init__(self, left, right, top):
+    def __init__(self, left, right, top, phase):
         self.left = left
         self.right = right
         self.top = top
+        self.image = get_image(config.PHASES[phase]['platform'])
+        self.cap = get_image(config.PHASES[phase]['platform_cap'])
 
     def update(self, dt):
         pass
 
     def draw(self, camera):
-        image = get_image(PLATFORM_IMAGE)
-        bottom = self.top - image.h
-        draw_strip(image, self.left + PLATFORM_CAP_W, self.right - PLATFORM_CAP_W, bottom, camera)
-        cap = get_image(PLATFORM_CAP_IMAGE)
-        center_y = bottom + image.h / 2 - camera.y
+        h = self.image.h
+        bottom = self.top - h
+        draw_strip(self.image, self.left + PLATFORM_CAP_W, self.right - PLATFORM_CAP_W, bottom, camera)
+        center_y = bottom + h / 2 - camera.y
         half_cap = PLATFORM_CAP_W / 2
-        cap.draw(self.left + half_cap - camera.x, center_y, PLATFORM_CAP_W, image.h)
-        cap.composite_draw(0, 'h', self.right - half_cap - camera.x, center_y, PLATFORM_CAP_W, image.h)
+        self.cap.draw(self.left + half_cap - camera.x, center_y, PLATFORM_CAP_W, h)
+        self.cap.composite_draw(0, 'h', self.right - half_cap - camera.x, center_y, PLATFORM_CAP_W, h)
 
     def get_bb(self):
         return self.left, self.top - config.PLATFORM_H, self.right, self.top

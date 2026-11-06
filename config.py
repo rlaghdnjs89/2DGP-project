@@ -28,10 +28,12 @@ SLIDE_H = PLAYER_H * 0.5
 PHASES = (
     {'name': '무너지는 고성', 'score': 0, 'gravity': 1.0,
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
-     'ground': 'assets/map/ground_phase1.png'},
+     'ground': 'assets/map/ground_phase1.png',
+     'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png'},
     {'name': '무중력 균열', 'score': 3000, 'gravity': 0.5,
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
-     'ground': 'assets/map/ground_phase2.png'},
+     'ground': 'assets/map/ground_phase2.png',
+     'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png'},
 )
 PHASE_INVINCIBLE_TIME = 1.0
 GATE_W = 40
@@ -125,7 +127,14 @@ ISLAND_CHUNKS = {
         'familiars': ((900, 260), (1125, 400), (1350, 280), (1850, 260), (2320, 240)),
     },
 }
-PHASE_CHUNKS = (('A', 'B', 'C'), ('E1', 'E2', 'E3'))
+# 청크 D. x는 청크 시작 기준, 높은 장애물로 슬라이딩을 요구한 뒤 지면과 발판의 마법사를 만난다.
+CHUNK_D = {
+    'length': 2600,
+    'high_obstacle': 500,
+    'platforms': ((1500, 1900, 130),),
+    'mages': ((1150, 0), (1700, 130)),
+}
+PHASE_CHUNKS = (('A', 'B', 'C', 'D'), ('E1', 'E2', 'E3'))
 # 지면에서 싸우는 페이즈. 나머지 페이즈의 장벽 청크에는 근접병 대신 사역마를 둔다.
 GROUND_FIGHT_PHASES = (0,)
 
@@ -149,6 +158,21 @@ FAMILIAR_FLOAT = 12
 FAMILIAR_FLOAT_SPEED = 2.5
 FAMILIAR_SCORE = 150
 FAMILIAR_DASH_BONUS = 50
+
+MAGE_W = 60
+MAGE_H = 100
+MAGE_SIGHT = 900
+MAGE_FIRE_INTERVAL = 2.0
+MAGE_CAST_TIME = 0.4
+# 탄 높이를 슬라이딩 높이(50)보다 위에 두어 슬라이딩으로도 피할 수 있게 한다.
+MAGE_MUZZLE_Y = 80
+MAGE_SCORE = 200
+MAGE_REFLECT_BONUS = 100
+BULLET_SPEED = 300
+REFLECTED_SPEED = 900
+BULLET_SIZE = 28
+PARRY_SCORE = 50
+GAUGE_PARRY = 5
 
 COMBO_HEAL = 10
 DISTANCE_SCORE_RATE = 10
