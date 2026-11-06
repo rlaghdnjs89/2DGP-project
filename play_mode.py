@@ -44,7 +44,7 @@ def update(dt):
 
     game_world.update(dt)
     game_world.handle_collisions()
-    camera.follow(player)
+    camera.follow(player, dt)
     chunks.update(camera)
     if game_over_timer is None and (player.hp <= 0 or player.get_bb()[3] < 0):
         game_over_timer = config.GAME_OVER_TIME
