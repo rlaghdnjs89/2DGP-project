@@ -2,6 +2,7 @@ import random
 
 import config
 import game_world
+import sound
 from sprite import OneShot, Strip, get_image
 from ui import draw_text
 
@@ -144,6 +145,7 @@ class Wall:
         game_world.remove_collision('player:wall', self)
 
     def shatter(self):
+        sound.play('wall_break')
         game_world.remove_object(self)
         strip = Strip(WALL_BREAK_IMAGE, WALL_BREAK_FRAME_W)
         center = (self.x + config.WALL_W / 2, config.GROUND_TOP + strip.image.h * config.SPRITE_SCALE / 2)

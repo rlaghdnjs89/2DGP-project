@@ -1,6 +1,11 @@
 SCREEN_W = 1280
 SCREEN_H = 720
 MAX_DT = 0.05
+# pico2d 볼륨은 0~128이다.
+MUSIC_VOLUME = 64
+# 불릿 타임에는 음악을 줄여 긴장감을 만든다.
+MUSIC_VOLUME_DUCK = 20
+SFX_VOLUME = 96
 SPRITE_SCALE = 2
 # 64칸 스프라이트의 발바닥은 아래에서 4칸 위에 있다. 발 위치에서 그림 중심까지의 높이다.
 SPRITE_CENTER_Y = 56
@@ -28,19 +33,19 @@ SLIDE_H = PLAYER_H * 0.5
 PHASES = (
     {'name': '무너지는 고성', 'score': 0, 'gravity': 1.0, 'speed': 1.0, 'score_rate': 1,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
-     'gate': 'assets/map/gate.png',
+     'gate': 'assets/map/gate.png', 'music': 'bgm_phase1',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png'},
     {'name': '무중력 균열', 'score': 3000, 'gravity': 0.5, 'speed': 1.0, 'score_rate': 1,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
-     'gate': 'assets/map/gate.png',
+     'gate': 'assets/map/gate.png', 'music': 'bgm_phase2',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
      'ground': 'assets/map/ground_phase2.png',
      'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png'},
     {'name': '폭주하는 심연', 'score': 8000, 'gravity': 1.0, 'speed': 1.5, 'score_rate': 2,
      'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
-     'gate': 'assets/map/gate_phase3.png',
+     'gate': 'assets/map/gate_phase3.png', 'music': 'bgm_phase3',
      'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
      'ground': 'assets/map/ground_phase3.png',
      'platform': 'assets/map/platform_phase3.png', 'platform_cap': 'assets/map/platform_cap_phase3.png'},

@@ -6,6 +6,7 @@ import config
 import game_framework
 import play_mode
 import record
+import sound
 import title_mode
 from background import draw_background
 from camera import Camera
@@ -41,6 +42,7 @@ def init():
     is_new = score > previous
     if is_new:
         record.save_best(score)
+        sound.play('new_record')
     best = max(previous, score)
     time = 0
     camera = Camera()

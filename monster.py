@@ -2,6 +2,7 @@ import math
 
 import config
 import game_world
+import sound
 from bullet import Bullet
 from sprite import OneShot, Strip
 
@@ -134,6 +135,7 @@ class Mage(Monster):
         return self.y + config.MAGE_MUZZLE_Y
 
     def fire(self):
+        sound.play('fire')
         bullet = Bullet(self.x - config.MAGE_W / 2, self.muzzle_y(), self.player.x, self.player.y + config.MAGE_MUZZLE_Y, self)
         game_world.add_object(bullet, game_world.LAYER_EFFECT)
         game_world.add_collision_pair('player:bullet', None, bullet)

@@ -3,6 +3,7 @@ from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, S
 
 import config
 import game_world
+import sound
 from sprite import Effect, Strip, load_fx_sheet
 
 FRAME_W = 64
@@ -232,6 +233,7 @@ class Player:
         state.enter()
 
     def jump(self):
+        sound.play('jump')
         self.vy = config.JUMP_SPEED
         self.jump_buffer = 0
         self.hang_timer = 0
@@ -249,6 +251,7 @@ class Player:
         return False
 
     def start_slash(self):
+        sound.play('slash')
         self.slash_buffer = 0
         self.slash_state.prev_state = self.state
         self.change_state(self.slash_state)
@@ -267,6 +270,7 @@ class Player:
         return min(in_range, key=dist2, default=None)
 
     def start_dash(self, target):
+        sound.play('dash')
         self.dash_buffer = 0
         self.dash_cooldown = config.DASH_COOLDOWN
         self.hang_timer = 0
@@ -286,6 +290,7 @@ class Player:
         self.change_state(self.jump_state)
 
     def enter_bullet_time(self, wall):
+        sound.set_music_volume(config.MUSIC_VOLUME_DUCK)
         self.bullet_wall = wall
         self.bullet_timer = config.BULLET_TIME_MAX
         self.press_times.clear()
@@ -297,10 +302,14 @@ class Player:
         if self.state is self.slide_state:
             self.change_state(self.run_state)
 
+    def end_bullet_time(self):
+        sound.set_music_volume(config.MUSIC_VOLUME)
+        self.bullet_wall = None
+
     def tick_bullet_time(self, real_dt):
         self.bullet_timer -= real_dt
         if self.bullet_timer <= 0:
-            self.bullet_wall = None
+            self.end_bullet_time()
 
     def handle_cut_click(self, button):
         if button not in OTHER_BUTTON:
@@ -314,8 +323,9 @@ class Player:
             self.press_times[button] = now
 
     def cut_wall(self):
+        sound.play('cut')
         self.bullet_wall.cut()
-        self.bullet_wall = None
+        self.end_bullet_time()
         self.gauge = 0
         self.add_score(config.CUT_SCORE)
         self.change_state(self.cut_state)
@@ -422,6 +432,7 @@ class Player:
         self.hp -= 1
         self.invincible_timer = config.INVINCIBLE_TIME
         self.combo = 0
+        sound.play('hurt')
         self.freeze(config.HURT_HIT_STOP)
         self.camera.shake(config.HURT_SHAKE_TIME, config.HURT_SHAKE_AMP)
         # player:ground 그룹을 먼저 처리하므로 이번 프레임의 착지 여부가 이미 반영되어 있다.
@@ -448,20 +459,30 @@ class Player:
             effect = Effect('hit-spark', monster.x, y, speed=KILL_FX_SPEED, scale=KILL_FX_SCALE)
         game_world.add_object(effect, game_world.LAYER_EFFECT)
 
+    def add_gauge(self, amount):
+        if self.gauge < config.GAUGE_MAX <= self.gauge + amount:
+            sound.play('gauge_full')
+        self.gauge = min(config.GAUGE_MAX, self.gauge + amount)
+
     def on_parry(self):
+        sound.play('parry')
         self.add_score(config.PARRY_SCORE)
-        self.gauge = min(config.GAUGE_MAX, self.gauge + config.GAUGE_PARRY)
+        self.add_gauge(config.GAUGE_PARRY)
 
     def on_kill(self, monster, by_dash=False, bonus=0):
         self.add_score(monster.SCORE + bonus + (monster.DASH_BONUS if by_dash else 0))
+        sound.play('kill')
         self.play_kill_feedback(monster, by_dash)
-        self.gauge = min(config.GAUGE_MAX, self.gauge + (config.GAUGE_DASH_KILL if by_dash else config.GAUGE_SLASH_KILL))
+        self.add_gauge(config.GAUGE_DASH_KILL if by_dash else config.GAUGE_SLASH_KILL)
         self.kills += 1
         self.combo += 1
-        if self.combo % config.COMBO_HEAL == 0:
-            self.hp = min(config.HP_MAX, self.hp + 1)
+        if self.combo % config.COMBO_HEAL == 0 and self.hp < config.HP_MAX:
+            sound.play('heal')
+            self.hp += 1
 
     def enter_phase(self, phase):
+        sound.play('gate')
+        sound.play_music(phase)
         self.phase = phase
         self.invincible_timer = max(self.invincible_timer, config.PHASE_INVINCIBLE_TIME)
 
@@ -481,7 +502,8 @@ class Player:
                 game_world.remove_object(other)
         elif group == 'player:wall':
             # 입력하지 못한 채 닿으면 절단 기회는 끝난다. 무적이면 HP는 그대로이고 장벽만 부서진다 (Q4).
-            self.bullet_wall = None
+            if self.bullet_wall:
+                self.end_bullet_time()
             self.take_damage()
         else:
             self.take_damage()

@@ -6,6 +6,7 @@ import config
 import game_framework
 import play_mode
 import record
+import sound
 from background import draw_background
 from camera import Camera
 from obstacle import draw_strip
@@ -36,12 +37,14 @@ def init():
     time = 0
     best = record.load_best()
     run_sprite = Strip('assets/player/run.png', 64)
+    sound.play_music(0)
 
 
 def handle_event(event):
     if event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE:
         game_framework.quit()
     elif event.type == SDL_MOUSEBUTTONDOWN or (event.type == SDL_KEYDOWN and event.key == SDLK_SPACE):
+        sound.play('ui_start')
         game_framework.change_mode(play_mode)
 
 

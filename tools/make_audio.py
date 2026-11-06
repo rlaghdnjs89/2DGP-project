@@ -20,7 +20,7 @@ def note_freq(name):
 
 
 def save(samples, name, peak=0.8):
-    """peak에 맞춰 키운 뒤 16비트 모노 WAV로 저장한다. 끝 음이 잘리는 잡음을 막으려고 양 끝을 짧게 페이드한다."""
+    """peak에 맞춰 키운 뒤 16비트 모노 WAV로 저장한다."""
     os.makedirs(ROOT, exist_ok=True)
     top = max(abs(s) for s in samples) or 1
     gain = peak / top

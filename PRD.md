@@ -296,7 +296,9 @@ Slide 상태에서는 히트박스 높이가 50%가 되어 높은 장애물 아�
 | 프레임워크 | `main.py`, `game_framework.py`, `game_world.py`, `config.py` |
 | 화면 | `title_mode.py`, `play_mode.py`(일시 정지 포함), `result_mode.py` |
 | 게임 객체 | `player.py`, `monster.py`, `obstacle.py`, `chunk_manager.py`, `background.py`, `camera.py`, `ui.py` |
+| 보조 | `sprite.py` (시트 재생), `record.py` (최고 기록), `sound.py` (소리) |
 | NICE 구현 시 추가 | `bullet.py` (탄막), `obstacle.py`의 `Wall`, `monster.py`의 `Mage` |
+| 에셋 생성 (게임 실행에 불필요) | `tools/make_art.py` (Pillow 필요), `tools/make_audio.py` |
 
 게임 객체는 `update(dt)`, `draw(camera)`, `get_bb()`, `handle_collision(group, other)`를 공통 인터페이스로 갖는다. 코드 작성 규칙은 [CLAUDE.md](CLAUDE.md)를 따르며, 아직 쓰이지 않는 파일과 클래스는 미리 만들지 않는다.
 
@@ -312,7 +314,7 @@ Slide 상태에서는 히트박스 높이가 50%가 되어 높은 장애물 아�
 | 장애물, 장벽 | 장애물 4종, 장벽 상단과 하단 분리 | 생성형 AI, 직접 제작 | MUST (장벽은 NICE) |
 | 이펙트 | 검기, 일섬 잔상, 절단, 페이즈 전환 | pixelfx ([CLAUDE.md](CLAUDE.md) 절차) | NICE |
 | UI | 하트, 게이지, 아이콘, 폰트 | 직접 제작, 무료 폰트 | MUST |
-| 사운드 | 페이즈별 BGM, 효과음 | 생성형 AI, 무료 에셋 | NICE |
+| 사운드 | 페이즈별 BGM, 효과음 | `tools/make_audio.py`로 합성 | NICE |
 
 개발 초기에는 단색 박스로 기능을 먼저 완성하고 리소스는 나중에 교체한다. 캐릭터 일관성을 위해 스타일 프롬프트를 고정한다.
 
