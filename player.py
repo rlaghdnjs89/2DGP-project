@@ -1,11 +1,13 @@
-from pico2d import SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_s, SDLK_w
+from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_s,
+                    SDLK_w, get_time)
 
 import config
 import game_world
 from sprite import Effect, Strip
 
 FRAME_W = 64
-ANIMATION_FPS = {'run': 16, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16}
+ANIMATION_FPS = {'run': 16, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'cut': 16}
+OTHER_BUTTON = {SDL_BUTTON_LEFT: SDL_BUTTON_RIGHT, SDL_BUTTON_RIGHT: SDL_BUTTON_LEFT}
 # 시트에서 검기가 빠르게 끝나도록 빨리 재생한다.
 SLASH_FX_SPEED = 1.6
 SLASH_FX_Y = 8
@@ -121,6 +123,23 @@ class Dash:
             player.finish_dash(self.target)
 
 
+class Cut:
+    ANIMATION = 'cut'
+
+    def __init__(self, player):
+        self.player = player
+        self.timer = 0
+
+    def enter(self):
+        self.timer = 0
+
+    def update(self, dt):
+        player = self.player
+        self.timer += dt
+        if self.timer >= config.CUT_TIME:
+            player.change_state(player.run_state if player.on_ground else player.jump_state)
+
+
 class Sword:
     def __init__(self, player):
         self.player = player
@@ -161,7 +180,8 @@ class Hit:
 
 
 class Player:
-    def __init__(self):
+    def __init__(self, camera):
+        self.camera = camera
         self.x = config.PLAYER_SCREEN_X
         self.y = config.GROUND_TOP
         self.prev_y = self.y
@@ -183,6 +203,10 @@ class Player:
         self.kills = 0
         self.combo = 0
         self.phase = 0
+        self.gauge = 0
+        self.bullet_wall = None
+        self.bullet_timer = 0
+        self.press_times = {}
         self.animation_time = 0
         self.sprites = {name: Strip(f'assets/player/{name}.png', FRAME_W) for name in ANIMATION_FPS}
 
@@ -191,6 +215,7 @@ class Player:
         self.jump_state = Jump(self)
         self.slash_state = Slash(self)
         self.dash_state = Dash(self)
+        self.cut_state = Cut(self)
         self.hit_state = Hit(self)
         self.state = self.run_state
 
@@ -252,7 +277,52 @@ class Player:
             self.hang_timer = config.DASH_HANG_TIME
         self.change_state(self.jump_state)
 
+    def enter_bullet_time(self, wall):
+        self.bullet_wall = wall
+        self.bullet_timer = config.BULLET_TIME_MAX
+        self.press_times.clear()
+        self.jump_buffer = 0
+        self.slide_buffer = 0
+        self.slash_buffer = 0
+        self.dash_buffer = 0
+        # 슬라이딩에서는 절단으로 넘어갈 수 없으므로 달리기로 돌린다 (Q3).
+        if self.state is self.slide_state:
+            self.change_state(self.run_state)
+
+    def tick_bullet_time(self, real_dt):
+        self.bullet_timer -= real_dt
+        if self.bullet_timer <= 0:
+            self.bullet_wall = None
+
+    def handle_cut_click(self, button):
+        if button not in OTHER_BUTTON:
+            return
+        # 불릿 타임으로 느려져도 판정 시간은 변하지 않도록 실제 시간을 쓴다 (CT-1).
+        now = get_time()
+        other = OTHER_BUTTON[button]
+        if other in self.press_times and now - self.press_times[other] <= config.SIMULTANEOUS_WINDOW:
+            self.cut_wall()
+        else:
+            self.press_times[button] = now
+
+    def cut_wall(self):
+        self.bullet_wall.cut()
+        self.bullet_wall = None
+        self.gauge = 0
+        self.score += config.CUT_SCORE
+        self.change_state(self.cut_state)
+        self.camera.shake(config.CUT_SHAKE_TIME, config.CUT_SHAKE_AMP)
+        center_x = self.camera.base_x + config.SCREEN_W / 2
+        game_world.add_object(Effect('impact-frame', center_x, config.SCREEN_H / 2, scale=config.IMPACT_FRAME_SCALE), game_world.LAYER_EFFECT)
+
     def handle_event(self, event):
+        if self.bullet_wall:
+            # 불릿 타임 중 마우스는 동시 클릭 판정에만 쓰고 다른 입력은 받지 않는다 (CT-2, Q3).
+            if event.type == SDL_MOUSEBUTTONDOWN:
+                self.handle_cut_click(event.button)
+            elif event.type == SDL_KEYUP and event.key == SDLK_s:
+                self.s_held = False
+            return
         if event.type == SDL_KEYDOWN and event.key == SDLK_w:
             self.jump_buffer = config.INPUT_BUFFER
         elif event.type == SDL_KEYDOWN and event.key == SDLK_s:
@@ -312,7 +382,7 @@ class Player:
         name = self.animation_name()
         sprite = self.sprites[name]
         frame = int(self.animation_time * ANIMATION_FPS[name]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y)
+        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y)
 
     def get_bb(self):
         half_w = config.PLAYER_W / 2
@@ -320,7 +390,7 @@ class Player:
         return self.x - half_w, self.y, self.x + half_w, self.y + h
 
     def take_damage(self):
-        if self.invincible_timer > 0 or self.state is self.dash_state:
+        if self.invincible_timer > 0 or self.state is self.dash_state or self.state is self.cut_state:
             return
         self.hp -= 1
         self.invincible_timer = config.INVINCIBLE_TIME
@@ -331,6 +401,7 @@ class Player:
 
     def on_kill(self, monster, by_dash=False):
         self.score += monster.SCORE + (monster.DASH_BONUS if by_dash else 0)
+        self.gauge = min(config.GAUGE_MAX, self.gauge + (config.GAUGE_DASH_KILL if by_dash else config.GAUGE_SLASH_KILL))
         self.kills += 1
         self.combo += 1
         if self.combo % config.COMBO_HEAL == 0:
@@ -349,5 +420,9 @@ class Player:
         elif group == 'player:gate':
             if other.phase > self.phase:
                 self.enter_phase(other.phase)
-        else:
+        elif group == 'player:wall':
+            # 입력하지 못한 채 닿으면 절단 기회는 끝난다. 무적이면 HP는 그대로이고 장벽만 부서진다 (Q4).
+            self.bullet_wall = None
+            self.take_damage()
+        elif not self.bullet_wall:
             self.take_damage()

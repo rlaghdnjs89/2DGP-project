@@ -48,7 +48,11 @@ class Grunt(Monster):
     def update(self, dt):
         self.time += dt
         gap = self.x - self.player.x
-        if self.state == 'run':
+        # 불릿 타임에는 달려오기만 하고 공격 동작은 시작하지도 진행하지도 않는다 (CT-3).
+        if self.player.bullet_wall:
+            if self.state == 'run' and 0 <= gap <= config.GRUNT_SIGHT:
+                self.x -= config.GRUNT_SPEED * dt
+        elif self.state == 'run':
             if 0 <= gap <= config.GRUNT_ATTACK_RANGE:
                 self.state = 'windup'
                 self.timer = config.GRUNT_WINDUP_TIME
@@ -64,7 +68,7 @@ class Grunt(Monster):
     def draw(self, camera):
         sprite = self.sprites[self.state]
         frame = int(self.time * GRUNT_FPS[self.state]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y)
+        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y)
 
     def make_death(self):
         strip = Strip('assets/monster/grunt_death.png', GRUNT_FRAME_W)
@@ -96,7 +100,7 @@ class Familiar(Monster):
 
     def draw(self, camera):
         frame = int(self.time * FAMILIAR_FPS) % self.sprite.count
-        self.sprite.draw(frame, self.x - camera.x, self.y)
+        self.sprite.draw(frame, self.x - camera.x, self.y - camera.y)
 
     def make_death(self):
         strip = Strip('assets/monster/familiar_death.png', FAMILIAR_FRAME_W)

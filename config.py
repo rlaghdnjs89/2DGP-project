@@ -36,6 +36,31 @@ PHASES = (
 PHASE_INVINCIBLE_TIME = 1.0
 GATE_W = 40
 
+GAUGE_MAX = 100
+GAUGE_SLASH_KILL = 10
+GAUGE_DASH_KILL = 15
+BULLET_TIME_SCALE = 0.2
+BULLET_TIME_MAX = 3.0
+SIMULTANEOUS_WINDOW = 0.15
+CUT_TIME = 0.35
+CUT_SCORE = 500
+CUT_SHAKE_TIME = 0.35
+CUT_SHAKE_AMP = 12
+# impact-frame 시트 한 칸(320×180)이 화면을 덮는 배율
+IMPACT_FRAME_SCALE = 4
+
+WALL_W = 120
+# 약 45초마다 장벽이 나오고, 이 주기에 나온 적이 기준보다 적으면 장애물 러시를 후보에서 뺀다.
+WALL_CYCLE = 45
+WALL_CYCLE_ENEMIES = 12
+WALL_WARNING_TIME = 1.5
+# 불릿 타임 3초 동안 스크롤 속도 × 0.6초만큼 전진하므로 그보다 멀리서 시작해야 입력할 시간이 다 보장된다 (CT-6).
+WALL_ENTRY_TIME = 0.7
+CHUNK_F_LENGTH = 2600
+WALL_OFFSET = 1900
+WALL_MONSTER_OFFSETS = (500, 900, 1250)
+WALL_FAMILIAR_HEIGHT = 180
+
 HP_MAX = 3
 INVINCIBLE_TIME = 1.5
 HIT_STUN_TIME = 0.3
@@ -101,6 +126,8 @@ ISLAND_CHUNKS = {
     },
 }
 PHASE_CHUNKS = (('A', 'B', 'C'), ('E1', 'E2', 'E3'))
+# 지면에서 싸우는 페이즈. 나머지 페이즈의 장벽 청크에는 근접병 대신 사역마를 둔다.
+GROUND_FIGHT_PHASES = (0,)
 
 GRUNT_W = 60
 GRUNT_H = 90

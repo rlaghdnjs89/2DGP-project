@@ -1,7 +1,7 @@
 import ctypes
 import random
 
-from pico2d import TTF_SizeUTF8, load_font
+from pico2d import TTF_SizeUTF8, draw_rectangle, load_font
 
 import config
 import record
@@ -17,6 +17,18 @@ COMBO_SIZE = 24
 DASH_SIZE = 24
 DASH_COOLDOWN_COLOR = (130, 130, 130)
 PHASE_SIZE = 24
+GAUGE_W = 220
+GAUGE_H = 16
+GAUGE_Y = 52
+GAUGE_BG = (30, 26, 44)
+GAUGE_COLOR = (90, 170, 255)
+GAUGE_FULL_COLORS = ((255, 214, 90), (255, 255, 255))
+GAUGE_BLINK_FPS = 8
+BULLET_DIM = 0.35
+BULLET_TEXT_SIZE = 48
+BULLET_BAR_W = 420
+BULLET_BAR_H = 10
+BULLET_BAR_COLOR = (255, 214, 90)
 HEART_SHAKE_TIME = 0.3
 HEART_SHAKE = 4
 HEAL_NOTICE_TIME = 1.2
@@ -62,6 +74,7 @@ class HUD:
         self.player = player
         self.shown_phase = player.phase
         self.shown_hp = player.hp
+        self.time = 0
         self.best = record.load_best()
         self.flash = 0
         self.heart_shake = 0
@@ -70,6 +83,7 @@ class HUD:
         self.banner_time = BANNER_HOLD_TIME + BANNER_SHRINK_TIME
 
     def update(self, dt):
+        self.time += dt
         self.flash = max(0, self.flash - dt)
         self.heart_shake = max(0, self.heart_shake - dt)
         self.heal_notice = max(0, self.heal_notice - dt)
@@ -99,7 +113,32 @@ class HUD:
         y = config.SCREEN_H * 0.72 + (top_y - config.SCREEN_H * 0.72) * t
         draw_text(size, center_x, y, self.phase_label(), align=0.5)
 
+    def draw_gauge(self):
+        gauge = self.player.gauge
+        left, bottom = MARGIN, GAUGE_Y
+        draw_rectangle(left, bottom, left + GAUGE_W, bottom + GAUGE_H, *GAUGE_BG, 255, True)
+        if gauge >= config.GAUGE_MAX:
+            color = GAUGE_FULL_COLORS[int(self.time * GAUGE_BLINK_FPS) % 2]
+        else:
+            color = GAUGE_COLOR
+        if gauge > 0:
+            draw_rectangle(left, bottom, left + GAUGE_W * gauge / config.GAUGE_MAX, bottom + GAUGE_H, *color, 255, True)
+        draw_rectangle(left, bottom, left + GAUGE_W, bottom + GAUGE_H, 240, 240, 250, 255, False)
+        draw_text(DASH_SIZE, left + GAUGE_W + 12, bottom + GAUGE_H / 2, f'발도술 {gauge}%')
+
+    def draw_bullet_time(self):
+        draw_overlay('assets/ui/black.png', BULLET_DIM)
+        x = config.SCREEN_W / 2
+        draw_text(BULLET_TEXT_SIZE, x, config.SCREEN_H * 0.68, '좌 + 우 동시 클릭!', BULLET_BAR_COLOR, align=0.5)
+        left = x - BULLET_BAR_W / 2
+        y = config.SCREEN_H * 0.6
+        remain = self.player.bullet_timer / config.BULLET_TIME_MAX
+        draw_rectangle(left, y, left + BULLET_BAR_W * remain, y + BULLET_BAR_H, *BULLET_BAR_COLOR, 255, True)
+
     def draw(self, camera):
+        if self.player.bullet_wall:
+            self.draw_bullet_time()
+
         full = get_image('assets/ui/heart_full.png')
         empty = get_image('assets/ui/heart_empty.png')
         for i in range(config.HP_MAX):
@@ -126,6 +165,7 @@ class HUD:
             draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, f'일섬 {self.player.dash_cooldown:.1f}', DASH_COOLDOWN_COLOR)
         else:
             draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, '일섬 준비')
+        self.draw_gauge()
 
         if self.flash > 0:
             draw_overlay('assets/ui/white.png', self.flash / FLASH_TIME)

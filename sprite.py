@@ -45,7 +45,7 @@ class OneShot:
             game_world.remove_object(self)
 
     def draw(self, camera):
-        self.strip.draw(int(self.time * self.fps), self.x - camera.x, self.y)
+        self.strip.draw(int(self.time * self.fps), self.x - camera.x, self.y - camera.y)
 
 
 def load_fx_sheet(name):
@@ -58,7 +58,7 @@ def load_fx_sheet(name):
 class Effect:
     """pixelfx 시트를 재생한다. anchor를 주면 anchor를 따라다닌다."""
 
-    def __init__(self, name, x, y, anchor=None, speed=1):
+    def __init__(self, name, x, y, anchor=None, speed=1, scale=config.SPRITE_SCALE):
         self.image, data = load_fx_sheet(name)
         self.frames = data['frames']
         self.pivot = data['meta']['pixelfx']['pivot']
@@ -66,6 +66,7 @@ class Effect:
         self.y = y
         self.anchor = anchor
         self.speed = speed
+        self.scale = scale
         self.index = 0
         self.elapsed = 0
 
@@ -85,9 +86,9 @@ class Effect:
             x += self.anchor.x
             y += self.anchor.y
         r = self.frames[self.index]['frame']
-        scale = config.SPRITE_SCALE
+        scale = self.scale
         px, py = self.pivot
         # JSON의 y는 위에서, pico2d의 bottom은 아래에서 센다.
         self.image.clip_draw(r['x'], self.image.h - r['y'] - r['h'], r['w'], r['h'],
-                             x - camera.x + (r['w'] / 2 - px) * scale, y + (py - r['h'] / 2) * scale,
+                             x - camera.x + (r['w'] / 2 - px) * scale, y - camera.y + (py - r['h'] / 2) * scale,
                              r['w'] * scale, r['h'] * scale)

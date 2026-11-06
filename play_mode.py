@@ -26,8 +26,8 @@ def init():
     global player, camera, chunks, game_over_timer, paused
     paused = False
     game_world.clear()
-    player = Player()
     camera = Camera()
+    player = Player(camera)
     chunks = ChunkManager(player)
     game_over_timer = None
     game_world.add_object(Background(player), game_world.LAYER_BACKGROUND)
@@ -39,6 +39,7 @@ def init():
     game_world.add_collision_pair('sword:monster', None, None)
     game_world.add_collision_pair('player:obstacle', player, None)
     game_world.add_collision_pair('player:monster', player, None)
+    game_world.add_collision_pair('player:wall', player, None)
 
 
 def handle_event(event):
@@ -66,11 +67,14 @@ def update(dt):
             game_framework.change_mode(result_mode)
             return
         dt *= config.GAME_OVER_TIME_SCALE
+    elif player.bullet_wall:
+        player.tick_bullet_time(dt)
+        dt *= config.BULLET_TIME_SCALE
 
     game_world.update(dt)
     game_world.handle_collisions()
     camera.follow(player, dt)
-    chunks.update(camera)
+    chunks.update(camera, dt)
     if game_over_timer is None and (player.hp <= 0 or player.get_bb()[3] < 0):
         game_over_timer = config.GAME_OVER_TIME
 
