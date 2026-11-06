@@ -430,6 +430,11 @@ class Player:
         elif group == 'player:gate':
             if other.phase > self.phase:
                 self.enter_phase(other.phase)
+        elif group == 'player:bullet':
+            # 피해를 주면 곧바로 무적이 되므로 탄 쪽에서 무적을 확인하면 맞은 탄이 사라지지 않는다.
+            if not self.is_invincible():
+                self.take_damage()
+                game_world.remove_object(other)
         elif group == 'player:wall':
             # 입력하지 못한 채 닿으면 절단 기회는 끝난다. 무적이면 HP는 그대로이고 장벽만 부서진다 (Q4).
             self.bullet_wall = None

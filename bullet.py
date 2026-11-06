@@ -2,7 +2,7 @@ import math
 
 import config
 import game_world
-from sprite import Effect, Strip, get_image
+from sprite import Effect, Strip
 
 FRAME_W = 16
 FPS = 12
@@ -26,7 +26,6 @@ class Bullet:
         self.reflected = False
         self.time = 0
         self.strip = Strip('assets/monster/bullet.png', FRAME_W)
-        get_image('assets/monster/bullet_reflected.png')
 
     def update(self, dt):
         # 불릿 타임에는 탄막이 멈춘다 (CT-3).
@@ -62,6 +61,4 @@ class Bullet:
         if group == 'sword:bullet':
             self.reflect()
         elif group == 'reflected:mage':
-            game_world.remove_object(self)
-        elif not self.player.is_invincible():
             game_world.remove_object(self)
