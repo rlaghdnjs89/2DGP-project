@@ -24,6 +24,8 @@ SLIDE_H = PLAYER_H * 0.5
 HP_MAX = 3
 INVINCIBLE_TIME = 1.5
 HIT_STUN_TIME = 0.3
+GAME_OVER_TIME = 0.5
+GAME_OVER_TIME_SCALE = 0.25
 
 SLASH_TIME = 0.25
 # 판정이 살아 있는 시간. 이후 SLASH_TIME까지는 다음 베기를 막는 후딜레이다.
