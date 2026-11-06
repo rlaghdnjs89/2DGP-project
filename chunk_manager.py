@@ -47,9 +47,10 @@ def build_chunk_b():
 
 
 def build_chunk_c():
-    # 낭떠러지는 일섬이 생기면 넣는다. 그전에는 점프해서 베는 평지 구간이다.
-    monsters = [(Familiar, x, config.GROUND_TOP + 200) for x in (900, 1250, 1600)]
-    return Chunk(config.CHUNK_C_LENGTH, monsters=monsters)
+    start = config.CLIFF_RUN_UP
+    pits = [(start, config.CLIFF_W)]
+    monsters = [(Familiar, start + x, config.GROUND_TOP + y) for x, y in config.CLIFF_FAMILIARS]
+    return Chunk(start + config.CLIFF_W + config.CHUNK_MARGIN, pits=pits, monsters=monsters)
 
 
 CHUNK_BUILDERS = {'A': build_chunk_a, 'B': build_chunk_b, 'C': build_chunk_c}

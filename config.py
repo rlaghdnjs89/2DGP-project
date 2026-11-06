@@ -41,7 +41,6 @@ DASH_HANG_TIME = 0.3
 
 CHUNK_A_LENGTH = 2400
 CHUNK_B_LENGTH = 2800
-CHUNK_C_LENGTH = 2200
 # 청크가 이어지는 곳에서도 장애물 간격이 좁아지지 않게 양 끝을 비운다.
 CHUNK_MARGIN = 300
 OBSTACLE_GAP_MIN = 550
@@ -57,6 +56,12 @@ HIGH_OBSTACLE_CLEARANCE = 70
 PIT_W_SHORT = 160
 PIT_W_LONG = 360
 PIT_CHANCE = 0.3
+
+# 일섬을 막 쓴 직후에 진입해도 쿨타임이 돌도록 스크롤 속도 × 2초 이상 평지를 둔다 (DS-8).
+CLIFF_RUN_UP = SCROLL_SPEED * 2
+CLIFF_W = 1100
+# 낭떠러지 시작점 기준 (x, 지면 위 높이). 간격은 사거리 400px 안이다 (DS-7).
+CLIFF_FAMILIARS = ((220, 200), (560, 250), (900, 200))
 
 GRUNT_W = 60
 GRUNT_H = 90
