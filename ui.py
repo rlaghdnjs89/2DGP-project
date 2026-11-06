@@ -11,6 +11,8 @@ FONT_PATH = 'assets/fonts/Galmuri11.ttf'
 TEXT_COLOR = (250, 250, 250)
 SCORE_SIZE = 24
 COMBO_SIZE = 24
+DASH_SIZE = 24
+DASH_COOLDOWN_COLOR = (130, 130, 130)
 
 fonts = {}
 
@@ -53,3 +55,8 @@ class HUD:
         draw_text(SCORE_SIZE, right, top, f'SCORE {self.player.score:,}', align=1)
         if self.player.combo > 0:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2, f'COMBO {self.player.combo}', align=1)
+
+        if self.player.dash_cooldown > 0:
+            draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, f'일섬 {self.player.dash_cooldown:.1f}', DASH_COOLDOWN_COLOR)
+        else:
+            draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, '일섬 준비')

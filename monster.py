@@ -29,6 +29,8 @@ class Monster:
 
 class Grunt(Monster):
     SCORE = config.GRUNT_SCORE
+    DASH_BONUS = 0
+    AIRBORNE = False
 
     def __init__(self, x, y, player):
         super().__init__(x, y, player)
@@ -57,9 +59,14 @@ class Grunt(Monster):
         reach = config.GRUNT_ATTACK_REACH if self.state == 'attack' else 0
         return self.x - half_w - reach, self.y, self.x + half_w, self.y + config.GRUNT_H
 
+    def dash_y(self):
+        return self.y
+
 
 class Familiar(Monster):
     SCORE = config.FAMILIAR_SCORE
+    DASH_BONUS = config.FAMILIAR_DASH_BONUS
+    AIRBORNE = True
 
     def __init__(self, x, y, player):
         super().__init__(x, y, player)
@@ -77,3 +84,6 @@ class Familiar(Monster):
     def get_bb(self):
         half = config.FAMILIAR_SIZE / 2
         return self.x - half, self.y - half, self.x + half, self.y + half
+
+    def dash_y(self):
+        return self.y - config.PLAYER_H / 2

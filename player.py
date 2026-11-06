@@ -1,5 +1,5 @@
-from pico2d import (SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_s, SDLK_w,
-                    draw_rectangle)
+from pico2d import (SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_s,
+                    SDLK_w, draw_rectangle)
 
 import config
 import game_world
@@ -18,7 +18,7 @@ class Run:
         player = self.player
         if player.jump_buffer > 0:
             player.jump()
-        elif player.try_slash():
+        elif player.try_attack():
             pass
         elif player.slide_buffer > 0 and player.s_held:
             player.change_state(player.slide_state)
@@ -42,6 +42,7 @@ class Slide:
         self.timer += dt
         # 슬라이딩 중에 누른 공격이 끝난 뒤에 뒤늦게 나가지 않게 버린다.
         player.slash_buffer = 0
+        player.dash_buffer = 0
         if not player.on_ground:
             player.change_state(player.jump_state)
         elif not player.s_held or self.timer >= config.SLIDE_MAX_TIME:
@@ -67,7 +68,7 @@ class Jump:
             player.air_jumps -= 1
             player.jump()
         else:
-            player.try_slash()
+            player.try_attack()
 
 
 class Slash:
@@ -88,6 +89,32 @@ class Slash:
         self.prev_state.update(dt)
         if player.state is self and self.timer >= config.SLASH_TIME:
             player.change_state(self.prev_state)
+
+
+class Dash:
+    COLOR = (90, 220, 240)
+
+    def __init__(self, player):
+        self.player = player
+        self.timer = 0
+        self.target = None
+        self.start_x = 0
+        self.start_y = 0
+
+    def enter(self):
+        self.timer = 0
+        self.start_x = self.player.x
+        self.start_y = self.player.y
+
+    def update(self, dt):
+        player = self.player
+        self.timer += dt
+        t = min(1, self.timer / config.DASH_TIME)
+        # 대상이 움직여도 빗나가지 않도록 매 프레임 현재 위치로 보간한다.
+        player.x = self.start_x + (self.target.x - self.start_x) * t
+        player.y = self.start_y + (self.target.dash_y() - self.start_y) * t
+        if t >= 1:
+            player.finish_dash(self.target)
 
 
 class Sword:
@@ -141,7 +168,11 @@ class Player:
         self.jump_buffer = 0
         self.slide_buffer = 0
         self.slash_buffer = 0
+        self.dash_buffer = 0
         self.s_held = False
+        self.sword = None
+        self.dash_cooldown = 0
+        self.hang_timer = 0
         self.hp = config.HP_MAX
         self.invincible_timer = 0
         self.score = 0
@@ -153,6 +184,7 @@ class Player:
         self.slide_state = Slide(self)
         self.jump_state = Jump(self)
         self.slash_state = Slash(self)
+        self.dash_state = Dash(self)
         self.hit_state = Hit(self)
         self.state = self.run_state
 
@@ -163,18 +195,54 @@ class Player:
     def jump(self):
         self.vy = config.JUMP_SPEED
         self.jump_buffer = 0
+        self.hang_timer = 0
         self.change_state(self.jump_state)
 
-    def try_slash(self):
-        if self.slash_buffer <= 0 or self.state is self.slash_state:
-            return False
+    def try_attack(self):
+        if self.dash_buffer > 0 and self.dash_cooldown == 0:
+            target = self.find_dash_target()
+            if target:
+                self.start_dash(target)
+                return True
+        if self.slash_buffer > 0 and self.state is not self.slash_state:
+            self.start_slash()
+            return True
+        return False
+
+    def start_slash(self):
         self.slash_buffer = 0
         self.slash_state.prev_state = self.state
         self.change_state(self.slash_state)
-        sword = Sword(self)
-        game_world.add_object(sword, game_world.LAYER_EFFECT)
-        game_world.add_collision_pair('sword:monster', sword, None)
-        return True
+        self.sword = Sword(self)
+        game_world.add_object(self.sword, game_world.LAYER_EFFECT)
+        game_world.add_collision_pair('sword:monster', self.sword, None)
+
+    def find_dash_target(self):
+        def dist2(monster):
+            return (monster.x - self.x) ** 2 + (monster.dash_y() - self.y) ** 2
+
+        monsters = game_world.collision_pairs['player:monster'][1]
+        in_range = [m for m in monsters if m.x > self.x and dist2(m) <= config.DASH_RANGE ** 2]
+        return min(in_range, key=dist2, default=None)
+
+    def start_dash(self, target):
+        self.dash_buffer = 0
+        self.dash_cooldown = config.DASH_COOLDOWN
+        self.hang_timer = 0
+        self.vy = 0
+        # 돌진 중에 남은 베기 판정이 대상을 먼저 처치하면 돌진이 끝날 때 또 처치하게 된다.
+        if self.sword:
+            game_world.remove_object(self.sword)
+        self.dash_state.target = target
+        self.change_state(self.dash_state)
+
+    def finish_dash(self, target):
+        self.on_kill(target, by_dash=True)
+        game_world.remove_object(target)
+        self.dash_cooldown = 0
+        if target.AIRBORNE:
+            self.hang_timer = config.DASH_HANG_TIME
+        self.change_state(self.jump_state)
 
     def handle_event(self, event):
         if event.type == SDL_KEYDOWN and event.key == SDLK_w:
@@ -186,26 +254,37 @@ class Player:
             self.s_held = False
         elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT:
             self.slash_buffer = config.INPUT_BUFFER
+        elif event.type == SDL_KEYDOWN and event.key == SDLK_SPACE:
+            self.dash_buffer = config.INPUT_BUFFER
 
     def update(self, dt):
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
         self.slide_buffer = max(0, self.slide_buffer - dt)
         self.slash_buffer = max(0, self.slash_buffer - dt)
+        self.dash_buffer = max(0, self.dash_buffer - dt)
+        self.dash_cooldown = max(0, self.dash_cooldown - dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
-        self.x += config.SCROLL_SPEED * dt
         self.distance_score += config.DISTANCE_SCORE_RATE * dt
         # 소수점이 쌓이도록 따로 누적하고 정수 부분만 점수로 옮긴다.
         gained = int(self.distance_score)
         self.distance_score -= gained
         self.score += gained
 
-        # 등가속도 공식을 그대로 써서 프레임 수와 무관하게 점프 높이가 같게 한다.
-        gravity = config.GRAVITY if self.vy > 0 else config.GRAVITY * config.FALL_GRAVITY_RATIO
+        # 돌진 중에는 Dash가 위치를 직접 정한다.
+        if self.state is self.dash_state:
+            return
+
+        self.x += config.SCROLL_SPEED * dt
         self.prev_y = self.y
-        self.y += self.vy * dt - gravity * dt * dt / 2
-        self.vy -= gravity * dt
+        if self.hang_timer > 0:
+            self.hang_timer -= dt
+        else:
+            # 등가속도 공식을 그대로 써서 프레임 수와 무관하게 점프 높이가 같게 한다.
+            gravity = config.GRAVITY if self.vy > 0 else config.GRAVITY * config.FALL_GRAVITY_RATIO
+            self.y += self.vy * dt - gravity * dt * dt / 2
+            self.vy -= gravity * dt
         # 다음 충돌 처리에서 지면에 닿으면 다시 True가 된다.
         self.on_ground = False
 
@@ -219,7 +298,7 @@ class Player:
         return self.x - half_w, self.y, self.x + half_w, self.y + h
 
     def take_damage(self):
-        if self.invincible_timer > 0:
+        if self.invincible_timer > 0 or self.state is self.dash_state:
             return
         self.hp -= 1
         self.invincible_timer = config.INVINCIBLE_TIME
@@ -228,8 +307,8 @@ class Player:
         if self.on_ground:
             self.change_state(self.hit_state)
 
-    def on_kill(self, monster):
-        self.score += monster.SCORE
+    def on_kill(self, monster, by_dash=False):
+        self.score += monster.SCORE + (monster.DASH_BONUS if by_dash else 0)
         self.kills += 1
         self.combo += 1
         if self.combo % config.COMBO_HEAL == 0:
