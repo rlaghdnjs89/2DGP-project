@@ -9,8 +9,7 @@ from background import Background
 from camera import Camera
 from chunk_manager import ChunkManager
 from player import Player
-from sprite import get_image
-from ui import HUD, draw_text
+from ui import HUD, draw_overlay, draw_text
 
 PAUSE_OPACITY = 0.6
 PAUSE_TITLE_SIZE = 60
@@ -79,9 +78,7 @@ def update(dt):
 def draw():
     game_world.render(camera)
     if paused:
-        overlay = get_image('assets/ui/black.png')
-        overlay.opacify(PAUSE_OPACITY)
-        overlay.draw_to_origin(0, 0, config.SCREEN_W, config.SCREEN_H)
+        draw_overlay('assets/ui/black.png', PAUSE_OPACITY)
         x = config.SCREEN_W / 2
         draw_text(PAUSE_TITLE_SIZE, x, config.SCREEN_H * 0.6, '일시 정지', align=0.5)
         draw_text(PAUSE_MENU_SIZE, x, config.SCREEN_H * 0.45, 'ESC 계속     Q 타이틀', align=0.5)

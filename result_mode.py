@@ -9,8 +9,7 @@ import record
 import title_mode
 from background import draw_background
 from camera import Camera
-from sprite import get_image
-from ui import draw_text
+from ui import draw_overlay, draw_text
 
 TITLE_SIZE = 60
 SCORE_SIZE = 72
@@ -63,9 +62,7 @@ def update(dt):
 
 def draw():
     draw_background(phase, camera)
-    overlay = get_image('assets/ui/black.png')
-    overlay.opacify(OVERLAY_OPACITY)
-    overlay.draw_to_origin(0, 0, config.SCREEN_W, config.SCREEN_H)
+    draw_overlay('assets/ui/black.png', OVERLAY_OPACITY)
 
     x = config.SCREEN_W / 2
     draw_text(TITLE_SIZE, x, config.SCREEN_H * 0.82, 'GAME OVER', align=0.5)

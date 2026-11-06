@@ -49,6 +49,14 @@ def draw_text(size, x, y, text, color=TEXT_COLOR, align=0):
     font.draw(x - text_width(font, text) * align, y, text, color)
 
 
+def draw_overlay(path, opacity):
+    image = get_image(path)
+    image.opacify(opacity)
+    image.draw_to_origin(0, 0, config.SCREEN_W, config.SCREEN_H)
+    # opacify는 텍스처 자체를 바꾸므로 같은 이미지를 쓰는 다른 곳에 남지 않게 되돌린다.
+    image.opacify(1)
+
+
 class HUD:
     def __init__(self, player):
         self.player = player
@@ -120,6 +128,4 @@ class HUD:
             draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, '일섬 준비')
 
         if self.flash > 0:
-            white = get_image('assets/ui/white.png')
-            white.opacify(self.flash / FLASH_TIME)
-            white.draw_to_origin(0, 0, config.SCREEN_W, config.SCREEN_H)
+            draw_overlay('assets/ui/white.png', self.flash / FLASH_TIME)
