@@ -331,6 +331,14 @@ def make_player():
     ]
     save(strip(slash), 'player/slash.png')
 
+    cut = [
+        draw_player(Pose(lean=-14, tilt=8, front_arm=(30, 20), back_arm=(20, 30), weapon=70, scarf=0, scarf_lift=0.1, **stance)),
+        draw_player(Pose(lean=2, tilt=0, front_arm=(110, -10), back_arm=(70, 20), weapon=130, scarf=1, scarf_lift=0.2, **stance)),
+        draw_player(Pose(lean=12, tilt=-6, front_arm=(170, -10), back_arm=(120, 10), weapon=172, scarf=2, scarf_lift=0.4, **stance)),
+        draw_player(Pose(lean=10, tilt=-4, front_arm=(176, -6), back_arm=(130, 6), weapon=-176, scarf=3, scarf_lift=0.5, **stance)),
+    ]
+    save(strip(cut), 'player/cut.png')
+
     dash = [
         draw_player(Pose(lean=66, tilt=-46, hip_y=38, dx=-4, front_leg=(50, -56), back_leg=(-74, -6), front_arm=(88, 4),
                          back_arm=(-96, 10), weapon=92, scarf=s, scarf_lift=-0.03))
@@ -894,10 +902,58 @@ def make_pillar():
     return outlined(img, hex_color('1a1020'))
 
 
+WALL_W = 60
+WALL_H = 300
+WALL_CUT_Y = 150
+WALL_CUT_SLOPE = 14
+
+
+def make_wall_pieces():
+    """거대 장벽. 대각선으로 잘린 윗부분과 아랫부분을 따로 저장한다."""
+    rng = random.Random(9)
+    whole = new_frame(WALL_W, WALL_H)
+    px = whole.load()
+    base, light, dark = hex_color('4a3f6b'), hex_color('6a5b94'), hex_color('2d2548')
+    for y in range(WALL_H):
+        for x in range(WALL_W):
+            row = y // 20
+            offset = 10 if row % 2 else 0
+            if y % 20 == 0 or (x + offset) % 20 == 0:
+                color = dark
+            else:
+                color = base if rng.random() > 0.08 else light
+            px[x, y] = color
+    rect(whole, 0, 0, 5, WALL_H, light)
+    rect(whole, WALL_W - 5, 0, WALL_W, WALL_H, dark)
+    for y in range(16, WALL_H - 16, 34):
+        cy = y + 10
+        polygon(whole, [(30, cy - 9), (39, cy), (30, cy + 9), (21, cy)], hex_color('2a1450'))
+        polygon(whole, [(30, cy - 6), (36, cy), (30, cy + 6), (24, cy)], hex_color('c77dff'))
+        polygon(whole, [(30, cy - 3), (33, cy), (30, cy + 3), (27, cy)], hex_color('ffe9ff'))
+
+    def is_top(x, y):
+        return y < WALL_CUT_Y + (x - WALL_W / 2) / WALL_W * WALL_CUT_SLOPE * 2
+
+    top = new_frame(WALL_W, WALL_H)
+    bottom = new_frame(WALL_W, WALL_H)
+    top_px, bottom_px = top.load(), bottom.load()
+    for y in range(WALL_H):
+        for x in range(WALL_W):
+            (top_px if is_top(x, y) else bottom_px)[x, y] = px[x, y]
+    top = outlined(top, hex_color('140c22'))
+    bottom = outlined(bottom, hex_color('140c22'))
+    return whole, top.crop(top.getbbox()), bottom.crop(bottom.getbbox())
+
+
 def make_obstacles():
     save(make_crate(), 'map/low_crate.png')
     save(make_rock(), 'map/low_rock.png')
     save(make_pillar(), 'map/high_pillar.png')
+    whole, top, bottom = make_wall_pieces()
+    save(top, 'map/wall_top.png')
+    save(bottom, 'map/wall_bottom.png')
+    tint = (220, 190, 255)
+    save(strip([dissolve(whole, amount, 40 + i, tint, 6 + i * 8) for i, amount in enumerate((0.1, 0.3, 0.5, 0.72, 0.9))]), 'map/wall_break.png')
 
 
 # 차원 관문 ------------------------------------------------------------------
