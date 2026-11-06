@@ -1,5 +1,7 @@
 import config
+import game_framework
 import game_world
+import result_mode
 from background import Background
 from camera import Camera
 from chunk_manager import ChunkManager
@@ -40,8 +42,8 @@ def update(dt):
     if game_over_timer is not None:
         game_over_timer -= dt
         if game_over_timer <= 0:
-            # 결과 화면이 생기기 전까지는 바로 다시 시작한다.
-            init()
+            result_mode.set_result(player)
+            game_framework.change_mode(result_mode)
             return
         dt *= config.GAME_OVER_TIME_SCALE
 
