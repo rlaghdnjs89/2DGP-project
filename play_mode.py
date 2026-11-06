@@ -16,6 +16,7 @@ def init():
     chunks = ChunkManager()
     game_world.add_object(player, game_world.LAYER_PLAYER)
     game_world.add_collision_pair('player:ground', player, None)
+    game_world.add_collision_pair('player:obstacle', player, None)
 
 
 def handle_event(event):

@@ -4,6 +4,42 @@ import config
 
 GROUND_MARK_GAP = 200
 
+LOW_COLOR = (120, 110, 100)
+HIGH_COLOR = (70, 70, 90)
+HIT_COLOR = (220, 40, 40)
+
+
+class Obstacle:
+    def __init__(self, left, bottom, w, h, color):
+        self.left = left
+        self.bottom = bottom
+        self.right = left + w
+        self.top = bottom + h
+        self.color = color
+
+    def update(self, dt):
+        pass
+
+    def draw(self, camera):
+        draw_rectangle(self.left - camera.x, self.bottom, self.right - camera.x, self.top, *self.color, 255, True)
+
+    def get_bb(self):
+        return self.left, self.bottom, self.right, self.top
+
+    def handle_collision(self, group, other):
+        # HP가 생기기 전까지 회피 실패를 눈으로 확인하는 임시 표시다.
+        self.color = HIT_COLOR
+
+
+def make_low_obstacle(left):
+    return Obstacle(left, config.GROUND_TOP, config.LOW_OBSTACLE_W, config.LOW_OBSTACLE_H, LOW_COLOR)
+
+
+def make_high_obstacle(left):
+    bottom = config.GROUND_TOP + config.HIGH_OBSTACLE_CLEARANCE
+    # 천장까지 막아 점프로는 넘을 수 없게 한다.
+    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, HIGH_COLOR)
+
 
 class Ground:
     def __init__(self, left, right):
