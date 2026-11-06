@@ -179,6 +179,7 @@ class Player:
         self.distance_score = 0
         self.kills = 0
         self.combo = 0
+        self.phase = 0
 
         self.run_state = Run(self)
         self.slide_state = Slide(self)
@@ -282,9 +283,15 @@ class Player:
             self.hang_timer -= dt
         else:
             # 등가속도 공식을 그대로 써서 프레임 수와 무관하게 점프 높이가 같게 한다.
-            gravity = config.GRAVITY if self.vy > 0 else config.GRAVITY * config.FALL_GRAVITY_RATIO
+            gravity = config.GRAVITY * config.PHASES[self.phase]['gravity']
+            if self.vy <= 0:
+                gravity *= config.FALL_GRAVITY_RATIO
             self.y += self.vy * dt - gravity * dt * dt / 2
             self.vy -= gravity * dt
+            # 중력이 약한 페이즈에서는 2단 점프로 화면 위까지 올라갈 수 있어 천장에서 멈춘다.
+            if self.y + config.PLAYER_H > config.SCREEN_H:
+                self.y = config.SCREEN_H - config.PLAYER_H
+                self.vy = min(self.vy, 0)
         # 다음 충돌 처리에서 지면에 닿으면 다시 True가 된다.
         self.on_ground = False
 
@@ -314,11 +321,18 @@ class Player:
         if self.combo % config.COMBO_HEAL == 0:
             self.hp = min(config.HP_MAX, self.hp + 1)
 
+    def enter_phase(self, phase):
+        self.phase = phase
+        self.invincible_timer = max(self.invincible_timer, config.PHASE_INVINCIBLE_TIME)
+
     def handle_collision(self, group, other):
         if group == 'player:ground':
             if self.vy <= 0 and self.prev_y >= other.top:
                 self.y = other.top
                 self.vy = 0
                 self.on_ground = True
+        elif group == 'player:gate':
+            if other.phase > self.phase:
+                self.enter_phase(other.phase)
         else:
             self.take_damage()

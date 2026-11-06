@@ -4,9 +4,9 @@ from collections import namedtuple
 import config
 import game_world
 from monster import Familiar, Grunt
-from obstacle import Ground, make_high_obstacle, make_low_obstacle
+from obstacle import Ground, PhaseGate, Platform, make_high_obstacle, make_low_obstacle
 
-Chunk = namedtuple('Chunk', 'length obstacles pits monsters', defaults=((), (), ()))
+Chunk = namedtuple('Chunk', 'length obstacles pits monsters platforms', defaults=((), (), (), ()))
 
 
 def grunt_gap():
@@ -53,7 +53,20 @@ def build_chunk_c():
     return Chunk(start + config.CLIFF_W + config.CHUNK_MARGIN, pits=pits, monsters=monsters)
 
 
-CHUNK_BUILDERS = {'A': build_chunk_a, 'B': build_chunk_b, 'C': build_chunk_c}
+def build_island(name):
+    layout = config.ISLAND_CHUNKS[name]
+    monsters = [(Familiar, x, config.GROUND_TOP + y) for x, y in layout['familiars']]
+    return Chunk(layout['length'], pits=layout['pits'], monsters=monsters, platforms=layout['platforms'])
+
+
+CHUNK_BUILDERS = {
+    'A': build_chunk_a,
+    'B': build_chunk_b,
+    'C': build_chunk_c,
+    'E1': lambda: build_island('E1'),
+    'E2': lambda: build_island('E2'),
+    'E3': lambda: build_island('E3'),
+}
 
 
 class ChunkManager:
@@ -61,6 +74,7 @@ class ChunkManager:
         self.player = player
         self.objects = []
         self.last_chunk = None
+        self.phase = 0
         # 시작 지점에서 반응할 시간을 주도록 첫 화면은 평지로 둔다.
         self.add_ground(0, config.SCREEN_W)
         self.end_x = config.SCREEN_W
@@ -70,6 +84,18 @@ class ChunkManager:
         self.objects.append(ground)
         game_world.add_object(ground, game_world.LAYER_MAP)
         game_world.add_collision_pair('player:ground', None, ground)
+
+    def add_platform(self, left, right, height):
+        platform = Platform(left, right, config.GROUND_TOP + height)
+        self.objects.append(platform)
+        game_world.add_object(platform, game_world.LAYER_MAP)
+        game_world.add_collision_pair('player:ground', None, platform)
+
+    def add_gate(self, phase):
+        gate = PhaseGate(self.end_x, phase)
+        self.objects.append(gate)
+        game_world.add_object(gate, game_world.LAYER_MAP)
+        game_world.add_collision_pair('player:gate', None, gate)
 
     def add_obstacle(self, obstacle):
         self.objects.append(obstacle)
@@ -89,6 +115,8 @@ class ChunkManager:
             self.add_ground(ground_left, self.end_x + offset)
             ground_left = self.end_x + offset + width
         self.add_ground(ground_left, self.end_x + built.length)
+        for left, right, height in built.platforms:
+            self.add_platform(self.end_x + left, self.end_x + right, height)
         for make, offset in built.obstacles:
             self.add_obstacle(make(self.end_x + offset))
         for make, offset, y in built.monsters:
@@ -98,7 +126,12 @@ class ChunkManager:
 
     def update(self, camera):
         if self.end_x <= camera.x + config.SCREEN_W:
-            candidates = [chunk for chunk in CHUNK_BUILDERS if chunk != self.last_chunk]
+            next_phase = self.phase + 1
+            # 일섬 연쇄 도중에 물리가 바뀌지 않도록 청크가 이어지는 지점에서만 페이즈를 넘긴다 (Q7).
+            if next_phase < len(config.PHASES) and self.player.score >= config.PHASES[next_phase]['score']:
+                self.phase = next_phase
+                self.add_gate(next_phase)
+            candidates = [chunk for chunk in config.PHASE_CHUNKS[self.phase] if chunk != self.last_chunk]
             self.spawn_chunk(random.choice(candidates))
 
         for obj in self.objects[:]:

@@ -39,6 +39,50 @@ def make_high_obstacle(left):
     return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, HIGH_COLOR)
 
 
+class PhaseGate:
+    COLOR = (150, 90, 230)
+
+    def __init__(self, x, phase):
+        self.x = x
+        self.phase = phase
+
+    def update(self, dt):
+        pass
+
+    def draw(self, camera):
+        left, bottom, right, top = self.get_bb()
+        draw_rectangle(left - camera.x, bottom, right - camera.x, top, *self.COLOR, 255, True)
+
+    def get_bb(self):
+        # 2단 점프로 넘어가지 못하도록 화면 위까지 막는다.
+        return self.x, config.GROUND_TOP, self.x + config.GATE_W, config.SCREEN_H
+
+    def handle_collision(self, group, other):
+        pass
+
+
+class Platform:
+    COLOR = (110, 90, 140)
+
+    def __init__(self, left, right, top):
+        self.left = left
+        self.right = right
+        self.top = top
+
+    def update(self, dt):
+        pass
+
+    def draw(self, camera):
+        left, bottom, right, top = self.get_bb()
+        draw_rectangle(left - camera.x, bottom, right - camera.x, top, *self.COLOR, 255, True)
+
+    def get_bb(self):
+        return self.left, self.top - config.PLATFORM_H, self.right, self.top
+
+    def handle_collision(self, group, other):
+        pass
+
+
 class Ground:
     def __init__(self, left, right):
         self.left = left
