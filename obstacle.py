@@ -6,7 +6,6 @@ GROUND_MARK_GAP = 200
 
 LOW_COLOR = (120, 110, 100)
 HIGH_COLOR = (70, 70, 90)
-HIT_COLOR = (220, 40, 40)
 
 
 class Obstacle:
@@ -27,8 +26,7 @@ class Obstacle:
         return self.left, self.bottom, self.right, self.top
 
     def handle_collision(self, group, other):
-        # HP가 생기기 전까지 회피 실패를 눈으로 확인하는 임시 표시다.
-        self.color = HIT_COLOR
+        pass
 
 
 def make_low_obstacle(left):

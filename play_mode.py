@@ -2,6 +2,7 @@ import game_world
 from camera import Camera
 from chunk_manager import ChunkManager
 from player import Player
+from ui import HUD
 
 player = None
 camera = None
@@ -15,6 +16,7 @@ def init():
     camera = Camera()
     chunks = ChunkManager()
     game_world.add_object(player, game_world.LAYER_PLAYER)
+    game_world.add_object(HUD(player), game_world.LAYER_UI)
     game_world.add_collision_pair('player:ground', player, None)
     game_world.add_collision_pair('player:obstacle', player, None)
 

@@ -21,6 +21,10 @@ INPUT_BUFFER = 0.12
 SLIDE_MAX_TIME = 1.0
 SLIDE_H = PLAYER_H * 0.5
 
+HP_MAX = 3
+INVINCIBLE_TIME = 1.5
+HIT_STUN_TIME = 0.3
+
 CHUNK_A_LENGTH = 2000
 CHUNK_B_LENGTH = 2800
 # 청크가 이어지는 곳에서도 장애물 간격이 좁아지지 않게 양 끝을 비운다.

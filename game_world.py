@@ -1,8 +1,9 @@
 LAYER_PLAYER = 0
 # 플레이어가 구덩이로 떨어질 때 지면 뒤로 가려지도록 지면을 앞에 그린다.
 LAYER_MAP = 1
+LAYER_UI = 2
 
-layers = [[], []]
+layers = [[], [], []]
 collision_pairs = {}
 
 

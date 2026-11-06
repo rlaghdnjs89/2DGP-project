@@ -62,6 +62,23 @@ class Jump:
             player.jump()
 
 
+class Hit:
+    COLOR = (200, 60, 60)
+
+    def __init__(self, player):
+        self.player = player
+        self.timer = 0
+
+    def enter(self):
+        self.timer = 0
+
+    def update(self, dt):
+        player = self.player
+        self.timer += dt
+        if self.timer >= config.HIT_STUN_TIME:
+            player.change_state(player.run_state if player.on_ground else player.jump_state)
+
+
 class Player:
     def __init__(self):
         self.x = config.PLAYER_SCREEN_X
@@ -73,10 +90,13 @@ class Player:
         self.jump_buffer = 0
         self.slide_buffer = 0
         self.s_held = False
+        self.hp = config.HP_MAX
+        self.invincible_timer = 0
 
         self.run_state = Run(self)
         self.slide_state = Slide(self)
         self.jump_state = Jump(self)
+        self.hit_state = Hit(self)
         self.state = self.run_state
 
     def change_state(self, state):
@@ -101,6 +121,7 @@ class Player:
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
         self.slide_buffer = max(0, self.slide_buffer - dt)
+        self.invincible_timer = max(0, self.invincible_timer - dt)
 
         self.x += config.SCROLL_SPEED * dt
 
@@ -121,8 +142,20 @@ class Player:
         h = config.SLIDE_H if self.state is self.slide_state else config.PLAYER_H
         return self.x - half_w, self.y, self.x + half_w, self.y + h
 
+    def take_damage(self):
+        if self.invincible_timer > 0:
+            return
+        self.hp -= 1
+        self.invincible_timer = config.INVINCIBLE_TIME
+        # player:ground 그룹을 먼저 처리하므로 이번 프레임의 착지 여부가 이미 반영되어 있다.
+        if self.on_ground:
+            self.change_state(self.hit_state)
+
     def handle_collision(self, group, other):
-        if group == 'player:ground' and self.vy <= 0 and self.prev_y >= other.top:
-            self.y = other.top
-            self.vy = 0
-            self.on_ground = True
+        if group == 'player:ground':
+            if self.vy <= 0 and self.prev_y >= other.top:
+                self.y = other.top
+                self.vy = 0
+                self.on_ground = True
+        else:
+            self.take_damage()
