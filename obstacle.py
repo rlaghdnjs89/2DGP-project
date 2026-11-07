@@ -1,9 +1,10 @@
+import math
 import random
 
 import config
 import game_world
 import sound
-from sprite import OneShot, Strip, get_image
+from sprite import Effect, OneShot, Strip, get_image
 from ui import draw_text
 
 GATE_FRAME_W = 64
@@ -12,6 +13,9 @@ PLATFORM_CAP_W = 32
 WALL_TOP_IMAGE = 'assets/map/wall_top.png'
 WALL_BOTTOM_IMAGE = 'assets/map/wall_bottom.png'
 WALL_BREAK_IMAGE = 'assets/map/wall_break.png'
+WALL_SEAL_IMAGE = 'assets/map/wall_seal.png'
+SEAL_PULSE_SPEED = 4
+SEAL_BREAK_FX_SCALE = 2
 WALL_BREAK_FRAME_W = 60
 WALL_BREAK_FPS = 14
 # 잘린 윗부분이 날아가는 궤적
@@ -95,20 +99,30 @@ class Wall:
         self.x = x
         self.player = player
         self.state = 'intact'
+        self.sealed = True
+        self.time = 0
         self.bullet_time_started = False
         self.flight_time = 0
         self.top_image = get_image(WALL_TOP_IMAGE)
         self.bottom_image = get_image(WALL_BOTTOM_IMAGE)
+        self.seal_image = get_image(WALL_SEAL_IMAGE)
 
     def update(self, dt):
+        self.time += dt
         if self.state == 'cut':
             self.flight_time += dt
             return
         gap = self.x - (self.player.x + config.PLAYER_W / 2)
-        ready = self.player.gauge >= config.GAUGE_MAX
-        if ready and not self.bullet_time_started and gap <= self.player.speed() * config.WALL_ENTRY_TIME:
+        if not self.sealed and not self.bullet_time_started and gap <= self.player.speed() * config.WALL_ENTRY_TIME:
             self.bullet_time_started = True
             self.player.enter_bullet_time(self)
+
+    def unseal(self):
+        self.sealed = False
+        sound.play('seal_break')
+        center_y = (config.GROUND_TOP + config.SCREEN_H) / 2
+        effect = Effect('plasma-explosion', self.x + config.WALL_W / 2, center_y, scale=SEAL_BREAK_FX_SCALE)
+        game_world.add_object(effect, game_world.LAYER_EFFECT)
 
     def draw(self, camera):
         scale = config.SPRITE_SCALE
@@ -124,15 +138,24 @@ class Wall:
             self.top_image.composite_draw(FLIGHT_SPIN * t, '', x, y, config.WALL_W, top_h)
         else:
             self.top_image.draw(center_x, top_y, config.WALL_W, top_h)
+            if self.sealed:
+                self.draw_seal(center_x)
             self.draw_warning()
+
+    def draw_seal(self, center_x):
+        self.seal_image.opacify(0.75 + 0.25 * math.sin(self.time * SEAL_PULSE_SPEED))
+        self.seal_image.draw(center_x, (config.GROUND_TOP + config.SCREEN_H) / 2, config.WALL_W, config.SCREEN_H - config.GROUND_TOP)
+        # opacify는 텍스처 자체를 바꾸므로 다음 장벽에 남지 않게 되돌린다.
+        self.seal_image.opacify(1)
 
     def draw_warning(self):
         gap = self.x - self.player.x
-        if self.player.bullet_wall or not 0 < gap <= self.player.speed() * config.WALL_WARNING_TIME:
+        if self.player.boss or self.player.bullet_wall or not 0 < gap <= self.player.speed() * config.WALL_WARNING_TIME:
             return
-        ready = self.player.gauge >= config.GAUGE_MAX
-        text = '거대 장벽! 발도술 준비 완료' if ready else '거대 장벽! 게이지 부족'
-        draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, text, READY_COLOR if ready else WARNING_COLOR, align=1)
+        if self.sealed:
+            draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인된 장벽! 수문장을 베어라', WARNING_COLOR, align=1)
+        else:
+            draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인 해제! 발도술 준비', READY_COLOR, align=1)
 
     def get_bb(self):
         return self.x, config.GROUND_TOP, self.x + config.WALL_W, config.SCREEN_H

@@ -14,10 +14,13 @@ class Camera:
         self.offset_x = 0
 
     def follow(self, target, dt):
+        if target.camera_locked():
+            return
         # 평소에는 플레이어와 같은 속도로 움직여 간격이 없고, 일섬으로 벌어진 간격만 서서히 줄인다.
-        self.base_x += target.speed() * dt
-        gap = target.x - config.PLAYER_SCREEN_X - self.base_x
-        self.base_x += gap * min(1, config.CAMERA_CATCH_UP * dt)
+        step = target.speed() * dt
+        gap = target.x - config.PLAYER_SCREEN_X - (self.base_x + step)
+        # 보스전 뒤에 플레이어가 기준 위치보다 뒤에 있어도 되감지 않고 따라올 때까지 기다린다.
+        self.base_x += max(0, step + gap * min(1, config.CAMERA_CATCH_UP * dt))
         self.x = self.base_x + self.offset_x
 
     def update_shake(self, dt):

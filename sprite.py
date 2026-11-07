@@ -59,10 +59,11 @@ def load_fx_sheet(name):
 
 
 class Effect:
-    """pixelfx 시트를 재생한다. anchor를 주면 anchor를 따라다닌다."""
+    """pixelfx 시트를 재생한다. anchor를 주면 anchor를 따라다니고, flip이면 왼쪽을 향한다."""
 
-    def __init__(self, name, x, y, anchor=None, speed=1, scale=config.SPRITE_SCALE):
+    def __init__(self, name, x, y, anchor=None, speed=1, scale=config.SPRITE_SCALE, flip=False):
         self.image, data = load_fx_sheet(name)
+        self.flip = flip
         self.frames = data['frames']
         self.pivot = data['meta']['pixelfx']['pivot']
         self.x = x
@@ -92,6 +93,11 @@ class Effect:
         scale = self.scale
         px, py = self.pivot
         # JSON의 y는 위에서, pico2d의 bottom은 아래에서 센다.
-        self.image.clip_draw(r['x'], self.image.h - r['y'] - r['h'], r['w'], r['h'],
-                             x - camera.x + (r['w'] / 2 - px) * scale, y - camera.y + (py - r['h'] / 2) * scale,
-                             r['w'] * scale, r['h'] * scale)
+        bottom = self.image.h - r['y'] - r['h']
+        center_y = y - camera.y + (py - r['h'] / 2) * scale
+        if self.flip:
+            self.image.clip_composite_draw(r['x'], bottom, r['w'], r['h'], 0, 'h',
+                                           x - camera.x - (r['w'] / 2 - px) * scale, center_y, r['w'] * scale, r['h'] * scale)
+        else:
+            self.image.clip_draw(r['x'], bottom, r['w'], r['h'],
+                                 x - camera.x + (r['w'] / 2 - px) * scale, center_y, r['w'] * scale, r['h'] * scale)
