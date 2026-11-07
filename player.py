@@ -200,7 +200,8 @@ class Player:
         self.dash_buffer = 0
         self.s_held = False
         self.sword = None
-        self.dash_cooldown = 0
+        self.dash_charges = config.DASH_MAX_CHARGES
+        self.dash_recharge = config.DASH_RECHARGE_TIME
         self.hang_timer = 0
         self.hp = config.HP_MAX
         self.invincible_timer = 0
@@ -240,7 +241,7 @@ class Player:
         self.change_state(self.jump_state)
 
     def try_attack(self):
-        if self.dash_buffer > 0 and self.dash_cooldown == 0:
+        if self.dash_buffer > 0 and self.dash_charges > 0:
             target = self.find_dash_target()
             if target:
                 self.start_dash(target)
@@ -272,7 +273,7 @@ class Player:
     def start_dash(self, target):
         sound.play('dash')
         self.dash_buffer = 0
-        self.dash_cooldown = config.DASH_COOLDOWN
+        self.dash_charges -= 1
         self.hang_timer = 0
         self.vy = 0
         # 돌진 중에 남은 베기 판정이 대상을 먼저 처치하면 돌진이 끝날 때 또 처치하게 된다.
@@ -284,10 +285,20 @@ class Player:
     def finish_dash(self, target):
         self.on_kill(target, by_dash=True)
         target.die()
-        self.dash_cooldown = 0
         if target.AIRBORNE:
+            # 낭떠러지의 사역마가 충전 수보다 많으므로 돌려주지 않으면 연쇄가 끊겨 건널 수 없다.
+            self.dash_charges = min(config.DASH_MAX_CHARGES, self.dash_charges + 1)
             self.hang_timer = config.DASH_HANG_TIME
         self.change_state(self.jump_state)
+
+    def tick_dash_recharge(self, dt):
+        if self.dash_charges == config.DASH_MAX_CHARGES:
+            self.dash_recharge = config.DASH_RECHARGE_TIME
+            return
+        self.dash_recharge -= dt
+        if self.dash_recharge <= 0:
+            self.dash_charges += 1
+            self.dash_recharge = config.DASH_RECHARGE_TIME
 
     def enter_bullet_time(self, wall):
         sound.set_music_volume(config.MUSIC_VOLUME_DUCK)
@@ -367,7 +378,7 @@ class Player:
         self.slide_buffer = max(0, self.slide_buffer - dt)
         self.slash_buffer = max(0, self.slash_buffer - dt)
         self.dash_buffer = max(0, self.dash_buffer - dt)
-        self.dash_cooldown = max(0, self.dash_cooldown - dt)
+        self.tick_dash_recharge(dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
         self.distance_score += config.DISTANCE_SCORE_RATE * config.PHASES[self.phase]['speed'] * dt

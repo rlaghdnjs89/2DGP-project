@@ -92,7 +92,9 @@ SWORD_H = 140
 
 DASH_RANGE = 400
 DASH_TIME = 0.15
-DASH_COOLDOWN = 2.0
+DASH_MAX_CHARGES = 2
+# 2초면 적이 나오는 속도보다 빨리 차서 지상 적의 80% 이상을 일섬으로 처치할 수 있어 제한이 되지 않는다.
+DASH_RECHARGE_TIME = 4.0
 DASH_HANG_TIME = 0.3
 
 CHUNK_A_LENGTH = 2400
@@ -113,8 +115,8 @@ PIT_W_SHORT = 160
 PIT_W_LONG = 360
 PIT_CHANCE = 0.3
 
-# 일섬을 막 쓴 직후에 진입해도 쿨타임이 돌도록 스크롤 속도 × 2초 이상 평지를 둔다 (DS-8).
-CLIFF_RUN_UP_TIME = 2
+# 일섬을 다 쓴 직후에 진입해도 1회가 충전되도록 충전 시간만큼 평지를 둔다 (DS-8).
+CLIFF_RUN_UP_TIME = DASH_RECHARGE_TIME
 CLIFF_W = 1100
 # 낭떠러지 시작점 기준 (x, 지면 위 높이). 간격은 사거리 400px 안이다 (DS-7).
 CLIFF_FAMILIARS = ((220, 200), (560, 250), (900, 200))

@@ -15,7 +15,7 @@ TEXT_COLOR = (250, 250, 250)
 SCORE_SIZE = 24
 COMBO_SIZE = 24
 DASH_SIZE = 24
-DASH_COOLDOWN_COLOR = (130, 130, 130)
+DASH_EMPTY_COLOR = (130, 130, 130)
 PHASE_SIZE = 24
 GAUGE_W = 220
 GAUGE_H = 16
@@ -113,6 +113,14 @@ class HUD:
         y = config.SCREEN_H * 0.72 + (top_y - config.SCREEN_H * 0.72) * t
         draw_text(size, center_x, y, self.phase_label(), align=0.5)
 
+    def draw_dash(self):
+        charges = self.player.dash_charges
+        text = f'일섬 {charges}/{config.DASH_MAX_CHARGES}'
+        if charges < config.DASH_MAX_CHARGES:
+            text += f'  {self.player.dash_recharge:.1f}'
+        color = TEXT_COLOR if charges > 0 else DASH_EMPTY_COLOR
+        draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, text, color)
+
     def draw_gauge(self):
         gauge = self.player.gauge
         left, bottom = MARGIN, GAUGE_Y
@@ -163,10 +171,7 @@ class HUD:
         if self.heal_notice > 0:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2 - COMBO_SIZE - 8, 'HP +1', HEAL_COLOR, align=1)
 
-        if self.player.dash_cooldown > 0:
-            draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, f'일섬 {self.player.dash_cooldown:.1f}', DASH_COOLDOWN_COLOR)
-        else:
-            draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, '일섬 준비')
+        self.draw_dash()
         self.draw_gauge()
 
         if self.flash > 0:
