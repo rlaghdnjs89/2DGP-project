@@ -286,8 +286,6 @@ class Player:
         self.on_kill(target, by_dash=True)
         target.die()
         if target.AIRBORNE:
-            # 낭떠러지의 사역마가 충전 수보다 많으므로 돌려주지 않으면 연쇄가 끊겨 건널 수 없다.
-            self.dash_charges = min(config.DASH_MAX_CHARGES, self.dash_charges + 1)
             self.hang_timer = config.DASH_HANG_TIME
         self.change_state(self.jump_state)
 
