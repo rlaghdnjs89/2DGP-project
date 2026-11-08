@@ -8,6 +8,10 @@ from monster import Monster
 from sprite import Effect, OneShot, Strip, load_fx_sheet
 
 
+WAVE_FRAME_W = 48
+WAVE_FPS = 14
+
+
 class AttackBox:
     """보스의 몸통과 따로 두는 공격 판정. 점프나 후퇴로 피할 수 있게 한다."""
 
@@ -28,6 +32,35 @@ class AttackBox:
 
     def get_bb(self):
         return self.left, self.bottom, self.right, self.top
+
+    def handle_collision(self, group, other):
+        pass
+
+
+class FloorWave:
+    """바닥을 따라 왼쪽으로 달리는 충격파. 화면 왼쪽 밖으로 나가면 사라진다."""
+
+    def __init__(self, x, y, speed, camera):
+        self.x = x
+        self.y = y
+        self.speed = speed
+        self.camera = camera
+        self.time = 0
+        self.strip = Strip('assets/monster/boss_wave.png', WAVE_FRAME_W)
+
+    def update(self, dt):
+        self.time += dt
+        self.x -= self.speed * dt
+        if self.x < self.camera.base_x - config.BOSS_WAVE_W:
+            game_world.remove_object(self)
+
+    def draw(self, camera):
+        frame = int(self.time * WAVE_FPS) % self.strip.count
+        self.strip.draw(frame, self.x - camera.x, self.y + self.strip.image.h - camera.y)
+
+    def get_bb(self):
+        half_w = config.BOSS_WAVE_W / 2
+        return self.x - half_w, self.y, self.x + half_w, self.y + config.BOSS_WAVE_H
 
     def handle_collision(self, group, other):
         pass
@@ -130,9 +163,9 @@ WARDEN_FPS = {'idle': 5, 'walk': 9, 'windup': 6, 'attack': 6, 'recover': 5, 'gua
 WARDEN_DEATH_FPS = 8
 WARDEN_ATTACK_FX = 'heavy-cleave'
 WARDEN_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'windup': 'windup', 'strike': 'attack', 'recover': 'recover',
-                       'guard': 'guard', 'groggy': 'groggy'}
+                       'guard': 'guard', 'groggy': 'groggy', 'wave_windup': 'windup', 'wave_gap': 'attack'}
 # 이 순서대로 공격을 돌린다. 내려찍기는 플레이어가 사거리에 들어올 때까지 걸어간다.
-WARDEN_PATTERN = ('slam', 'guard')
+WARDEN_PATTERN = ('slam', 'wave', 'slam', 'guard')
 
 
 class Warden(Boss):
@@ -162,6 +195,8 @@ class Warden(Boss):
         self.pattern = (self.pattern + 1) % len(WARDEN_PATTERN)
         if attack == 'slam':
             self.enter('windup', self.cleave['windup'])
+        elif attack == 'wave':
+            self.enter('wave_windup', config.BOSS_WAVE_WINDUP)
         else:
             self.enter('guard', config.BOSS_GUARD_TIME)
 
@@ -173,8 +208,22 @@ class Warden(Boss):
         elif self.state == 'strike':
             self.slam()
             self.enter('recover', config.BOSS_RECOVER_TIME)
+        elif self.state == 'wave_windup':
+            self.send_wave()
+            self.enter('wave_gap', config.BOSS_WAVE_INTERVAL)
+        elif self.state == 'wave_gap':
+            self.send_wave()
+            self.enter('recover', config.BOSS_WAVE_RECOVER)
         else:
             self.enter('walk')
+
+    def send_wave(self):
+        sound.play('boss_wave')
+        self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
+        left = self.x - config.BOSS_W / 2
+        effect = Effect('ground-slam', left, self.y, speed=config.BOSS_WAVE_FX_SPEED)
+        game_world.add_object(effect, game_world.LAYER_EFFECT)
+        self.add_attack(FloorWave(left, self.y, config.BOSS_WAVE_SPEED, self.player.camera))
 
     def slam(self):
         sound.play('boss_slam')
@@ -204,9 +253,11 @@ class Warden(Boss):
         super().on_dash_hit()
 
     def draw(self, camera):
-        if self.state in ('windup', 'strike'):
+        # 공격이 나가기 전에 맞을 범위를 바닥에 보여 준다.
+        if self.state in ('windup', 'strike', 'wave_windup'):
+            left = self.x - config.BOSS_STRIKE_REACH if self.state != 'wave_windup' else camera.x
             bottom = config.GROUND_TOP - 8 - camera.y
-            draw_rectangle(self.x - config.BOSS_STRIKE_REACH - camera.x, bottom, self.x - config.BOSS_W / 2 - camera.x, bottom + 8,
+            draw_rectangle(left - camera.x, bottom, self.x - config.BOSS_W / 2 - camera.x, bottom + 8,
                            *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
         name = WARDEN_STATE_SPRITE[self.state]
         sprite = (self.flash_sprites if self.flash > 0 else self.sprites)[name]

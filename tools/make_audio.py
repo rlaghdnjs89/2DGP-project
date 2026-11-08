@@ -223,6 +223,11 @@ def make_boss_sfx():
     add(block, noise(0.08, rng, 2, 0.2), gain=0.7)
     save(block, 'shield_block', 0.7)
 
+    wave = silence(0.5)
+    add(wave, tone(70, 0.45, pulse, slide=-30, release=0.2), gain=0.5)
+    add(wave, noise(0.45, rng, 1.6, 0.7), gain=1.0)
+    save(wave, 'boss_wave', 0.7)
+
 
 def make_gold_sfx():
     coin = silence(0.16)

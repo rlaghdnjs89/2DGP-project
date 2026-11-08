@@ -868,6 +868,22 @@ def save_boss_strip(name, frames):
     save(strip([tint_all(frame, (255, 255, 255)) for frame in frames]), f'monster/boss_{name}_flash.png')
 
 
+def make_boss_wave():
+    frames = []
+    for i in range(4):
+        rng = random.Random(70 + i)
+        img = new_frame(48, 40)
+        for layer, (height, color) in enumerate(((36, 'ff5a1f'), (26, 'ffb347'), (14, 'fff3c4'))):
+            lean = 8 + 2 * math.sin(i / 4 * math.pi * 2)
+            width = 22 - layer * 5
+            polygon(img, [(24 - width, 40), (24 - lean, 40 - height), (24 + width * 0.3, 40 - height * 0.7), (24 + width, 40)], hex_color(color))
+        for _ in range(8):
+            x, y = rng.randint(4, 43), rng.randint(0, 38)
+            rect(img, x, y, x + 2, y + 2, hex_color(rng.choice(['fff3c4', 'ffb347'])))
+        frames.append(img)
+    save(strip(frames), 'monster/boss_wave.png')
+
+
 def make_boss():
     stance = {'front_leg': (30, -30), 'back_leg': (-24, -20)}
     idle = [draw_boss(Pose(lean=8, tilt=-4, front_arm=(46, 24), back_arm=(10, 30), weapon=74 + i, scarf=i * 1.5, **stance)) for i in range(4)]
@@ -1518,6 +1534,7 @@ if __name__ == '__main__':
     make_familiar()
     make_mage()
     make_boss()
+    make_boss_wave()
     make_backgrounds()
     make_map()
     make_obstacles()
