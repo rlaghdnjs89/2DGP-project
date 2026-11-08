@@ -17,6 +17,9 @@ GRUNT_NEXT = {
     'recover': ('run', 0),
 }
 
+GOBLIN_FRAME_W = 64
+GOBLIN_FPS = {'idle': 4, 'windup': 10, 'charge': 16}
+
 MAGE_FRAME_W = 64
 MAGE_FPS = {'idle': 6, 'cast': 8}
 FAMILIAR_FRAME_W = 48
@@ -99,6 +102,54 @@ class Grunt(Monster):
         half_w = config.GRUNT_W / 2
         reach = config.GRUNT_ATTACK_REACH if self.state == 'attack' else 0
         return self.x - half_w - reach, self.y, self.x + half_w, self.y + config.GRUNT_H
+
+    def dash_y(self):
+        return self.y
+
+
+class Goblin(Monster):
+    SCORE = config.GOBLIN_SCORE
+    DASH_BONUS = 0
+    AIRBORNE = False
+
+    def __init__(self, x, y, player):
+        super().__init__(x, y, player)
+        self.state = 'idle'
+        self.timer = 0
+        self.time = 0
+        self.sprites = {name: Strip(f'assets/monster/goblin_{name}.png', GOBLIN_FRAME_W) for name in GOBLIN_FPS}
+
+    def update(self, dt):
+        self.time += dt
+        # 불릿 타임에는 달려들지 않는다 (CT-3).
+        if self.player.bullet_wall:
+            return
+        if self.state == 'idle':
+            if 0 <= self.x - self.player.x <= config.GOBLIN_SIGHT:
+                self.state = 'windup'
+                self.timer = config.GOBLIN_WINDUP_TIME
+                self.time = 0
+        elif self.state == 'windup':
+            self.timer -= dt
+            if self.timer <= 0:
+                self.state = 'charge'
+                self.time = 0
+        else:
+            # 피하든 부딪히든 멈추지 않고 화면 왼쪽 밖까지 달려 나간다.
+            self.x -= config.GOBLIN_CHARGE_SPEED * dt
+
+    def draw(self, camera):
+        sprite = self.sprites[self.state]
+        frame = int(self.time * GOBLIN_FPS[self.state]) % sprite.count
+        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y)
+
+    def make_death(self):
+        strip = Strip('assets/monster/goblin_death.png', GOBLIN_FRAME_W)
+        return OneShot(strip, DEATH_FPS, self.x, self.y + config.SPRITE_CENTER_Y)
+
+    def get_bb(self):
+        half_w = config.GOBLIN_W / 2
+        return self.x - half_w, self.y, self.x + half_w, self.y + config.GOBLIN_H
 
     def dash_y(self):
         return self.y

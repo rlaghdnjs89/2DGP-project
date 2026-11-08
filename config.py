@@ -188,8 +188,13 @@ CHUNK_D = {
     'platforms': ((1500, 1900, 130),),
     'mages': ((1150, 0), (1700, 130)),
 }
+# 청크 G. 고블린이 한 마리씩 달려들도록 고블린 시야보다 넓게 띄운다.
+CHUNK_G = {
+    'length': 2700,
+    'goblins': (700, 1500, 2300),
+}
 # 페이즈 3은 D를 두 번 넣어 마법사 비중을 높인다.
-PHASE_CHUNKS = (('A', 'B', 'C', 'D'), ('E1', 'E2', 'E3'), ('A', 'B', 'C', 'D', 'D'))
+PHASE_CHUNKS = (('A', 'B', 'C', 'D', 'G'), ('E1', 'E2', 'E3'), ('A', 'B', 'C', 'D', 'D', 'G'))
 
 GRUNT_W = 60
 GRUNT_H = 90
@@ -205,6 +210,15 @@ GRUNT_GAP_MIN = 350
 GRUNT_GAP_MAX = 450
 GRUNT_3RD_CHANCE = 0.5
 GRUNT_SCORE = 100
+
+GOBLIN_W = 50
+# 1단 점프(150)로 여유 있게 넘도록 낮다.
+GOBLIN_H = 60
+# 웅크리는 동안에도 플레이어가 달려와 가까워지므로, 달려드는 모습이 보일 만큼 멀리서 알아챈다.
+GOBLIN_SIGHT = 700
+GOBLIN_WINDUP_TIME = 0.5
+GOBLIN_CHARGE_SPEED = 650
+GOBLIN_SCORE = 150
 
 FAMILIAR_SIZE = 56
 FAMILIAR_FLOAT = 12

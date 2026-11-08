@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import config
 import game_world
-from monster import Boss, Familiar, Grunt, Mage
+from monster import Boss, Familiar, Goblin, Grunt, Mage
 from obstacle import Ground, PhaseGate, Platform, Wall, make_high_obstacle, make_low_obstacle
 
 Chunk = namedtuple('Chunk', 'length obstacles pits monsters platforms wall', defaults=((), (), (), (), None))
@@ -60,6 +60,11 @@ def build_chunk_d(phase):
     return Chunk(layout['length'], obstacles, monsters=monsters, platforms=layout['platforms'])
 
 
+def build_chunk_g(phase):
+    monsters = [(Goblin, x, config.GROUND_TOP) for x in config.CHUNK_G['goblins']]
+    return Chunk(config.CHUNK_G['length'], monsters=monsters)
+
+
 def build_island(name):
     layout = config.ISLAND_CHUNKS[name]
     monsters = [(Familiar, x, config.GROUND_TOP + y) for x, y in layout['familiars']]
@@ -75,6 +80,7 @@ CHUNK_BUILDERS = {
     'B': build_chunk_b,
     'C': build_chunk_c,
     'D': build_chunk_d,
+    'G': build_chunk_g,
     'E1': lambda phase: build_island('E1'),
     'E2': lambda phase: build_island('E2'),
     'E3': lambda phase: build_island('E3'),

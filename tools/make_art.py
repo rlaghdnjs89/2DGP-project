@@ -509,6 +509,114 @@ def make_grunt():
     save(strip(death), 'monster/grunt_death.png')
 
 
+# 고블린: 가죽 조끼를 입은 작은 초록 고블린, 녹슨 단검 ---------------------------------
+
+GB = {
+    'outline': hex_color('140d08'),
+    'skin': hex_color('6fbf4a'),
+    'skin_light': hex_color('a3e276'),
+    'skin_dark': hex_color('3f7d2c'),
+    'vest': hex_color('7a4a26'),
+    'vest_dark': hex_color('4f2f18'),
+    'cloth': hex_color('b08a3e'),
+    'eye': hex_color('ff3b30'),
+    'tooth': hex_color('f2ead0'),
+    'blade': hex_color('c2c7cf'),
+    'blade_dark': hex_color('6e7480'),
+}
+
+GOBLIN_BODY = {
+    'thigh': 5, 'shin': 5.5, 'torso': 8, 'upper_arm': 5, 'lower_arm': 5,
+    'thigh_r': 2.6, 'knee_r': 2.2, 'ankle_r': 2.0, 'arm_r': 2.3, 'hip_r': 3.8, 'chest_r': 4.6,
+}
+
+
+def draw_knife(img, hand, angle):
+    base = along(hand, angle, 2)
+    tip = along(hand, angle, 11)
+    capsule(img, along(hand, angle, -2.5), base, 0.9, 0.9, GB['vest_dark'])
+    capsule(img, base, tip, 1.4, 0.4, GB['blade'])
+    capsule(img, along(base, angle - 90, 0.8), along(tip, angle - 90, 0.3), 0.4, 0.3, GB['blade_dark'])
+
+
+def draw_goblin_head(img, center):
+    x, y = center
+    polygon(img, [(x - 3, y - 3), (x - 15, y - 9), (x - 4, y + 1)], GB['skin_dark'])
+    disc(img, x, y, 6, GB['skin'])
+    disc(img, x - 1, y - 2, 4, GB['skin_light'])
+    disc(img, x, y + 0.5, 5.2, GB['skin'])
+    polygon(img, [(x - 1, y - 4), (x - 12, y - 12), (x + 1, y - 1)], GB['skin_light'])
+    polygon(img, [(x + 4, y - 1), (x + 10, y + 2), (x + 4, y + 3)], GB['skin_light'])
+    rect(img, x + 1.5, y - 2.5, x + 4.5, y - 0.5, GB['eye'])
+    rect(img, x + 1, y + 3.5, x + 6, y + 4.5, GB['skin_dark'])
+    rect(img, x + 4, y + 3.5, x + 5, y + 5.5, GB['tooth'])
+
+
+def draw_goblin(pose):
+    b = GOBLIN_BODY
+    img = new_frame()
+    hip = resolve_hip(pose, b)
+    neck = along(hip, 180 - pose.lean, b['torso'])
+    head = along(neck, 180 - pose.lean - pose.tilt, 5.5)
+    shoulder_front = along(neck, -pose.lean, 1.5)
+    shoulder_back = (shoulder_front[0] - 2, shoulder_front[1])
+
+    draw_arm(img, shoulder_back, pose.back_arm, b, GB['skin_dark'], GB['skin_dark'], GB['skin_dark'])
+    draw_leg(img, (hip[0] - 1.2, hip[1]), pose.back_leg, b, GB['skin_dark'], GB['skin_dark'], GB['vest_dark'])
+    draw_leg(img, (hip[0] + 1.2, hip[1]), pose.front_leg, b, GB['skin'], GB['skin'], GB['vest_dark'])
+
+    capsule(img, hip, neck, b['hip_r'], b['chest_r'], GB['vest'])
+    chest = along(hip, 180 - pose.lean, b['torso'] * 0.6)
+    capsule(img, (chest[0] + 1, chest[1] - 2), (chest[0] + 1.5, chest[1] + 2), 1.1, 1.0, GB['vest_dark'])
+    capsule(img, (hip[0] - 4, hip[1]), (hip[0] + 4, hip[1]), 1.6, 1.6, GB['cloth'])
+
+    draw_goblin_head(img, head)
+
+    front_hand = along(along(shoulder_front, pose.front_arm[0], b['upper_arm']), pose.front_arm[0] + pose.front_arm[1], b['lower_arm'])
+    if pose.weapon is not None:
+        draw_knife(img, front_hand, pose.weapon)
+    draw_arm(img, shoulder_front, pose.front_arm, b, GB['skin'], GB['skin'], GB['skin_light'])
+    return flipped(outlined(img, GB['outline']))
+
+
+def make_goblin():
+    idle = [
+        draw_goblin(Pose(lean=12, tilt=-6, front_leg=(16, -26), back_leg=(-14, -22), front_arm=(50, -40), back_arm=(-20, 40), weapon=70)),
+        draw_goblin(Pose(lean=14, tilt=-8, front_leg=(20, -38), back_leg=(-16, -34), front_arm=(54, -44), back_arm=(-24, 44), weapon=74)),
+    ]
+    save(strip(idle), 'monster/goblin_idle.png')
+
+    # 몸을 낮게 웅크리고 단검을 뒤로 빼 달려들 준비를 한다.
+    crouch = {'front_leg': (52, -100), 'back_leg': (-30, -74)}
+    windup = [
+        draw_goblin(Pose(lean=34, tilt=-24, front_arm=(-40, -40), back_arm=(-70, 20), weapon=-150, **crouch)),
+        draw_goblin(Pose(lean=38, tilt=-26, front_arm=(-48, -40), back_arm=(-76, 20), weapon=-158, dx=-1, **crouch)),
+    ]
+    save(strip(windup), 'monster/goblin_windup.png')
+
+    charge = []
+    for i in range(6):
+        t = i / 6 * math.pi * 2
+
+        def leg(phase):
+            return 4 + 46 * math.cos(phase), -(14 + 80 * max(0, -math.sin(phase)))
+
+        charge.append(draw_goblin(Pose(lean=38, tilt=-26, front_leg=leg(t), back_leg=leg(t + math.pi), front_arm=(84, -4),
+                                       back_arm=(-50 - 20 * math.cos(t), 30), weapon=96)))
+    save(strip(charge), 'monster/goblin_charge.png')
+
+    body = draw_goblin(Pose(lean=-34, tilt=14, front_leg=(46, -40), back_leg=(14, -50), front_arm=(-140, 20), back_arm=(120, 20), weapon=-170))
+    tint = (255, 240, 220)
+    death = [
+        tint_all(body, tint),
+        dissolve(body, 0.2, 21, tint, 3),
+        dissolve(body, 0.45, 22, (200, 230, 120), 8),
+        dissolve(body, 0.7, 23, (110, 150, 70), 14),
+        dissolve(body, 0.9, 24, (60, 80, 50), 20),
+    ]
+    save(strip(death), 'monster/goblin_death.png')
+
+
 # 사역마: 박쥐 날개를 단 외눈 임프 ---------------------------------------------------
 
 F = {
@@ -1331,6 +1439,7 @@ def make_ui():
 if __name__ == '__main__':
     make_player()
     make_grunt()
+    make_goblin()
     make_familiar()
     make_mage()
     make_boss()
