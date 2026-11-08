@@ -6,6 +6,7 @@ from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, S
 import config
 import game_world
 import record
+import skills
 import sound
 from coin import Coin
 from sprite import Effect, Strip, load_fx_sheet
@@ -15,6 +16,7 @@ FRAME_W = 64
 ANIMATION_FPS = {'run': 16, 'idle': 6, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'charge': 10, 'cut': 16}
 OTHER_BUTTON = {SDL_BUTTON_LEFT: SDL_BUTTON_RIGHT, SDL_BUTTON_RIGHT: SDL_BUTTON_LEFT}
 MOVE_KEYS = {SDLK_a: -1, SDLK_d: 1}
+ULTIMATES = ('fire3', 'ice3', 'bolt3')
 CHARGE_FX = 'charge-up'
 IMPLOSION_FX = 'implosion'
 BURST_FX = 'plasma-explosion'
@@ -368,6 +370,8 @@ class Player:
         self.next_wall = None
         self.flurry_cooldown = 0
         self.pierce_cooldown = 0
+        self.ultimate_cooldown = 0
+        self.cast_timer = 0
         self.cleared = False
         self.triple_count = 0
         self.triple_timer = 0
@@ -406,6 +410,11 @@ class Player:
         self.change_state(self.jump_state)
 
     def try_attack(self):
+        # 운석을 시전하는 동안에는 공격할 수 없다.
+        if self.cast_timer > 0:
+            self.slash_buffer = 0
+            self.dash_buffer = 0
+            return False
         if self.dash_buffer > 0 and self.dash_charges > 0:
             target = self.find_dash_target()
             if target:
@@ -601,16 +610,27 @@ class Player:
             self.end_bullet_time()
             target.on_bullet_timeout()
 
-    def handle_cut_click(self, button):
+    def is_simultaneous_click(self, button):
         if button not in OTHER_BUTTON:
-            return
+            return False
         # 불릿 타임으로 느려져도 판정 시간은 변하지 않도록 실제 시간을 쓴다 (CT-1).
         now = get_time()
         other = OTHER_BUTTON[button]
         if other in self.press_times and now - self.press_times[other] <= config.SIMULTANEOUS_WINDOW:
-            self.change_state(self.cut_state)
-        else:
-            self.press_times[button] = now
+            self.press_times.clear()
+            return True
+        self.press_times[button] = now
+        return False
+
+    def learned_ultimate(self):
+        return next((skill for skill in ULTIMATES if record.has_skill(skill)), None)
+
+    def use_ultimate(self):
+        skill = self.learned_ultimate()
+        # 궁극기는 보스에게만 쓰므로 달리기 구간에서는 쿨타임을 쓰지 않는다.
+        if skill and self.boss and self.ultimate_cooldown <= 0 and self.cast_timer <= 0:
+            self.ultimate_cooldown = config.ULTIMATE_COOLDOWN
+            skills.cast_ultimate(skill, self, self.boss)
 
     def cut_target(self, target):
         sound.play('cut')
@@ -651,7 +671,8 @@ class Player:
         if self.bullet_target:
             # 불릿 타임 중 마우스는 동시 클릭 판정에만 쓰고 다른 입력은 받지 않는다 (CT-2, Q3).
             if event.type == SDL_MOUSEBUTTONDOWN:
-                self.handle_cut_click(event.button)
+                if self.is_simultaneous_click(event.button):
+                    self.change_state(self.cut_state)
             elif event.type == SDL_KEYUP and event.key == SDLK_s:
                 self.s_held = False
             return
@@ -662,8 +683,12 @@ class Player:
             self.slide_buffer = config.INPUT_BUFFER
         elif event.type == SDL_KEYUP and event.key == SDLK_s:
             self.s_held = False
-        elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT:
-            self.slash_buffer = config.INPUT_BUFFER
+        elif event.type == SDL_MOUSEBUTTONDOWN:
+            # 평소 좌클릭은 지연 없이 베기가 나가고, 우클릭까지 이어지면 궁극기가 함께 나간다.
+            if event.button == SDL_BUTTON_LEFT:
+                self.slash_buffer = config.INPUT_BUFFER
+            if self.is_simultaneous_click(event.button):
+                self.use_ultimate()
         elif event.type == SDL_KEYDOWN and event.key == SDLK_SPACE:
             self.dash_buffer = config.INPUT_BUFFER
         elif event.type == SDL_KEYDOWN and event.key == SDLK_q:
@@ -688,6 +713,8 @@ class Player:
         self.triple_timer = max(0, self.triple_timer - dt)
         self.flurry_cooldown = max(0, self.flurry_cooldown - dt)
         self.pierce_cooldown = max(0, self.pierce_cooldown - dt)
+        self.ultimate_cooldown = max(0, self.ultimate_cooldown - dt)
+        self.cast_timer = max(0, self.cast_timer - dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
         # 돌진 중에는 상태가 위치를 직접 정하고, 절단 중에는 그 자리에 떠서 힘을 모은다.

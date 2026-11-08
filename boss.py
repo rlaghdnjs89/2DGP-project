@@ -122,6 +122,7 @@ class Boss(Monster):
     """스테이지 끝을 지키는 보스의 공통 동작. 상태별 행동은 think에서 정한다."""
     AIRBORNE = False
     IS_BOSS = True
+    hidden = False
 
     def __init__(self, x, y, player, wall):
         super().__init__(x, y, player)
@@ -137,6 +138,7 @@ class Boss(Monster):
         self.burn_timer = 0
         self.slow_timer = 0
         self.frost_hits = 0
+        self.freeze_timer = 0
         self.status_fx = {}
 
     def enter(self, state, timer=0):
@@ -182,6 +184,7 @@ class Boss(Monster):
             self.slow_timer -= dt
             if self.slow_timer <= 0:
                 self.hide_status('slowed')
+        self.freeze_timer = max(0, self.freeze_timer - dt)
 
     def show_status(self, name):
         if name not in self.status_fx:
@@ -192,7 +195,15 @@ class Boss(Monster):
     def hide_status(self, name):
         game_world.remove_object(self.status_fx.pop(name))
 
+    def freeze(self):
+        sound.play('shield_block')
+        self.freeze_timer = config.FREEZE_TIME
+        effect = Effect('freeze', 0, 0, self, config.FREEZE_FX_SPEED, config.STATUS_FX['burning']['scale'])
+        game_world.add_object(effect, game_world.LAYER_EFFECT)
+
     def time_rate(self):
+        if self.freeze_timer > 0:
+            return 0
         return config.FROST_SLOW_RATE if self.slow_timer > 0 else 1
 
     def damage_rate(self):
@@ -202,7 +213,8 @@ class Boss(Monster):
         pass
 
     def take_hit(self, damage, by_dash=False):
-        self.hp -= damage * self.damage_rate()
+        frozen_rate = config.FREEZE_DAMAGE_RATE if self.freeze_timer > 0 else 1
+        self.hp -= damage * self.damage_rate() * frozen_rate
         self.flash = config.BOSS_FLASH_TIME
         sound.play('boss_hit')
         if self.hp > 0:

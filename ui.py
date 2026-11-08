@@ -16,6 +16,8 @@ GOLD_SIZE = 24
 GOLD_COLOR = (255, 214, 90)
 COMBO_SIZE = 24
 DASH_SIZE = 24
+SKILL_SLOT_X = 240
+SKILL_SLOT_GAP = 130
 DASH_EMPTY_COLOR = (130, 130, 130)
 STAGE_SIZE = 24
 BOSS_BAR_W = 560
@@ -162,6 +164,23 @@ class HUD:
             text += f'  {self.player.dash_recharge:.1f}'
         color = TEXT_COLOR if charges > 0 else DASH_EMPTY_COLOR
         draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, text, color)
+        self.draw_skill_slots()
+
+    def draw_skill_slots(self):
+        player = self.player
+        slots = []
+        if record.has_skill('flurry'):
+            slots.append(('Q', player.flurry_cooldown))
+        if record.has_skill('pierce'):
+            slots.append(('E', player.pierce_cooldown))
+        if player.learned_ultimate():
+            slots.append(('좌+우', player.ultimate_cooldown))
+        x = SKILL_SLOT_X
+        y = MARGIN + DASH_SIZE / 2
+        for name, cooldown in slots:
+            text = f'{name} {cooldown:.0f}' if cooldown > 0 else name
+            draw_text(DASH_SIZE, x, y, text, DASH_EMPTY_COLOR if cooldown > 0 else GOLD_COLOR)
+            x += SKILL_SLOT_GAP
 
     def draw_boss(self):
         boss = self.player.boss

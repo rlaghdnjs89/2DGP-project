@@ -247,11 +247,30 @@ SKILLS = {
     'bolt1': {'name': '감전 베기', 'branch': 'bolt', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스를 벨 때 25% 확률로 번개가 떨어져 공격력의 50% 피해를 추가로 준다.'},
     'fire2': {'name': '시체 폭발', 'branch': 'fire', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '처치한 적이 터져 반경 120px 안의 적을 처치한다.'},
     'ice2': {'name': '얼음 파편', 'branch': 'ice', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '처치한 적이 깨지며 파편 3개가 앞으로 날아가 적을 처치한다.'},
+    'fire3': {'name': '운석', 'branch': 'fire', 'tier': 3, 'slot': 0, 'cost': 800, 'desc': '보스전에서 좌+우 동시 클릭. 2초 시전 뒤 보스 최대 체력의 12% 피해를 준다. 시전 중에는 공격할 수 없다. 쿨타임 30초.'},
+    'ice3': {'name': '빙창', 'branch': 'ice', 'tier': 3, 'slot': 0, 'cost': 800, 'desc': '보스전에서 좌+우 동시 클릭. 맞추면 보스가 2초 빙결되고, 그동안 받는 피해가 1.5배가 된다. 쿨타임 30초.'},
+    'bolt3': {'name': '낙뢰', 'branch': 'bolt', 'tier': 3, 'slot': 0, 'cost': 800, 'desc': '보스전에서 좌+우 동시 클릭. 보스 위로 번개 3연발, 한 발에 공격력의 3배 피해를 준다. 쿨타임 30초.'},
     'bolt2': {'name': '연쇄 번개', 'branch': 'bolt', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '처치하면 가장 가까운 적 1마리에게 번개가 튀어 처치한다. 연쇄된다.'},
 }
 BRANCH_NAMES = {'sword': '검술', 'move': '기동', 'fire': '화염', 'ice': '빙결', 'bolt': '번개'}
 ELEMENTS = ('fire', 'ice', 'bolt')
 ELEMENT_CHANGE_COST = 300
+ULTIMATE_COOLDOWN = 30
+METEOR_CAST_TIME = 2
+METEOR_DAMAGE_RATIO = 0.12
+# fire/meteor 시트에서 운석이 바닥에 닿는 시점이다.
+METEOR_FX_IMPACT = 0.67
+LANCE_SPEED = 1400
+LANCE_LIFE = 1.2
+FREEZE_TIME = 2
+FREEZE_DAMAGE_RATE = 1.5
+FREEZE_FX_SPEED = 1.25
+LIGHTNING_INTERVAL = 0.35
+LIGHTNING_COUNT = 3
+LIGHTNING_DAMAGE_RATIO = 3
+LIGHTNING_FX_SPEED = 2
+# lightning/lightning-strike 시트에서 번개가 내리치는 시점이다.
+LIGHTNING_FX_IMPACT = 0.8
 CORPSE_RADIUS = 120
 CORPSE_FX_SPEED = 3
 CORPSE_FX_SCALE = 1

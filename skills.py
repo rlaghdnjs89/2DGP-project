@@ -9,9 +9,16 @@ from sprite import Effect, get_image
 
 SHARD_W = 28
 SHARD_H = 12
+LANCE_W = 84
+LANCE_H = 28
 BOLT_SEGMENTS = 5
 BOLT_WIGGLE = 14
 BOLT_WIDTH = 3
+
+
+def cast_ultimate(skill, player, boss):
+    obj = {'fire3': MeteorCast, 'ice3': IceLance, 'bolt3': LightningCall}[skill](player, boss)
+    game_world.add_object(obj, game_world.LAYER_EFFECT)
 
 
 def on_monster_killed(player, monster):
@@ -58,6 +65,85 @@ def chain_lightning(player, monster):
     target = min(nearby_monsters(player), key=distance, default=None)
     if target and distance(target) <= config.CHAIN_RANGE:
         game_world.add_object(ChainBolt(x, y, target), game_world.LAYER_EFFECT)
+
+
+class MeteorCast:
+    def __init__(self, player, boss):
+        self.player = player
+        self.boss = boss
+        self.timer = config.METEOR_CAST_TIME
+        self.dropped = False
+        player.cast_timer = config.METEOR_CAST_TIME
+        sound.play('cut_charge')
+        game_world.add_object(Effect('charge-up', 0, 0, player), game_world.LAYER_EFFECT)
+
+    def update(self, dt):
+        self.timer -= dt
+        if not self.dropped and self.timer <= config.METEOR_FX_IMPACT:
+            self.dropped = True
+            game_world.add_object(Effect('meteor', self.boss.x, self.boss.y), game_world.LAYER_EFFECT)
+        if self.timer <= 0:
+            game_world.remove_object(self)
+            if self.player.boss is self.boss:
+                sound.play('cut_boom')
+                self.player.camera.shake(config.BOSS_DEATH_SHAKE_TIME, config.BOSS_DEATH_SHAKE_AMP)
+                self.boss.lose_hp(self.boss.MAX_HP * config.METEOR_DAMAGE_RATIO)
+
+    def draw(self, camera):
+        pass
+
+
+class IceLance:
+    def __init__(self, player, boss):
+        self.player = player
+        self.boss = boss
+        self.x = player.x
+        self.y = player.y + config.PLAYER_H / 2
+        self.angle = math.atan2(boss.y + boss.H / 2 - self.y, boss.x - self.x)
+        self.life = config.LANCE_LIFE
+        self.image = get_image('assets/monster/ice_shard.png')
+        sound.play('fire')
+
+    def update(self, dt):
+        self.x += math.cos(self.angle) * config.LANCE_SPEED * dt
+        self.y += math.sin(self.angle) * config.LANCE_SPEED * dt
+        self.life -= dt
+        left, bottom, right, top = self.boss.get_bb()
+        hit = left <= self.x <= right and bottom <= self.y <= top and not self.boss.hidden
+        if hit and self.player.boss is self.boss:
+            self.boss.freeze()
+        if hit or self.life <= 0:
+            game_world.remove_object(self)
+
+    def draw(self, camera):
+        self.image.rotate_draw(self.angle, self.x - camera.x, self.y - camera.y, LANCE_W, LANCE_H)
+
+
+class LightningCall:
+    def __init__(self, player, boss):
+        self.player = player
+        self.boss = boss
+        self.time = 0
+        self.sent = 0
+        self.landed = 0
+
+    def update(self, dt):
+        self.time += dt
+        fx_delay = config.LIGHTNING_FX_IMPACT / config.LIGHTNING_FX_SPEED
+        if self.sent < config.LIGHTNING_COUNT and self.time >= self.sent * config.LIGHTNING_INTERVAL:
+            self.sent += 1
+            effect = Effect('lightning-strike', self.boss.x, self.boss.y, speed=config.LIGHTNING_FX_SPEED)
+            game_world.add_object(effect, game_world.LAYER_EFFECT)
+        if self.time >= self.landed * config.LIGHTNING_INTERVAL + fx_delay:
+            self.landed += 1
+            if self.player.boss is self.boss:
+                sound.play('zap')
+                self.boss.lose_hp(record.stat('attack') * config.LIGHTNING_DAMAGE_RATIO)
+            if self.landed == config.LIGHTNING_COUNT:
+                game_world.remove_object(self)
+
+    def draw(self, camera):
+        pass
 
 
 class IceShard:
