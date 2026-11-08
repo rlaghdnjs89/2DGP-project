@@ -43,6 +43,7 @@ def init():
     game_world.add_collision_pair('player:obstacle', player, None)
     game_world.add_collision_pair('player:monster', player, None)
     game_world.add_collision_pair('player:bullet', player, None)
+    game_world.add_collision_pair('player:strike', player, None)
     game_world.add_collision_pair('player:wall', player, None)
     game_world.add_collision_pair('reflected:mage', None, None)
 
@@ -86,6 +87,8 @@ def update(dt):
     elif player.bullet_wall:
         player.tick_bullet_time(dt)
         dt *= config.BULLET_TIME_SCALE
+    elif player.cut_after_timer > 0:
+        dt *= player.tick_cut_after(dt)
 
     game_world.update(dt)
     game_world.handle_collisions()

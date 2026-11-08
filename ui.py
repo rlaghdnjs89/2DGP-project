@@ -17,13 +17,14 @@ COMBO_SIZE = 24
 DASH_SIZE = 24
 DASH_EMPTY_COLOR = (130, 130, 130)
 PHASE_SIZE = 24
-GAUGE_W = 220
-GAUGE_H = 16
-GAUGE_Y = 52
-GAUGE_BG = (30, 26, 44)
-GAUGE_COLOR = (90, 170, 255)
-GAUGE_FULL_COLORS = ((255, 214, 90), (255, 255, 255))
-GAUGE_BLINK_FPS = 8
+BOSS_BAR_W = 560
+BOSS_BAR_H = 14
+BOSS_BAR_TOP = 92
+BOSS_BAR_BG = (30, 26, 44)
+BOSS_BAR_COLOR = (232, 56, 79)
+BOSS_NAME_SIZE = 24
+BOSS_INTRO_SIZE = 48
+BOSS_INTRO_COLOR = (255, 90, 90)
 BULLET_DIM = 0.35
 BULLET_TEXT_SIZE = 48
 BULLET_BAR_W = 420
@@ -121,18 +122,19 @@ class HUD:
         color = TEXT_COLOR if charges > 0 else DASH_EMPTY_COLOR
         draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, text, color)
 
-    def draw_gauge(self):
-        gauge = self.player.gauge
-        left, bottom = MARGIN, GAUGE_Y
-        draw_rectangle(left, bottom, left + GAUGE_W, bottom + GAUGE_H, *GAUGE_BG, 255, True)
-        if gauge >= config.GAUGE_MAX:
-            color = GAUGE_FULL_COLORS[int(self.time * GAUGE_BLINK_FPS) % 2]
-        else:
-            color = GAUGE_COLOR
-        if gauge > 0:
-            draw_rectangle(left, bottom, left + GAUGE_W * gauge / config.GAUGE_MAX, bottom + GAUGE_H, *color, 255, True)
-        draw_rectangle(left, bottom, left + GAUGE_W, bottom + GAUGE_H, 240, 240, 250, 255, False)
-        draw_text(DASH_SIZE, left + GAUGE_W + 12, bottom + GAUGE_H / 2, f'발도술 {gauge}%')
+    def draw_boss(self):
+        boss = self.player.boss
+        x = config.SCREEN_W / 2
+        left = x - BOSS_BAR_W / 2
+        right = left + BOSS_BAR_W
+        bottom = config.SCREEN_H - BOSS_BAR_TOP
+        draw_text(BOSS_NAME_SIZE, x, bottom + BOSS_BAR_H + 16, boss.NAME, align=0.5)
+        draw_rectangle(left, bottom, right, bottom + BOSS_BAR_H, *BOSS_BAR_BG, 255, True)
+        draw_rectangle(left, bottom, left + BOSS_BAR_W * boss.hp / config.BOSS_HP, bottom + BOSS_BAR_H, *BOSS_BAR_COLOR, 255, True)
+        draw_rectangle(left, bottom, right, bottom + BOSS_BAR_H, 240, 240, 250, 255, False)
+        if boss.state == 'intro':
+            draw_text(BOSS_INTRO_SIZE, x, config.SCREEN_H * 0.66, f'{boss.NAME} 등장', BOSS_INTRO_COLOR, align=0.5)
+            draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, 'A, D로 움직여 베어라', align=0.5)
 
     def draw_bullet_time(self):
         draw_overlay('assets/ui/black.png', BULLET_DIM)
@@ -172,7 +174,8 @@ class HUD:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2 - COMBO_SIZE - 8, 'HP +1', HEAL_COLOR, align=1)
 
         self.draw_dash()
-        self.draw_gauge()
+        if self.player.boss:
+            self.draw_boss()
 
         if self.flash > 0:
             draw_overlay('assets/ui/white.png', self.flash / FLASH_TIME)

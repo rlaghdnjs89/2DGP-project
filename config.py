@@ -53,30 +53,65 @@ PHASES = (
 PHASE_INVINCIBLE_TIME = 1.0
 GATE_W = 40
 
-GAUGE_MAX = 100
-GAUGE_SLASH_KILL = 10
-GAUGE_DASH_KILL = 15
 BULLET_TIME_SCALE = 0.2
 BULLET_TIME_MAX = 3.0
 SIMULTANEOUS_WINDOW = 0.15
-CUT_TIME = 0.35
+# 힘을 모으는 시간은 charge-up 이펙트가 터지는 시점(meta.pixelfx.act.hits[0].t)을 쓴다.
+CUT_FX_SCALE = 3
+CUT_RUMBLE_AMP = 5
+CUT_DIM_OPACITY = 0.7
+# implosion 시트에서 빛이 터지는 시점(초). 힘을 다 모으는 순간에 맞춰 재생 속도를 정한다.
+IMPLOSION_POP_TIME = 1.0
+# 터진 뒤 이 시간 동안 0.15배속에서 원래 속도로 서서히 돌아온다.
+CUT_AFTER_TIME = 0.9
+CUT_AFTER_SCALE = 0.15
 CUT_SCORE = 500
-CUT_SHAKE_TIME = 0.35
-CUT_SHAKE_AMP = 12
-# impact-frame 시트 한 칸(320×180)이 화면을 덮는 배율
-IMPACT_FRAME_SCALE = 4
+CUT_SHAKE_TIME = 0.8
+CUT_SHAKE_AMP = 20
+# impact-frame 시트 한 칸(320×180)을 화면보다 크게 그려 크게 흔들려도 가장자리가 드러나지 않게 한다.
+IMPACT_FRAME_SCALE = 5
+# 흑백 번쩍임이 터지는 장면을 오래 가리지 않게 느려진 시간을 감안해 빨리 재생한다.
+IMPACT_FRAME_SPEED = 8
 
 WALL_W = 120
-# 약 45초마다 장벽이 나오고, 이 주기에 나온 적이 기준보다 적으면 장애물 러시를 후보에서 뺀다.
-WALL_CYCLE = 45
-WALL_CYCLE_ENEMIES = 12
+# 달린 시간으로 잰다. 보스전 시간은 세지 않는다.
+WALL_CYCLE = 30
 WALL_WARNING_TIME = 1.5
 # 불릿 타임 3초 동안 스크롤 속도 × 0.6초만큼 전진하므로 그보다 멀리서 시작해야 입력할 시간이 다 보장된다 (CT-6).
 WALL_ENTRY_TIME = 0.7
 CHUNK_F_LENGTH = 2600
 WALL_OFFSET = 1900
-WALL_MONSTER_OFFSETS = (500, 900, 1250)
-WALL_FAMILIAR_HEIGHT = 180
+
+# 내려찍기를 피하지 않고 베기와 일섬만 쓰면 HP 3칸으로는 이길 수 없는 값이다.
+BOSS_HP = 36
+BOSS_DASH_DAMAGE = 3
+BOSS_SCORE = 500
+BOSS_W = 110
+BOSS_H = 210
+# 일섬 사거리(400)보다 멀리서 보스전을 시작해 카메라가 멈추기 전에는 일섬이 닿지 않게 한다.
+BOSS_ENGAGE_GAP = 450
+# 보스에 붙어 쓰러뜨려도 장벽까지 Phase 3 스크롤 속도 × 0.6초(360px) 이상 남아 불릿 타임이 다 보장된다 (CT-6).
+BOSS_WALL_GAP = 305
+BOSS_INTRO_TIME = 1.2
+BOSS_WALK_SPEED = 130
+BOSS_ATTACK_RANGE = 230
+BOSS_RECOVER_TIME = 1.2
+# 내려찍기 판정. 높이는 1단 점프(150)로 넘을 수 있고, 뒤로 물러나 피할 수도 있다.
+BOSS_STRIKE_TIME = 0.12
+BOSS_STRIKE_REACH = 340
+BOSS_STRIKE_H = 110
+BOSS_STRIKE_WARNING_COLOR = (255, 70, 70)
+BOSS_FX_SCALE = 4
+# heavy-cleave의 멈춤 수치는 그대로 쓰면 내려찍을 때마다 흐름이 끊겨 줄여 쓴다.
+BOSS_HIT_STOP_RATIO = 0.5
+BOSS_FLASH_TIME = 0.08
+BOSS_DEATH_FX_SCALE = 3
+BOSS_DEATH_HIT_STOP = 0.2
+BOSS_DEATH_SHAKE_TIME = 0.5
+BOSS_DEATH_SHAKE_AMP = 14
+BOSS_FIGHT_MOVE_SPEED = 360
+# 충돌 판정이 경계를 포함하므로 맞닿지 않게 띄운다.
+BOSS_CONTACT_GAP = 2
 
 HP_MAX = 3
 INVINCIBLE_TIME = 1.5
@@ -93,7 +128,7 @@ SWORD_H = 140
 DASH_RANGE = 400
 DASH_TIME = 0.15
 DASH_MAX_CHARGES = 2
-# 2초면 적이 나오는 속도보다 빨리 차서 지상 적의 약 80%를 일섬으로 처치할 수 있어 제한이 되지 않는다.
+# 2초면 적이 나오는 속도보다 빨리 차서 지상 적의 70~80%를 일섬으로 처치할 수 있어 제한이 약하다.
 DASH_RECHARGE_TIME = 4.0
 DASH_HANG_TIME = 0.3
 
@@ -155,8 +190,6 @@ CHUNK_D = {
 }
 # 페이즈 3은 D를 두 번 넣어 마법사 비중을 높인다.
 PHASE_CHUNKS = (('A', 'B', 'C', 'D'), ('E1', 'E2', 'E3'), ('A', 'B', 'C', 'D', 'D'))
-# 지면에서 싸우는 페이즈. 나머지 페이즈의 장벽 청크에는 근접병 대신 사역마를 둔다.
-GROUND_FIGHT_PHASES = (0, 2)
 
 GRUNT_W = 60
 GRUNT_H = 90
@@ -192,7 +225,6 @@ BULLET_SPEED = 300
 REFLECTED_SPEED = 900
 BULLET_SIZE = 28
 PARRY_SCORE = 50
-GAUGE_PARRY = 5
 
 # 베기 처치의 멈춤과 흔들림은 pixelfx sword-slash의 수치를 쓴다. 그 값은 서 있는 캐릭터 기준이라
 # 계속 달리는 게임에서 그대로 쓰면 흐름이 끊겨 줄여 쓴다.
@@ -203,7 +235,7 @@ DASH_SHAKE_AMP = 5
 HURT_HIT_STOP = 0.1
 HURT_SHAKE_TIME = 0.25
 HURT_SHAKE_AMP = 7
-CUT_HIT_STOP = 0.1
+CUT_HIT_STOP = 0.2
 KNOCKBACK_SPEED = 500
 BLINK_HZ = 12
 BLINK_OPACITY = 0.35

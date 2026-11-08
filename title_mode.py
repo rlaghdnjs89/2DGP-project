@@ -23,7 +23,7 @@ BLINK_SPEED = 5
 LOGO_COLOR = (250, 250, 255)
 SHADOW_COLOR = (40, 20, 70)
 ACCENT_COLOR = (255, 90, 110)
-HELP = 'W 점프 (공중에서 2단)   S 슬라이딩   SPACE 일섬   좌클릭 베기   ESC 일시 정지'
+HELP = 'W 점프 (공중에서 2단)   S 슬라이딩   SPACE 일섬   좌클릭 베기   A D 보스전 이동   ESC 일시 정지'
 
 camera = None
 time = 0

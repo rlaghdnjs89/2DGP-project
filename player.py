@@ -1,14 +1,19 @@
-from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_s,
-                    SDLK_w, get_time)
+from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_a,
+                    SDLK_d, SDLK_s, SDLK_w, get_time)
 
 import config
 import game_world
 import sound
 from sprite import Effect, Strip, load_fx_sheet
+from ui import draw_overlay
 
 FRAME_W = 64
-ANIMATION_FPS = {'run': 16, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'cut': 16}
+ANIMATION_FPS = {'run': 16, 'idle': 6, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'charge': 10, 'cut': 16}
 OTHER_BUTTON = {SDL_BUTTON_LEFT: SDL_BUTTON_RIGHT, SDL_BUTTON_RIGHT: SDL_BUTTON_LEFT}
+MOVE_KEYS = {SDLK_a: -1, SDLK_d: 1}
+CHARGE_FX = 'charge-up'
+IMPLOSION_FX = 'implosion'
+BURST_FX = 'plasma-explosion'
 # 시트에서 검기가 빠르게 끝나도록 빨리 재생한다.
 SLASH_FX_SPEED = 1.6
 SLASH_FX_Y = 8
@@ -121,27 +126,68 @@ class Dash:
         self.timer += dt
         t = min(1, self.timer / config.DASH_TIME)
         # 대상이 움직여도 빗나가지 않도록 매 프레임 현재 위치로 보간한다.
-        player.x = self.start_x + (self.target.x - self.start_x) * t
+        player.x = self.start_x + (self.target.dash_x() - self.start_x) * t
         player.y = self.start_y + (self.target.dash_y() - self.start_y) * t
         if t >= 1:
             player.finish_dash(self.target)
 
 
+class Layer:
+    """이펙트 사이에 끼워 넣는 그리기 호출."""
+
+    def __init__(self, draw):
+        self.draw = draw
+
+    def update(self, dt):
+        pass
+
+
 class Cut:
-    ANIMATION = 'cut'
+    """차원 절단. 힘을 모은 뒤 터뜨리고, 터진 뒤의 느린 시간은 Player.tick_cut_after가 맡는다."""
 
     def __init__(self, player):
         self.player = player
         self.timer = 0
+        self.wall = None
+        self.layers = ()
+        self.dim_opacity = 0
+        self.ANIMATION = 'charge'
+        self.charge_time = load_fx_sheet(CHARGE_FX)[1]['meta']['pixelfx']['act']['hits'][0]['t']
 
     def enter(self):
+        player = self.player
         self.timer = 0
+        self.wall = player.bullet_wall
+        self.ANIMATION = 'charge'
+        player.bullet_wall = None
+        player.vy = 0
+        player.hang_timer = 0
+        sound.play('cut_charge')
+        self.dim_opacity = 0
+        # 주변은 어두워지고, implosion의 어두운 구체가 플레이어를 가리지 않게 구체 위에 플레이어를 다시 그린다.
+        dim = Layer(lambda camera: draw_overlay('assets/ui/black.png', self.dim_opacity))
+        body = Layer(player.draw)
+        self.layers = (dim, body)
+        implosion_speed = config.IMPLOSION_POP_TIME / self.charge_time
+        implosion = Effect(IMPLOSION_FX, 0, config.PLAYER_H / 2, player, implosion_speed, config.CUT_FX_SCALE)
+        for layer in (dim, implosion, body, Effect(CHARGE_FX, 0, 0, player, scale=config.CUT_FX_SCALE)):
+            game_world.add_object(layer, game_world.LAYER_EFFECT)
 
     def update(self, dt):
-        player = self.player
+        if self.wall is None:
+            return
         self.timer += dt
-        if self.timer >= config.CUT_TIME:
-            player.change_state(player.run_state if player.on_ground else player.jump_state)
+        power = min(1, self.timer / self.charge_time)
+        self.dim_opacity = config.CUT_DIM_OPACITY * power
+        # 힘이 찰수록 땅이 크게 울린다.
+        self.player.camera.shake(0.05, config.CUT_RUMBLE_AMP * power)
+        if self.timer >= self.charge_time:
+            for layer in self.layers:
+                game_world.remove_object(layer)
+            self.player.cut_wall(self.wall)
+            self.wall = None
+            self.ANIMATION = 'cut'
+            self.player.animation_time = 0
 
 
 class Sword:
@@ -210,9 +256,11 @@ class Player:
         self.kills = 0
         self.combo = 0
         self.phase = 0
-        self.gauge = 0
+        self.boss = None
+        self.held_move = set()
         self.bullet_wall = None
         self.bullet_timer = 0
+        self.cut_after_timer = 0
         self.press_times = {}
         self.animation_time = 0
         self.hit_stop = 0
@@ -283,8 +331,7 @@ class Player:
         self.change_state(self.dash_state)
 
     def finish_dash(self, target):
-        self.on_kill(target, by_dash=True)
-        target.die()
+        target.on_dash_hit()
         if target.AIRBORNE:
             self.hang_timer = config.DASH_HANG_TIME
         self.change_state(self.jump_state)
@@ -297,6 +344,13 @@ class Player:
         if self.dash_recharge <= 0:
             self.dash_charges += 1
             self.dash_recharge = config.DASH_RECHARGE_TIME
+
+    def enter_boss_fight(self, boss):
+        sound.play('boss_roar')
+        self.boss = boss
+
+    def end_boss_fight(self):
+        self.boss = None
 
     def enter_bullet_time(self, wall):
         sound.set_music_volume(config.MUSIC_VOLUME_DUCK)
@@ -327,23 +381,41 @@ class Player:
         now = get_time()
         other = OTHER_BUTTON[button]
         if other in self.press_times and now - self.press_times[other] <= config.SIMULTANEOUS_WINDOW:
-            self.cut_wall()
+            self.change_state(self.cut_state)
         else:
             self.press_times[button] = now
 
-    def cut_wall(self):
+    def cut_wall(self, wall):
         sound.play('cut')
-        self.bullet_wall.cut()
-        self.end_bullet_time()
-        self.gauge = 0
+        sound.play('cut_boom')
+        wall.cut()
         self.add_score(config.CUT_SCORE)
-        self.change_state(self.cut_state)
+        self.cut_after_timer = config.CUT_AFTER_TIME
         self.camera.shake(config.CUT_SHAKE_TIME, config.CUT_SHAKE_AMP)
         self.freeze(config.CUT_HIT_STOP)
         center_x = self.camera.base_x + config.SCREEN_W / 2
-        game_world.add_object(Effect('impact-frame', center_x, config.SCREEN_H / 2, scale=config.IMPACT_FRAME_SCALE), game_world.LAYER_EFFECT)
+        game_world.add_object(Effect(BURST_FX, wall.x + config.WALL_W / 2, config.SCREEN_H / 2, scale=config.CUT_FX_SCALE), game_world.LAYER_EFFECT)
+        game_world.add_object(Effect('impact-frame', center_x, config.SCREEN_H / 2, speed=config.IMPACT_FRAME_SPEED, scale=config.IMPACT_FRAME_SCALE),
+                              game_world.LAYER_EFFECT)
+
+    def tick_cut_after(self, real_dt):
+        """터진 뒤의 느린 시간을 실제 시간으로 재고, 이번 프레임의 시간 배율을 돌려준다."""
+        self.cut_after_timer -= real_dt
+        if self.cut_after_timer <= 0:
+            sound.set_music_volume(config.MUSIC_VOLUME)
+            self.change_state(self.run_state if self.on_ground else self.jump_state)
+            return 1
+        t = 1 - self.cut_after_timer / config.CUT_AFTER_TIME
+        return config.CUT_AFTER_SCALE + (1 - config.CUT_AFTER_SCALE) * t * t
 
     def handle_event(self, event):
+        if event.type in (SDL_KEYDOWN, SDL_KEYUP) and event.key in MOVE_KEYS:
+            # 보스전이 아닐 때 누른 키도 보스전에 들어가면 바로 움직이도록 항상 기록한다.
+            if event.type == SDL_KEYDOWN:
+                self.held_move.add(event.key)
+            else:
+                self.held_move.discard(event.key)
+            return
         if self.bullet_wall:
             # 불릿 타임 중 마우스는 동시 클릭 판정에만 쓰고 다른 입력은 받지 않는다 (CT-2, Q3).
             if event.type == SDL_MOUSEBUTTONDOWN:
@@ -379,17 +451,22 @@ class Player:
         self.tick_dash_recharge(dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
-        self.distance_score += config.DISTANCE_SCORE_RATE * config.PHASES[self.phase]['speed'] * dt
+        if not self.boss:
+            self.distance_score += config.DISTANCE_SCORE_RATE * config.PHASES[self.phase]['speed'] * dt
         # 소수점이 쌓이도록 따로 누적하고 정수 부분만 점수로 옮긴다.
         gained = int(self.distance_score)
         self.distance_score -= gained
         self.add_score(gained)
 
-        # 돌진 중에는 Dash가 위치를 직접 정한다.
-        if self.state is self.dash_state:
+        # 돌진 중에는 Dash가 위치를 직접 정하고, 절단 중에는 그 자리에 떠서 힘을 모은다.
+        if self.state is self.dash_state or self.state is self.cut_state:
             return
 
         self.x += self.speed() * dt
+        if self.boss:
+            # 스프라이트가 오른쪽만 보므로 보스를 넘어가지 못하게 한다.
+            half_w = config.PLAYER_W / 2
+            self.x = max(self.camera.base_x + half_w, min(self.x, self.boss.dash_x()))
         self.prev_y = self.y
         if self.hang_timer > 0:
             self.hang_timer -= dt
@@ -410,6 +487,8 @@ class Player:
     def animation_name(self):
         if self.state is self.jump_state:
             return 'rise' if self.vy > 0 else 'fall'
+        if self.state is self.run_state and self.boss and self.speed() == 0:
+            return 'idle'
         return self.state.ANIMATION
 
     def draw(self, camera):
@@ -448,41 +527,43 @@ class Player:
         if self.on_ground:
             self.change_state(self.hit_state)
 
+    def camera_locked(self):
+        return self.boss is not None or self.state is self.cut_state
+
     def speed(self):
+        if self.state is self.cut_state:
+            return 0
+        if self.boss:
+            if self.state is self.hit_state:
+                return 0
+            return sum(MOVE_KEYS[key] for key in self.held_move) * config.BOSS_FIGHT_MOVE_SPEED
         return config.SCROLL_SPEED * config.PHASES[self.phase]['speed']
 
     def add_score(self, points):
         # 진입 순간 총점이 뛰지 않도록 얻는 시점에 배율을 곱한다 (Q1).
         self.score += points * config.PHASES[self.phase]['score_rate']
 
-    def play_kill_feedback(self, monster, by_dash):
+    def play_hit_feedback(self, monster, by_dash):
         y = monster.dash_y() + config.PLAYER_H / 2
         if by_dash:
             self.freeze(config.DASH_HIT_STOP)
             self.camera.shake(config.DASH_SHAKE_TIME, config.DASH_SHAKE_AMP)
-            effect = Effect('crit-hit', monster.x, y, speed=DASH_KILL_FX_SPEED)
+            effect = Effect('crit-hit', monster.dash_x(), y, speed=DASH_KILL_FX_SPEED)
         else:
             hit = load_fx_sheet('sword-slash')[1]['meta']['pixelfx']['act']['hits'][0]
             self.freeze(hit['freeze'] * config.SLASH_HIT_STOP_RATIO)
             self.camera.shake(hit['shake'], hit['amp'] * config.SPRITE_SCALE)
-            effect = Effect('hit-spark', monster.x, y, speed=KILL_FX_SPEED, scale=KILL_FX_SCALE)
+            effect = Effect('hit-spark', monster.dash_x(), y, speed=KILL_FX_SPEED, scale=KILL_FX_SCALE)
         game_world.add_object(effect, game_world.LAYER_EFFECT)
-
-    def add_gauge(self, amount):
-        if self.gauge < config.GAUGE_MAX <= self.gauge + amount:
-            sound.play('gauge_full')
-        self.gauge = min(config.GAUGE_MAX, self.gauge + amount)
 
     def on_parry(self):
         sound.play('parry')
         self.add_score(config.PARRY_SCORE)
-        self.add_gauge(config.GAUGE_PARRY)
 
     def on_kill(self, monster, by_dash=False, bonus=0):
         self.add_score(monster.SCORE + bonus + (monster.DASH_BONUS if by_dash else 0))
         sound.play('kill')
-        self.play_kill_feedback(monster, by_dash)
-        self.add_gauge(config.GAUGE_DASH_KILL if by_dash else config.GAUGE_SLASH_KILL)
+        self.play_hit_feedback(monster, by_dash)
         self.kills += 1
         self.combo += 1
         if self.combo % config.COMBO_HEAL == 0 and self.hp < config.HP_MAX:

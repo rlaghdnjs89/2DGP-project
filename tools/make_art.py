@@ -339,6 +339,21 @@ def make_player():
     ]
     save(strip(cut), 'player/cut.png')
 
+    idle = [
+        draw_player(Pose(lean=6, tilt=-3, front_leg=(30, -30), back_leg=(-22, -22), front_arm=(34, 30), back_arm=(8, 34),
+                         weapon=66, scarf=i * 1.5, scarf_lift=0.1))
+        for i in range(4)
+    ]
+    save(strip(idle), 'player/idle.png')
+
+    # 칼을 뒤로 빼고 낮게 웅크린 발도 자세. 힘이 찰수록 머플러가 위로 솟는다.
+    charge = [
+        draw_player(Pose(lean=24, tilt=-14, front_leg=(58, -74), back_leg=(-48, -34), front_arm=(-34, 56), back_arm=(34, 64),
+                         weapon=-104, scarf=i * 1.6, scarf_lift=-0.1 - i * 0.1))
+        for i in range(4)
+    ]
+    save(strip(charge), 'player/charge.png')
+
     dash = [
         draw_player(Pose(lean=66, tilt=-46, hip_y=38, dx=-4, front_leg=(50, -56), back_leg=(-74, -6), front_arm=(88, 4),
                          back_arm=(-96, 10), weapon=92, scarf=s, scarf_lift=-0.03))
@@ -620,6 +635,156 @@ def make_mage():
             rect(img, 8 + math.cos(a) * 5, 8 + math.sin(a) * 5, 8 + math.cos(a) * 5 + 2, 8 + math.sin(a) * 5 + 2, hex_color(core_c))
             frames.append(img)
         save(strip(frames), f'monster/{name}.png')
+
+
+# 보스: 뿔 달린 투구와 보랏빛 망토의 거대 기사, 불씨 날의 대검 ------------------------
+
+B = {
+    'outline': hex_color('120a18'),
+    'armor': hex_color('4c4a66'),
+    'armor_light': hex_color('8583a8'),
+    'armor_dark': hex_color('2c2a42'),
+    'trim': hex_color('e9b949'),
+    'cape': hex_color('5b2fa6'),
+    'cape_dark': hex_color('3a1c70'),
+    'horn': hex_color('d9d2c0'),
+    'visor': hex_color('120a18'),
+    'eye': hex_color('ff4a4a'),
+    'core': hex_color('c77dff'),
+    'core_light': hex_color('ffe9ff'),
+    'grip': hex_color('2a2238'),
+    'blade': hex_color('b7bccb'),
+    'blade_dark': hex_color('6d7286'),
+    'ember': hex_color('ff9a3d'),
+}
+BOSS_FRAME = 172
+BOSS_FEET_Y = 168
+BOSS_BODY = {
+    'thigh': 20, 'shin': 20, 'torso': 28, 'upper_arm': 16, 'lower_arm': 16,
+    'thigh_r': 8, 'knee_r': 7, 'ankle_r': 6, 'arm_r': 7, 'hip_r': 11, 'chest_r': 16,
+}
+
+
+def draw_greatsword(img, hand, angle):
+    tip = along(hand, angle, 50)
+    base = along(hand, angle, 7)
+    normal = angle + 90
+    capsule(img, along(hand, angle, -6), base, 1.8, 1.8, B['grip'])
+    polygon(img, [along(base, normal, 4.5), along(tip, normal, 1.5), along(tip, normal, -1.5), along(base, normal, -4.5)], B['blade'])
+    capsule(img, base, along(tip, angle, -6), 1.2, 0.6, B['blade_dark'])
+    capsule(img, along(base, normal, 4.2), along(tip, normal, 1.2), 0.8, 0.5, B['ember'])
+    capsule(img, along(base, normal, 7), along(base, normal, -7), 1.6, 1.6, B['trim'])
+
+
+def draw_boss_leg(img, hip, leg, thigh_color, shin_color):
+    b = BOSS_BODY
+    knee, ankle, _ = leg_points(hip, leg[0], leg[1], b['thigh'], b['shin'])
+    foot = along(ankle, leg[0] + leg[1] + 90, 8)
+    capsule(img, hip, knee, b['thigh_r'], b['knee_r'], thigh_color)
+    capsule(img, knee, ankle, b['knee_r'], b['ankle_r'], shin_color)
+    capsule(img, ankle, foot, b['ankle_r'], 3.5, B['armor_dark'])
+    disc(img, knee[0], knee[1], b['knee_r'] - 1.5, B['armor_light'])
+
+
+def draw_boss_head(img, center):
+    x, y = center
+    polygon(img, [(x - 7, y - 8), (x - 22, y - 26), (x - 12, y - 6)], B['horn'])
+    polygon(img, [(x + 6, y - 9), (x + 20, y - 28), (x + 13, y - 6)], B['horn'])
+    disc(img, x, y, 12, B['armor'])
+    disc(img, x - 2, y - 3, 8, B['armor_light'])
+    disc(img, x, y, 10, B['armor'])
+    rect(img, x - 4, y - 2, x + 13, y + 3, B['visor'])
+    rect(img, x + 3, y - 1, x + 7, y + 2, B['eye'])
+    rect(img, x + 9, y - 1, x + 12, y + 2, B['eye'])
+    capsule(img, (x - 2, y - 11), (x + 2, y - 11), 1.2, 1.2, B['trim'])
+
+
+def draw_boss(pose):
+    b = BOSS_BODY
+    img = new_frame(BOSS_FRAME, BOSS_FRAME)
+    lowest = 0
+    for thigh, knee in (pose.front_leg, pose.back_leg):
+        _, ankle, foot = leg_points((0, 0), thigh, knee, b['thigh'], b['shin'])
+        lowest = max(lowest, ankle[1] + b['ankle_r'], foot[1] + 3.5)
+    hip = (BOSS_FRAME / 2 + pose.dx, BOSS_FEET_Y - lowest)
+    neck = along(hip, 180 - pose.lean, b['torso'])
+    head = along(neck, 180 - pose.lean - pose.tilt, 13)
+    shoulder_front = along(neck, -pose.lean, 3)
+    shoulder_back = (shoulder_front[0] - 7, shoulder_front[1])
+
+    sway = math.sin(pose.scarf) * 4
+    polygon(img, [(neck[0] - 8, neck[1]), (neck[0] + 6, neck[1]), (hip[0] - 4, hip[1] + 26 + sway), (hip[0] - 30 + sway, BOSS_FEET_Y - 12),
+                  (hip[0] - 38 + sway, hip[1] + 8)], B['cape'])
+    polygon(img, [(neck[0] - 8, neck[1]), (hip[0] - 30 + sway, BOSS_FEET_Y - 12), (hip[0] - 38 + sway, hip[1] + 8)], B['cape_dark'])
+
+    draw_arm(img, shoulder_back, pose.back_arm, b, B['armor_dark'], B['armor_dark'], B['armor_dark'])
+    draw_boss_leg(img, (hip[0] - 4, hip[1]), pose.back_leg, B['armor_dark'], B['armor_dark'])
+    draw_boss_leg(img, (hip[0] + 4, hip[1]), pose.front_leg, B['armor'], B['armor'])
+
+    capsule(img, hip, neck, b['hip_r'], b['chest_r'], B['armor'])
+    chest = along(hip, 180 - pose.lean, b['torso'] * 0.62)
+    capsule(img, (chest[0] - 8, chest[1] - 6), (chest[0] - 6, chest[1] + 8), 2.2, 1.6, B['armor_light'])
+    disc(img, chest[0] + 3, chest[1], 6, B['armor_dark'])
+    disc(img, chest[0] + 3, chest[1], 4, B['core'])
+    disc(img, chest[0] + 3, chest[1], 2, B['core_light'])
+    capsule(img, (hip[0] - 10, hip[1] - 1), (hip[0] + 10, hip[1] - 1), 2.4, 2.4, B['trim'])
+    disc(img, shoulder_back[0], shoulder_back[1], 9, B['armor_dark'])
+
+    draw_boss_head(img, head)
+
+    front_hand = along(along(shoulder_front, pose.front_arm[0], b['upper_arm']), pose.front_arm[0] + pose.front_arm[1], b['lower_arm'])
+    draw_greatsword(img, front_hand, pose.weapon)
+    draw_arm(img, shoulder_front, pose.front_arm, b, B['armor'], B['armor_light'], B['armor_dark'])
+    disc(img, shoulder_front[0], shoulder_front[1], 10, B['armor'])
+    capsule(img, (shoulder_front[0] - 7, shoulder_front[1] - 4), (shoulder_front[0] + 7, shoulder_front[1] - 4), 2, 2, B['armor_light'])
+    return flipped(outlined(img, B['outline']))
+
+
+def save_boss_strip(name, frames):
+    save(strip(frames), f'monster/boss_{name}.png')
+    # 맞은 순간 같은 프레임을 흰색으로 바꿔 그린다.
+    save(strip([tint_all(frame, (255, 255, 255)) for frame in frames]), f'monster/boss_{name}_flash.png')
+
+
+def make_boss():
+    stance = {'front_leg': (30, -30), 'back_leg': (-24, -20)}
+    idle = [draw_boss(Pose(lean=8, tilt=-4, front_arm=(46, 24), back_arm=(10, 30), weapon=74 + i, scarf=i * 1.5, **stance)) for i in range(4)]
+    save_boss_strip('idle', idle)
+
+    walk = []
+    for i in range(6):
+        t = i / 6 * math.pi * 2
+
+        def leg(phase):
+            return 2 + 26 * math.cos(phase), -(10 + 50 * max(0, -math.sin(phase)))
+
+        walk.append(draw_boss(Pose(lean=12, tilt=-6, front_leg=leg(t), back_leg=leg(t + math.pi), front_arm=(46 + 6 * math.cos(t), 24),
+                                   back_arm=(-6 - 18 * math.cos(t), 30), weapon=74, scarf=t)))
+    save_boss_strip('walk', walk)
+
+    windup = [
+        draw_boss(Pose(lean=-8, tilt=6, front_arm=(164, -24), back_arm=(140, -20), weapon=-168, scarf=0, **stance)),
+        draw_boss(Pose(lean=-14, tilt=8, front_arm=(174, -30), back_arm=(150, -24), weapon=-156, scarf=1, **stance)),
+    ]
+    save_boss_strip('windup', windup)
+
+    attack = [
+        draw_boss(Pose(lean=14, tilt=-8, front_arm=(122, -12), back_arm=(96, -6), weapon=118, scarf=2, **stance)),
+        draw_boss(Pose(lean=30, tilt=-14, front_arm=(62, -6), back_arm=(44, 0), weapon=50, scarf=3, **stance)),
+    ]
+    save_boss_strip('attack', attack)
+
+    recover = [
+        draw_boss(Pose(lean=32, tilt=-16, front_arm=(56, 0), back_arm=(38, 4), weapon=44, scarf=i, **stance))
+        for i in (3, 4)
+    ]
+    save_boss_strip('recover', recover)
+
+    body = draw_boss(Pose(lean=-24, tilt=12, front_leg=(40, -44), back_leg=(10, -50), front_arm=(-120, 20), back_arm=(110, 20), weapon=-150))
+    death = [tint_all(body, (255, 245, 255))]
+    for i, (amount, tint) in enumerate(((0.15, (230, 190, 255)), (0.3, (200, 130, 255)), (0.5, (170, 100, 240)), (0.7, (130, 70, 200)), (0.88, (90, 50, 150)))):
+        death.append(dissolve(body, amount, 51 + i, tint, 6 + i * 8))
+    save(strip(death), 'monster/boss_death.png')
 
 
 # 배경 --------------------------------------------------------------------
@@ -1067,7 +1232,28 @@ def make_wall_pieces():
     return whole, top.crop(top.getbbox()), bottom.crop(bottom.getbbox())
 
 
+def make_wall_seal():
+    """장벽을 X자로 묶은 붉은 사슬과 가운데 봉인."""
+    img = new_frame(WALL_W, WALL_H)
+    dark, glow, core = hex_color('5a1030'), hex_color('ff4a6b'), hex_color('ffe0e6')
+    for top in range(0, WALL_H, 70):
+        for start, end in (((0, top), (WALL_W, top + 70)), ((WALL_W, top), (0, top + 70))):
+            for i in range(10):
+                t = i / 9
+                x, y = start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t
+                disc(img, x, y, 3.4, dark)
+                disc(img, x, y, 2.2 if i % 2 == 0 else 1.2, glow)
+    cx, cy = WALL_W / 2, WALL_H / 2
+    disc(img, cx, cy, 26, dark)
+    disc(img, cx, cy, 22, glow)
+    disc(img, cx, cy, 18, dark)
+    polygon(img, [(cx, cy - 15), (cx + 12, cy), (cx, cy + 15), (cx - 12, cy)], glow)
+    polygon(img, [(cx, cy - 8), (cx + 6, cy), (cx, cy + 8), (cx - 6, cy)], core)
+    return img
+
+
 def make_obstacles():
+    save(make_wall_seal(), 'map/wall_seal.png')
     save(make_crate(), 'map/low_crate.png')
     save(make_rock(), 'map/low_rock.png')
     save(make_pillar(), 'map/high_pillar.png')
@@ -1147,6 +1333,7 @@ if __name__ == '__main__':
     make_grunt()
     make_familiar()
     make_mage()
+    make_boss()
     make_backgrounds()
     make_map()
     make_obstacles()

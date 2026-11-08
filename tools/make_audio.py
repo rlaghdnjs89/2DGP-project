@@ -144,11 +144,6 @@ def make_sfx():
     add(wall, noise(0.7, rng, 1.4, 0.75), gain=1.0)
     save(wall, 'wall_break')
 
-    gauge = silence(0.5)
-    for i, n in enumerate(('C5', 'E5', 'G5', 'C6')):
-        add(gauge, tone(note_freq(n), 0.16, lambda p: pulse(p, 0.25), release=0.08), i * 0.07, 0.4)
-    save(gauge, 'gauge_full')
-
     heal = silence(0.5)
     for i, n in enumerate(('A5', 'E6')):
         add(heal, tone(note_freq(n), 0.3, triangle, release=0.2), i * 0.1, 0.6)
@@ -169,6 +164,57 @@ def make_sfx():
         add(record, tone(note_freq(n), 0.3 if i == 4 else 0.14, pulse, release=0.08), i * 0.11, 0.35)
     add(record, tone(note_freq('C6'), 0.6, triangle, release=0.4), 0.44, 0.4)
     save(record, 'new_record')
+
+    make_boss_sfx()
+
+
+def make_boss_sfx():
+    # 위쪽 효과음이 바뀌지 않도록 난수를 따로 쓴다.
+    rng = random.Random(11)
+
+    # 차원 절단을 모으는 1.6초(charge-up의 폭발 시점)에 맞춰 점점 커지다가 끊긴다.
+    charge = silence(1.6)
+    add(charge, tone(55, 1.6, pulse, attack=1.4, slide=40, release=0.02), gain=0.3)
+    add(charge, tone(220, 1.6, triangle, attack=1.4, slide=700, vibrato=0.02, release=0.02), gain=0.5)
+    add(charge, list(reversed(noise(1.6, rng, 1.6, 0.5))), gain=0.8)
+    t, gap = 0.1, 0.22
+    while t < 1.58:
+        add(charge, tone(rng.uniform(1800, 3200), 0.025, pulse, release=0.015), t, 0.25)
+        t += gap
+        gap = max(0.03, gap * 0.85)
+    save(charge, 'cut_charge', 0.8)
+
+    boom = silence(1.6)
+    add(boom, tone(70, 1.5, triangle, slide=-30, release=0.8), gain=1.0)
+    add(boom, tone(38, 1.5, pulse, release=1.0), gain=0.35)
+    add(boom, noise(1.5, rng, 2.2, 0.85), gain=1.2)
+    add(boom, noise(0.25, rng, 2, 0.1), gain=0.6)
+    save(boom, 'cut_boom', 0.9)
+
+    slam = silence(0.7)
+    add(slam, tone(90, 0.6, triangle, slide=-90, release=0.3), gain=1.0)
+    add(slam, noise(0.6, rng, 2.2, 0.8), gain=1.0)
+    add(slam, noise(0.06, rng, 2, 0.1), gain=0.5)
+    save(slam, 'boss_slam', 0.8)
+
+    hit = silence(0.2)
+    add(hit, tone(1320, 0.14, triangle, release=0.1), gain=0.5)
+    add(hit, tone(2093, 0.1, pulse, release=0.08), gain=0.2)
+    add(hit, noise(0.05, rng, 2, 0.1), gain=0.6)
+    save(hit, 'boss_hit', 0.6)
+
+    roar = silence(1.1)
+    add(roar, tone(70, 1.0, pulse, attack=0.2, slide=30, vibrato=0.05, release=0.4), gain=0.5)
+    add(roar, tone(105, 1.0, lambda p: pulse(p, 0.25), attack=0.2, slide=40, vibrato=0.07, release=0.4), gain=0.3)
+    add(roar, noise(1.0, rng, 1.0, 0.75), gain=0.8)
+    save(roar, 'boss_roar', 0.8)
+
+    seal = silence(1.0)
+    for i, n in enumerate(('A5', 'C6', 'E6', 'A6')):
+        add(seal, tone(note_freq(n), 0.3, triangle, release=0.2), i * 0.06, 0.4)
+    add(seal, noise(0.7, rng, 2.4, 0.3), 0.18, 0.7)
+    add(seal, tone(110, 0.7, triangle, slide=-50, release=0.4), 0.18, 0.7)
+    save(seal, 'seal_break', 0.8)
 
 
 # 배경음 --------------------------------------------------------------------
