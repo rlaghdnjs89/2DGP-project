@@ -30,6 +30,7 @@ SFX = {
     'zap': ('zap',),
     'teleport': ('teleport',),
     'blackhole': ('blackhole',),
+    'flame': ('flame',),
     'heal': ('heal',),
     'ui_start': ('ui_start',),
     'game_over': ('game_over',),

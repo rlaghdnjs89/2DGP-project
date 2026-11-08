@@ -14,5 +14,6 @@
 | `fx/small-explosion`, `fx/ice-shatter` | pixelfx, `explosions/small-explosion`, `ice/ice-shatter`를 같은 방법에 `--fps 15`를 더해 렌더링 | MIT, Patch, Hugo Duprez |
 | `fx/burning`, `fx/slowed`, `fx/zap-hit` | pixelfx, `status/burning`, `status/slowed`, `lightning/zap-hit`을 같은 방법으로 렌더링 | MIT, Patch, Hugo Duprez |
 | `fx/ground-slam`, `fx/boulder` | pixelfx, `impacts/ground-slam`, `nature/boulder`를 같은 방법에 `--fps 15`를 더해 렌더링 | MIT, Patch, Hugo Duprez |
+| `fx/flame-pillar` | pixelfx, `fire/flame-pillar`를 같은 방법에 `--fps 15`를 더해 렌더링 | MIT, Patch, Hugo Duprez |
 | `fx/blink-out`, `fx/blink-in`, `fx/black-hole` | pixelfx, `arcane/blink-out`, `arcane/blink-in`, `shadow/black-hole`을 같은 방법에 `--fps 15`를 더해 렌더링 | MIT, Patch, Hugo Duprez |
 | `fx/heavy-cleave`, `fx/charge-up`, `fx/implosion`, `fx/plasma-explosion` | pixelfx, `melee/heavy-cleave`, `lightning/charge-up`, `explosions/implosion`, `explosions/plasma-explosion`을 같은 방법으로 렌더링 | MIT, Patch, Hugo Duprez |

@@ -19,12 +19,12 @@ WAVE_FPS = 14
 class AttackBox:
     """보스의 몸통과 따로 두는 공격 판정. 점프나 후퇴로 피할 수 있게 한다."""
 
-    def __init__(self, left, bottom, right, top):
+    def __init__(self, left, bottom, right, top, time=config.BOSS_STRIKE_TIME):
         self.left = left
         self.bottom = bottom
         self.right = right
         self.top = top
-        self.timer = config.BOSS_STRIKE_TIME
+        self.timer = time
 
     def update(self, dt):
         self.timer -= dt
@@ -73,8 +73,9 @@ class FloorWave:
 class GroundHazard:
     """바닥에 범위를 표시했다가 정해진 시간 뒤 판정을 내는 공격."""
 
-    def __init__(self, boss, x, w, h, warning_time, impact_sound):
+    def __init__(self, boss, x, w, h, warning_time, impact_sound, hit_time=config.BOSS_STRIKE_TIME):
         self.boss = boss
+        self.hit_time = hit_time
         self.left = x - w / 2
         self.right = x + w / 2
         self.h = h
@@ -86,7 +87,7 @@ class GroundHazard:
         if self.timer <= 0:
             sound.play(self.impact_sound)
             self.boss.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
-            self.boss.add_attack(AttackBox(self.left, config.GROUND_TOP, self.right, config.GROUND_TOP + self.h))
+            self.boss.add_attack(AttackBox(self.left, config.GROUND_TOP, self.right, config.GROUND_TOP + self.h, self.hit_time))
             game_world.remove_object(self)
 
     def draw(self, camera):
@@ -448,9 +449,9 @@ EXEC_CENTER_Y = 164
 EXEC_FPS = {'idle': 5, 'walk': 12, 'windup': 8, 'low': 8, 'high': 8, 'throw': 8, 'recover': 5, 'groggy': 3}
 EXEC_DEATH_FPS = 8
 EXEC_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'combo_windup': 'windup', 'recover': 'recover', 'groggy': 'groggy',
-                     'throw_windup': 'windup', 'throw_after': 'throw'}
+                     'throw_windup': 'windup', 'throw_after': 'throw', 'pillar_windup': 'windup', 'pillar_after': 'recover'}
 EXEC_COMBO = ('low', 'high', 'low')
-EXEC_PATTERN = ('combo', 'throw')
+EXEC_PATTERN = ('combo', 'throw', 'combo', 'pillar')
 EXEC_SWORD_FRAME_W = 64
 
 
@@ -496,8 +497,10 @@ class Executor(Boss):
         if attack == 'combo':
             self.combo_index = 0
             self.begin_strike()
-        else:
+        elif attack == 'throw':
             self.enter('throw_windup', config.EXEC_THROW_WINDUP)
+        else:
+            self.enter('pillar_windup', config.EXEC_PILLAR_WINDUP)
 
     def strike_range(self, kind):
         if kind == 'low':
@@ -532,8 +535,20 @@ class Executor(Boss):
         elif self.state == 'throw_windup':
             self.throw_sword()
             self.enter('throw_after', config.EXEC_THROW_AFTER)
+        elif self.state == 'pillar_windup':
+            self.raise_pillars()
+            self.enter('pillar_after', config.EXEC_PILLAR_AFTER)
         else:
             self.enter('walk')
+
+    def raise_pillars(self):
+        # 플레이어가 선 자리와 한쪽 옆, 그리고 더 먼 자리에 솟아 경고 없는 쪽으로 움직여야 한다.
+        side = random.choice((-1, 1))
+        left_limit = self.player.camera.base_x + config.EXEC_PILLAR_W / 2
+        for offset in (0, side * config.EXEC_PILLAR_SPREAD, -side * config.EXEC_PILLAR_SPREAD * 2):
+            x = max(left_limit, min(self.player.x + offset, self.x - self.W))
+            self.add_hazard(GroundHazard(self, x, config.EXEC_PILLAR_W, config.EXEC_PILLAR_H, config.EXEC_PILLAR_WARNING, 'flame', config.EXEC_PILLAR_HIT_TIME))
+            game_world.add_object(Effect('flame-pillar', x, self.y), game_world.LAYER_EFFECT)
 
     def throw_sword(self):
         sound.play('fire')

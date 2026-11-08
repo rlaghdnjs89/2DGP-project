@@ -248,6 +248,11 @@ def make_boss_sfx():
     add(hole, list(reversed(noise(1.3, rng, 1.2, 0.7))), gain=0.8)
     save(hole, 'blackhole', 0.7)
 
+    flame = silence(0.7)
+    add(flame, noise(0.65, rng, 1.0, 0.45), gain=1.0)
+    add(flame, tone(90, 0.6, pulse, slide=60, release=0.3), gain=0.35)
+    save(flame, 'flame', 0.6)
+
 
 def make_gold_sfx():
     coin = silence(0.16)
