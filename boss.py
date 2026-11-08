@@ -8,7 +8,7 @@ import game_world
 import record
 import sound
 from bullet import Bullet
-from monster import Monster
+from monster import Familiar, Monster
 from sprite import Effect, OneShot, Strip, load_fx_sheet
 
 
@@ -403,11 +403,50 @@ WITCH_FPS = {'float': 8, 'cast': 8}
 WITCH_DEATH_FPS = 8
 WITCH_CIRCLE_FRAME_W = 48
 WITCH_CIRCLE_FPS = 12
-WITCH_CAST_STATES = ('fan_windup',)
-WITCH_PATTERN = ('fan', 'teleport')
+WITCH_CAST_STATES = ('fan_windup', 'summon_windup', 'hole_windup')
+WITCH_PATTERN = ('fan', 'teleport', 'summon', 'fan', 'teleport')
+WITCH_RAGE_PATTERN = ('fan', 'teleport', 'hole', 'summon', 'fan', 'teleport')
 # 가운데가 조준 방향이다. 검은 탄은 패링할 수 없다.
 WITCH_FAN = ('black', 'purple', 'black', 'purple', 'black')
 WITCH_COLLISION_GROUPS = ('player:monster', 'sword:monster', 'reflected:mage')
+
+
+class SummonedFamiliar(Familiar):
+    """보스전이 늘어져도 골드를 벌 수 없도록 골드를 주지 않는다."""
+    GOLD = 0
+    DASH_BONUS = 0
+
+
+class BlackHole:
+    """아레나 가운데로 플레이어를 끌어당긴다. 중심에 닿으면 HP가 준다."""
+
+    def __init__(self, player, x, y):
+        self.player = player
+        self.x = x
+        self.y = y
+        self.timer = config.WITCH_HOLE_TIME
+        self.effect = Effect('black-hole', x, y, loop=True)
+        game_world.add_object(self.effect, game_world.LAYER_EFFECT)
+
+    def update(self, dt):
+        self.timer -= dt
+        gap = self.x - self.player.x
+        self.player.x += math.copysign(min(abs(gap), config.WITCH_HOLE_PULL * dt), gap)
+        if self.timer <= 0:
+            self.close()
+
+    def close(self):
+        game_world.remove_object(self.effect)
+        game_world.remove_object(self)
+
+    def draw(self, camera):
+        pass
+
+    def get_bb(self):
+        return self.x - config.WITCH_HOLE_RADIUS, self.y, self.x + config.WITCH_HOLE_RADIUS, self.y + config.WITCH_HOLE_H
+
+    def handle_collision(self, group, other):
+        pass
 
 
 class Witch(Boss):
@@ -423,6 +462,8 @@ class Witch(Boss):
         self.pattern = 0
         self.hidden = False
         self.destination = (x, self.y)
+        self.familiars = []
+        self.hole = None
         self.sprites = {name: Strip(f'assets/monster/witch_{name}.png', WITCH_FRAME_W) for name in WITCH_FPS}
         self.flash_sprites = {name: Strip(f'assets/monster/witch_{name}_flash.png', WITCH_FRAME_W) for name in WITCH_FPS}
         game_world.add_collision_pair('reflected:mage', None, self)
@@ -442,16 +483,29 @@ class Witch(Boss):
         elif self.state == 'vanish':
             self.reappear()
             self.enter('idle', config.WITCH_IDLE_TIME)
+        elif self.state == 'summon_windup':
+            self.summon()
+            self.enter('idle', config.WITCH_IDLE_TIME)
+        elif self.state == 'hole_windup':
+            self.open_hole()
+            self.enter('idle', config.WITCH_IDLE_TIME)
         else:
             self.start_pattern()
 
     def start_pattern(self):
-        attack = WITCH_PATTERN[self.pattern]
-        self.pattern = (self.pattern + 1) % len(WITCH_PATTERN)
+        low_hp = self.hp <= self.MAX_HP * config.WITCH_HOLE_HP_RATIO
+        pattern = WITCH_RAGE_PATTERN if low_hp else WITCH_PATTERN
+        # 패턴이 바뀌는 순간 자리가 어긋나지 않게 길이에 맞춰 돌린다.
+        attack = pattern[self.pattern % len(pattern)]
+        self.pattern = (self.pattern + 1) % len(pattern)
         if attack == 'fan':
             self.enter('fan_windup', config.WITCH_FAN_WINDUP)
-        else:
+        elif attack == 'teleport':
             self.vanish()
+        elif attack == 'summon':
+            self.enter('summon_windup', config.WITCH_SUMMON_WINDUP)
+        else:
+            self.enter('hole_windup', config.WITCH_HOLE_WINDUP)
 
     def fire_fan(self):
         sound.play('fire')
@@ -465,6 +519,31 @@ class Witch(Boss):
             game_world.add_collision_pair('player:bullet', None, bullet)
             if kind == 'purple':
                 game_world.add_collision_pair('sword:bullet', None, bullet)
+
+    def summon(self):
+        sound.play('teleport')
+        group = game_world.collision_pairs['player:monster'][1]
+        self.familiars = [familiar for familiar in self.familiars if familiar in group]
+        # 이미 떠 있는 사역마가 있으면 그만큼 덜 불러 3마리를 넘지 않게 한다.
+        for dx, height in config.WITCH_SUMMON_SPOTS[len(self.familiars):]:
+            familiar = SummonedFamiliar(self.x + dx, config.GROUND_TOP + height, self.player)
+            self.familiars.append(familiar)
+            self.attacks.append(familiar)
+            game_world.add_object(familiar, game_world.LAYER_MONSTER)
+            game_world.add_collision_pair('player:monster', None, familiar)
+            game_world.add_collision_pair('sword:monster', None, familiar)
+
+    def open_hole(self):
+        sound.play('blackhole')
+        self.hole = BlackHole(self.player, self.player.camera.base_x + config.SCREEN_W / 2, config.GROUND_TOP)
+        self.attacks.append(self.hole)
+        game_world.add_object(self.hole, game_world.LAYER_EFFECT)
+        game_world.add_collision_pair('player:strike', None, self.hole)
+
+    def defeat(self, by_dash):
+        if self.hole:
+            game_world.remove_object(self.hole.effect)
+        super().defeat(by_dash)
 
     def pick_destination(self):
         spots = [(self.start_x + dx, config.GROUND_TOP + height) for dx in config.WITCH_ANCHOR_X for height in config.WITCH_ANCHOR_Y

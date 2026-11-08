@@ -243,6 +243,11 @@ def make_boss_sfx():
     add(teleport, tone(900, 0.3, lambda p: pulse(p, 0.125), slide=-1500, release=0.1), 0.05, 0.25)
     save(teleport, 'teleport', 0.6)
 
+    hole = silence(1.4)
+    add(hole, tone(60, 1.3, pulse, attack=0.3, slide=-20, vibrato=0.06, release=0.5), gain=0.5)
+    add(hole, list(reversed(noise(1.3, rng, 1.2, 0.7))), gain=0.8)
+    save(hole, 'blackhole', 0.7)
+
 
 def make_gold_sfx():
     coin = silence(0.16)
