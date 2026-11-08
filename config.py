@@ -125,6 +125,8 @@ ROCK_H = 170
 BOSS_GUARD_TIME = 2
 BOSS_GROGGY_TIME = 2
 BOSS_GROGGY_DAMAGE_RATE = 1.5
+# 빈틈(내려찍기 뒤, 그로기) 밖에서는 갑옷이 피해를 줄인다. 초당 4번 베기만 반복하면 강화 없이도 10초 안에 끝나기 때문이다.
+BOSS_ARMOR_DAMAGE_RATE = 0.4
 BOSS_BLOCK_FX_SCALE = 3
 BOSS_BLOCK_HIT_STOP = 0.06
 BOSS_BLOCK_SHAKE_TIME = 0.12

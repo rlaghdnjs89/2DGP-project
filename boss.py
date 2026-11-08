@@ -282,7 +282,9 @@ class Warden(Boss):
         return config.BOSS_RAGE_SPEED if self.raging else 1
 
     def damage_rate(self):
-        return config.BOSS_GROGGY_DAMAGE_RATE if self.state == 'groggy' else 1
+        if self.state == 'groggy':
+            return config.BOSS_GROGGY_DAMAGE_RATE
+        return 1 if self.state == 'recover' else config.BOSS_ARMOR_DAMAGE_RATE
 
     def on_damaged(self):
         if not self.raging and self.hp <= self.MAX_HP * config.BOSS_RAGE_HP_RATIO:
