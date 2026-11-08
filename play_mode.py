@@ -95,7 +95,7 @@ def update(dt):
             game_framework.change_mode(result_mode)
             return
         dt *= config.GAME_OVER_TIME_SCALE
-    elif player.bullet_wall:
+    elif player.bullet_target:
         player.tick_bullet_time(dt)
         dt *= config.BULLET_TIME_SCALE
     elif player.cut_after_timer > 0:

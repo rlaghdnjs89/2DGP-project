@@ -173,7 +173,7 @@ class Cut:
     def __init__(self, player):
         self.player = player
         self.timer = 0
-        self.wall = None
+        self.target = None
         self.layers = ()
         self.dim_opacity = 0
         self.ANIMATION = 'charge'
@@ -182,9 +182,9 @@ class Cut:
     def enter(self):
         player = self.player
         self.timer = 0
-        self.wall = player.bullet_wall
+        self.target = player.bullet_target
         self.ANIMATION = 'charge'
-        player.bullet_wall = None
+        player.bullet_target = None
         player.vy = 0
         player.hang_timer = 0
         sound.play('cut_charge')
@@ -199,7 +199,7 @@ class Cut:
             game_world.add_object(layer, game_world.LAYER_EFFECT)
 
     def update(self, dt):
-        if self.wall is None:
+        if self.target is None:
             return
         self.timer += dt
         power = min(1, self.timer / self.charge_time)
@@ -209,8 +209,8 @@ class Cut:
         if self.timer >= self.charge_time:
             for layer in self.layers:
                 game_world.remove_object(layer)
-            self.player.cut_wall(self.wall)
-            self.wall = None
+            self.player.cut_target(self.target)
+            self.target = None
             self.ANIMATION = 'cut'
             self.player.animation_time = 0
 
@@ -298,7 +298,7 @@ class Player:
         self.triple_count = 0
         self.triple_timer = 0
         self.held_move = set()
-        self.bullet_wall = None
+        self.bullet_target = None
         self.bullet_timer = 0
         self.cut_after_timer = 0
         self.press_times = {}
@@ -479,7 +479,7 @@ class Player:
 
     def enter_bullet_time(self, wall):
         sound.set_music_volume(config.MUSIC_VOLUME_DUCK)
-        self.bullet_wall = wall
+        self.bullet_target = wall
         self.bullet_timer = config.BULLET_TIME_MAX
         self.press_times.clear()
         self.jump_buffer = 0
@@ -492,12 +492,14 @@ class Player:
 
     def end_bullet_time(self):
         sound.set_music_volume(config.MUSIC_VOLUME)
-        self.bullet_wall = None
+        self.bullet_target = None
 
     def tick_bullet_time(self, real_dt):
         self.bullet_timer -= real_dt
         if self.bullet_timer <= 0:
+            target = self.bullet_target
             self.end_bullet_time()
+            target.on_bullet_timeout()
 
     def handle_cut_click(self, button):
         if button not in OTHER_BUTTON:
@@ -510,15 +512,15 @@ class Player:
         else:
             self.press_times[button] = now
 
-    def cut_wall(self, wall):
+    def cut_target(self, target):
         sound.play('cut')
         sound.play('cut_boom')
-        wall.cut()
+        target.on_cut()
         self.cut_after_timer = config.CUT_AFTER_TIME
         self.camera.shake(config.CUT_SHAKE_TIME, config.CUT_SHAKE_AMP)
         self.freeze(config.CUT_HIT_STOP)
         center_x = self.camera.base_x + config.SCREEN_W / 2
-        game_world.add_object(Effect(BURST_FX, wall.x + config.WALL_W / 2, config.SCREEN_H / 2, scale=config.CUT_FX_SCALE), game_world.LAYER_EFFECT)
+        game_world.add_object(Effect(BURST_FX, *target.cut_center(), scale=config.CUT_FX_SCALE), game_world.LAYER_EFFECT)
         game_world.add_object(Effect('impact-frame', center_x, config.SCREEN_H / 2, speed=config.IMPACT_FRAME_SPEED, scale=config.IMPACT_FRAME_SCALE),
                               game_world.LAYER_EFFECT)
 
@@ -546,7 +548,7 @@ class Player:
             if event.type == SDL_KEYUP and event.key == SDLK_s:
                 self.s_held = False
             return
-        if self.bullet_wall:
+        if self.bullet_target:
             # 불릿 타임 중 마우스는 동시 클릭 판정에만 쓰고 다른 입력은 받지 않는다 (CT-2, Q3).
             if event.type == SDL_MOUSEBUTTONDOWN:
                 self.handle_cut_click(event.button)
@@ -635,7 +637,7 @@ class Player:
 
     def is_invincible(self):
         # 불릿 타임에는 장벽 외의 피해를 받지 않는다. 장벽에 닿으면 불릿 타임을 먼저 끝낸다.
-        return (self.invincible_timer > 0 or self.bullet_wall is not None or self.at_altar()
+        return (self.invincible_timer > 0 or self.bullet_target is not None or self.at_altar()
                 or self.state is self.dash_state or self.state is self.cut_state)
 
     def take_damage(self):
@@ -724,7 +726,7 @@ class Player:
                 game_world.remove_object(other)
         elif group == 'player:wall':
             # 입력하지 못한 채 닿으면 절단 기회는 끝난다. 무적이면 HP는 그대로이고 장벽만 부서진다 (Q4).
-            if self.bullet_wall:
+            if self.bullet_target:
                 self.end_bullet_time()
             self.take_damage()
         else:

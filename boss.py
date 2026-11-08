@@ -134,7 +134,7 @@ class Boss(Monster):
 
     def add_hazard(self, hazard):
         self.attacks.append(hazard)
-        game_world.add_object(hazard, game_world.LAYER_EFFECT)
+        game_world.add_object(hazard, game_world.LAYER_WARNING)
 
     def add_attack(self, attack):
         self.attacks.append(attack)

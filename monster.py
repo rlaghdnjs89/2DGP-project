@@ -81,7 +81,7 @@ class Grunt(Monster):
         self.time += dt
         gap = self.x - self.player.x
         # 불릿 타임에는 달려오기만 하고 공격 동작은 시작하지도 진행하지도 않는다 (CT-3).
-        if self.player.bullet_wall:
+        if self.player.bullet_target:
             if self.state == 'run' and 0 <= gap <= config.GRUNT_SIGHT:
                 self.x -= config.GRUNT_SPEED * dt
         elif self.state == 'run':
@@ -130,7 +130,7 @@ class Goblin(Monster):
     def update(self, dt):
         self.time += dt
         # 불릿 타임에는 달려들지 않는다 (CT-3).
-        if self.player.bullet_wall:
+        if self.player.bullet_target:
             return
         if self.state == 'idle':
             if 0 <= self.x - self.player.x <= config.GOBLIN_SIGHT:
@@ -220,7 +220,7 @@ class Mage(Monster):
     def update(self, dt):
         self.time += dt
         # 불릿 타임에는 공격이 멈춘다 (CT-3).
-        if self.player.bullet_wall or not 0 < self.x - self.player.x <= config.MAGE_SIGHT:
+        if self.player.bullet_target or not 0 < self.x - self.player.x <= config.MAGE_SIGHT:
             return
         self.timer -= dt
         if self.timer > 0:

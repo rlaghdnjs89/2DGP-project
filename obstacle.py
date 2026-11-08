@@ -159,7 +159,7 @@ class Wall:
 
     def draw_warning(self):
         gap = self.x - self.player.x
-        if self.player.boss or self.player.bullet_wall or not 0 < gap <= self.player.speed() * config.WALL_WARNING_TIME:
+        if self.player.boss or self.player.bullet_target or not 0 < gap <= self.player.speed() * config.WALL_WARNING_TIME:
             return
         if self.sealed:
             draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인된 장벽! 보스를 베어라', WARNING_COLOR, align=1)
@@ -172,7 +172,14 @@ class Wall:
     def handle_collision(self, group, other):
         self.shatter()
 
-    def cut(self):
+    def on_bullet_timeout(self):
+        # 입력하지 못하면 불릿 타임만 끝나고, 피해는 장벽에 닿을 때 받는다.
+        pass
+
+    def cut_center(self):
+        return self.x + config.WALL_W / 2, config.SCREEN_H / 2
+
+    def on_cut(self):
         self.state = 'cut'
         self.player.next_wall = None
         game_world.remove_collision('player:wall', self)

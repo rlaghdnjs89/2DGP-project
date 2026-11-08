@@ -4,9 +4,11 @@ LAYER_PLAYER = 1
 LAYER_MAP = 2
 LAYER_MONSTER = 3
 LAYER_EFFECT = 4
-LAYER_UI = 5
+# 일식의 어둠보다 위에 그려 공격 경고가 항상 보이게 한다.
+LAYER_WARNING = 5
+LAYER_UI = 6
 
-layers = [[], [], [], [], [], []]
+layers = [[], [], [], [], [], [], []]
 collision_pairs = {}
 
 

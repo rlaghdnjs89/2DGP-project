@@ -187,7 +187,7 @@ class HUD:
         draw_rectangle(left, y, left + BULLET_BAR_W * remain, y + BULLET_BAR_H, *BULLET_BAR_COLOR, 255, True)
 
     def draw(self, camera):
-        if self.player.bullet_wall:
+        if self.player.bullet_target:
             self.draw_bullet_time()
 
         full = get_image('assets/ui/heart_full.png')

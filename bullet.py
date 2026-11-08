@@ -29,7 +29,7 @@ class Bullet:
 
     def update(self, dt):
         # 불릿 타임에는 탄막이 멈춘다 (CT-3).
-        if self.player.bullet_wall:
+        if self.player.bullet_target:
             return
         self.time += dt
         # 쏜 적이 순간이동해도 빗나가지 않게 따라간다. 먼저 쓰러졌으면 그대로 날아가 사라진다.
