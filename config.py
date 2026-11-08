@@ -92,7 +92,9 @@ SWORD_H = 140
 
 DASH_RANGE = 400
 DASH_TIME = 0.15
-DASH_COOLDOWN = 2.0
+DASH_MAX_CHARGES = 2
+# 2초면 적이 나오는 속도보다 빨리 차서 지상 적의 약 80%를 일섬으로 처치할 수 있어 제한이 되지 않는다.
+DASH_RECHARGE_TIME = 4.0
 DASH_HANG_TIME = 0.3
 
 CHUNK_A_LENGTH = 2400
@@ -113,11 +115,13 @@ PIT_W_SHORT = 160
 PIT_W_LONG = 360
 PIT_CHANCE = 0.3
 
-# 일섬을 막 쓴 직후에 진입해도 쿨타임이 돌도록 스크롤 속도 × 2초 이상 평지를 둔다 (DS-8).
-CLIFF_RUN_UP_TIME = 2
-CLIFF_W = 1100
+# 일섬을 다 쓴 직후에 진입해도 1회가 충전되도록 충전 시간만큼 평지를 둔다 (DS-8).
+CLIFF_RUN_UP_TIME = DASH_RECHARGE_TIME
+# 평지가 보장하는 일섬 1회와 공중 점프로 건널 수 있는 폭이다. 2단 점프만으로는 못 건넌다.
+CLIFF_W = 600
 # 낭떠러지 시작점 기준 (x, 지면 위 높이). 간격은 사거리 400px 안이다 (DS-7).
-CLIFF_FAMILIARS = ((220, 200), (560, 250), (900, 200))
+# 두 번째는 공중 점프 궤적 위에 두어, 일섬 1회로 건널 때 부딪히지 않고 2회를 아낀 플레이어만 베러 올라간다.
+CLIFF_FAMILIARS = ((220, 200), (450, 450))
 
 PLATFORM_H = 24
 # 청크 E는 건널 수 없는 배치가 나오지 않도록 직접 설계한다 (MP-5). 높이는 모두 지면 위 기준이다.
