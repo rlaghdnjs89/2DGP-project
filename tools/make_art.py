@@ -1412,6 +1412,45 @@ def make_gate():
     save(strip([tinted(frame, (255, 70, 30), 0.55) for frame in frames]), 'map/gate_phase3.png')
 
 
+# 진화의 원석: 빛나는 원석을 두 손으로 받쳐 든 석상 -----------------------------------
+
+ALTAR_W = 80
+ALTAR_H = 112
+
+
+def draw_altar(pulse):
+    stone, light, dark = hex_color('6f6a80'), hex_color('a39db4'), hex_color('453f56')
+    img = new_frame(ALTAR_W, ALTAR_H)
+    cx, base = ALTAR_W / 2, ALTAR_H - 2
+    rect(img, cx - 28, base - 10, cx + 28, base, dark)
+    rect(img, cx - 28, base - 10, cx - 20, base, stone)
+    rect(img, cx - 22, base - 20, cx + 22, base - 10, stone)
+    rect(img, cx - 22, base - 20, cx - 15, base - 10, light)
+    polygon(img, [(cx - 18, base - 20), (cx + 18, base - 20), (cx + 10, base - 56), (cx - 10, base - 56)], stone)
+    polygon(img, [(cx + 18, base - 20), (cx + 6, base - 20), (cx + 4, base - 56), (cx + 10, base - 56)], dark)
+    polygon(img, [(cx - 18, base - 20), (cx - 11, base - 20), (cx - 6, base - 56), (cx - 10, base - 56)], light)
+    disc(img, cx, base - 62, 8, stone)
+    polygon(img, [(cx - 8, base - 62), (cx, base - 75), (cx + 8, base - 62)], stone)
+    disc(img, cx + 1, base - 60, 4.5, dark)
+    capsule(img, (cx - 10, base - 52), (cx - 15, base - 76), 3.4, 2.6, light)
+    capsule(img, (cx + 10, base - 52), (cx + 15, base - 76), 3.4, 2.6, dark)
+    img = outlined(img, hex_color('14101e'))
+
+    cy = base - 90 + math.sin(pulse) * 2
+    radius = 17 + 2 * math.sin(pulse)
+    disc(img, cx, cy, radius, (95, 227, 255, 60))
+    disc(img, cx, cy, radius - 5, (95, 227, 255, 110))
+    gem = [(cx, cy - 13), (cx + 8, cy - 3), (cx, cy + 12), (cx - 8, cy - 3)]
+    polygon(img, gem, hex_color('5fe3ff'))
+    polygon(img, [(cx, cy - 13), (cx + 8, cy - 3), (cx, cy + 12)], hex_color('1f8fc8'))
+    polygon(img, [(cx - 5, cy - 3), (cx, cy - 10), (cx + 2, cy - 3), (cx, cy + 4)], hex_color('d8fbff'))
+    return img
+
+
+def make_altar():
+    save(strip([draw_altar(i / 8 * math.pi * 2) for i in range(8)]), 'map/altar.png')
+
+
 # UI -----------------------------------------------------------------------
 
 def make_heart(fill, shade, shine):
@@ -1447,4 +1486,5 @@ if __name__ == '__main__':
     make_map()
     make_obstacles()
     make_gate()
+    make_altar()
     make_ui()

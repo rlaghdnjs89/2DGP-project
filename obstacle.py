@@ -1,11 +1,13 @@
 import math
 import random
 
+from pico2d import SDL_BUTTON_LEFT, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION
+
 import config
 import game_world
 import sound
 from sprite import Effect, OneShot, Strip, get_image
-from ui import draw_text
+from ui import Button, draw_text, mouse_pos
 
 GATE_FRAME_W = 64
 GATE_FPS = 14
@@ -23,6 +25,10 @@ FLIGHT_SPEED_X = 500
 FLIGHT_SPEED_Y = 700
 FLIGHT_GRAVITY = 1200
 FLIGHT_SPIN = -5
+ALTAR_FRAME_W = 80
+ALTAR_FPS = 8
+CHALLENGE_BUTTON = (config.SCREEN_W / 2, 150, 200, 56)
+COUNTDOWN_SIZE = 96
 WARNING_SIZE = 24
 WARNING_COLOR = (255, 90, 90)
 READY_COLOR = (255, 214, 90)
@@ -173,6 +179,74 @@ class Wall:
         strip = Strip(WALL_BREAK_IMAGE, WALL_BREAK_FRAME_W)
         center = (self.x + config.WALL_W / 2, config.GROUND_TOP + strip.image.h * config.SPRITE_SCALE / 2)
         game_world.add_object(OneShot(strip, WALL_BREAK_FPS, *center), game_world.LAYER_EFFECT)
+
+
+class EvolutionAltar:
+    def __init__(self, x, player):
+        self.x = x
+        self.player = player
+        self.state = 'far'
+        self.timer = 0
+        self.time = 0
+        self.strip = Strip('assets/map/altar.png', ALTAR_FRAME_W)
+        self.button = Button(*CHALLENGE_BUTTON, '도전')
+
+    def stop_x(self):
+        return self.x - config.ALTAR_STOP_GAP
+
+    def speed_ratio(self):
+        if self.state != 'approach':
+            return 0
+        # 남은 거리에 맞춰 등감속해 원석 앞에서 멈춘다.
+        ratio = math.sqrt(max(0, self.stop_x() - self.player.x) / config.ALTAR_SLOW_DISTANCE)
+        return max(config.ALTAR_MIN_SPEED_RATIO, min(1, ratio))
+
+    def update(self, dt):
+        self.time += dt
+        if self.state == 'far':
+            if self.x - self.player.camera.x <= config.SCREEN_W:
+                self.state = 'approach'
+                self.player.altar = self
+        elif self.state == 'approach':
+            if self.player.x >= self.stop_x():
+                self.player.x = self.stop_x()
+                self.state = 'ready'
+                self.player.arrive_at_altar()
+        elif self.state == 'countdown':
+            self.timer -= dt
+            if self.timer <= 0:
+                self.state = 'done'
+                self.player.altar = None
+                sound.play('ui_start')
+
+    def is_stopped(self):
+        return self.state in ('ready', 'countdown')
+
+    def handle_event(self, event):
+        if self.state != 'ready':
+            return
+        if event.type == SDL_MOUSEMOTION:
+            self.button.hover = self.button.contains(*mouse_pos(event))
+        elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT and self.button.contains(*mouse_pos(event)):
+            self.start_challenge()
+
+    def start_challenge(self):
+        self.state = 'countdown'
+        self.timer = config.ALTAR_COUNTDOWN
+        sound.play('ui_start')
+
+    def draw(self, camera):
+        frame = int(self.time * ALTAR_FPS) % self.strip.count
+        center_y = config.GROUND_TOP + self.strip.image.h * config.SPRITE_SCALE / 2
+        self.strip.draw(frame, self.x - camera.x, center_y - camera.y)
+        if self.state == 'ready':
+            self.button.draw()
+        elif self.state == 'countdown':
+            draw_text(COUNTDOWN_SIZE, config.SCREEN_W / 2, config.SCREEN_H * 0.6, str(math.ceil(self.timer)), align=0.5)
+
+    def get_bb(self):
+        half_w = ALTAR_FRAME_W * config.SPRITE_SCALE / 2
+        return self.x - half_w, config.GROUND_TOP, self.x + half_w, config.SCREEN_H
 
 
 class Platform:

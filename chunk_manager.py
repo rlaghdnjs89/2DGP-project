@@ -4,7 +4,7 @@ from collections import namedtuple
 import config
 import game_world
 from monster import Boss, Familiar, Goblin, Grunt, Mage
-from obstacle import Ground, StageGate, Platform, Wall, make_high_obstacle, make_low_obstacle
+from obstacle import EvolutionAltar, Ground, Platform, StageGate, Wall, make_high_obstacle, make_low_obstacle
 
 Chunk = namedtuple('Chunk', 'length obstacles pits monsters platforms', defaults=((), (), (), ()))
 
@@ -90,6 +90,7 @@ class ChunkManager:
         self.last_chunk = None
         self.stage = 0
         self.run_time = 0
+        self.altar_placed = False
         # 시작 지점에서 반응할 시간을 주도록 첫 화면은 평지로 둔다.
         self.add_ground(0, config.SCREEN_W)
         self.end_x = config.SCREEN_W
@@ -130,6 +131,14 @@ class ChunkManager:
         game_world.add_collision_pair('player:wall', None, wall)
         return wall
 
+    def spawn_altar(self):
+        self.add_ground(self.end_x, self.end_x + config.ALTAR_CHUNK_LENGTH)
+        altar = EvolutionAltar(self.end_x + config.ALTAR_OFFSET, self.player)
+        self.objects.append(altar)
+        game_world.add_object(altar, game_world.LAYER_MAP)
+        self.end_x += config.ALTAR_CHUNK_LENGTH
+        self.altar_placed = True
+
     def spawn_arena(self):
         self.add_ground(self.end_x, self.end_x + config.ARENA_LENGTH)
         wall_x = self.end_x + config.ARENA_WALL_OFFSET
@@ -138,6 +147,7 @@ class ChunkManager:
         self.add_monster(Boss(wall_x - config.BOSS_WALL_GAP, config.GROUND_TOP, self.player, wall))
         self.end_x += config.ARENA_LENGTH
         self.last_chunk = None
+        self.altar_placed = False
         if wall:
             self.stage += 1
             self.run_time = 0
@@ -167,10 +177,12 @@ class ChunkManager:
         if not self.player.boss and self.player.stage == self.stage:
             self.run_time += dt
         if self.end_x <= camera.x + config.SCREEN_W:
-            if self.run_time >= config.STAGE_RUN_TIME:
-                self.spawn_arena()
-            else:
+            if self.run_time < config.STAGE_RUN_TIME:
                 self.spawn_chunk(self.pick_chunk())
+            elif not self.altar_placed:
+                self.spawn_altar()
+            else:
+                self.spawn_arena()
 
         for obj in self.objects[:]:
             if obj.get_bb()[2] < camera.x:

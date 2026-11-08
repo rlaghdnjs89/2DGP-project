@@ -1,7 +1,7 @@
 import ctypes
 import random
 
-from pico2d import TTF_SizeUTF8, draw_rectangle, load_font
+from pico2d import TTF_SizeUTF8, draw_rectangle, get_canvas_height, load_font
 
 import config
 from sprite import get_image
@@ -28,6 +28,10 @@ BULLET_TEXT_SIZE = 48
 BULLET_BAR_W = 420
 BULLET_BAR_H = 10
 BULLET_BAR_COLOR = (255, 214, 90)
+BUTTON_COLOR = (60, 44, 96)
+BUTTON_HOVER = (96, 72, 150)
+BUTTON_BORDER = (240, 240, 250)
+BUTTON_TEXT_SIZE = 24
 HEART_SHAKE_TIME = 0.3
 HEART_SHAKE = 4
 HEAL_NOTICE_TIME = 1.2
@@ -66,6 +70,30 @@ def draw_overlay(path, opacity):
     image.draw_to_origin(0, 0, config.SCREEN_W, config.SCREEN_H)
     # opacify는 텍스처 자체를 바꾸므로 같은 이미지를 쓰는 다른 곳에 남지 않게 되돌린다.
     image.opacify(1)
+
+
+def mouse_pos(event):
+    # 마우스 이벤트의 y는 위에서 아래로 증가한다.
+    return event.x, get_canvas_height() - 1 - event.y
+
+
+class Button:
+    def __init__(self, x, y, w, h, text):
+        self.left = x - w / 2
+        self.bottom = y - h / 2
+        self.right = x + w / 2
+        self.top = y + h / 2
+        self.text = text
+        self.hover = False
+
+    def contains(self, x, y):
+        return self.left <= x <= self.right and self.bottom <= y <= self.top
+
+    def draw(self):
+        fill = BUTTON_HOVER if self.hover else BUTTON_COLOR
+        draw_rectangle(self.left, self.bottom, self.right, self.top, *fill, 255, True)
+        draw_rectangle(self.left, self.bottom, self.right, self.top, *BUTTON_BORDER, 255, False)
+        draw_text(BUTTON_TEXT_SIZE, (self.left + self.right) / 2, (self.bottom + self.top) / 2, self.text, align=0.5)
 
 
 class HUD:
@@ -148,7 +176,7 @@ class HUD:
 
         full = get_image('assets/ui/heart_full.png')
         empty = get_image('assets/ui/heart_empty.png')
-        for i in range(config.HP_MAX):
+        for i in range(self.player.max_hp):
             left = MARGIN + i * (HP_SIZE + HP_GAP)
             bottom = config.SCREEN_H - MARGIN - HP_SIZE
             if self.heart_shake > 0:

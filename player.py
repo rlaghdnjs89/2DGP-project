@@ -249,12 +249,14 @@ class Player:
         self.dash_charges = config.DASH_MAX_CHARGES
         self.dash_recharge = config.DASH_RECHARGE_TIME
         self.hang_timer = 0
-        self.hp = config.HP_MAX
+        self.max_hp = config.HP_MAX
+        self.hp = self.max_hp
         self.invincible_timer = 0
         self.kills = 0
         self.combo = 0
         self.stage = 0
         self.boss = None
+        self.altar = None
         self.cleared = False
         self.held_move = set()
         self.bullet_wall = None
@@ -351,6 +353,17 @@ class Player:
     def end_boss_fight(self):
         self.boss = None
 
+    def at_altar(self):
+        return self.altar is not None and self.altar.is_stopped()
+
+    def arrive_at_altar(self):
+        self.hp = self.max_hp
+        sound.play('heal')
+        self.jump_buffer = 0
+        self.slide_buffer = 0
+        self.slash_buffer = 0
+        self.dash_buffer = 0
+
     def enter_bullet_time(self, wall):
         sound.set_music_volume(config.MUSIC_VOLUME_DUCK)
         self.bullet_wall = wall
@@ -413,6 +426,12 @@ class Player:
                 self.held_move.add(event.key)
             else:
                 self.held_move.discard(event.key)
+            return
+        if self.at_altar():
+            # 안전 구역에서는 원석 조작만 받는다.
+            self.altar.handle_event(event)
+            if event.type == SDL_KEYUP and event.key == SDLK_s:
+                self.s_held = False
             return
         if self.bullet_wall:
             # 불릿 타임 중 마우스는 동시 클릭 판정에만 쓰고 다른 입력은 받지 않는다 (CT-2, Q3).
@@ -478,7 +497,7 @@ class Player:
     def animation_name(self):
         if self.state is self.jump_state:
             return 'rise' if self.vy > 0 else 'fall'
-        if self.state is self.run_state and self.boss and self.speed() == 0:
+        if self.state is self.run_state and self.speed() == 0:
             return 'idle'
         return self.state.ANIMATION
 
@@ -502,7 +521,7 @@ class Player:
 
     def is_invincible(self):
         # 불릿 타임에는 장벽 외의 피해를 받지 않는다. 장벽에 닿으면 불릿 타임을 먼저 끝낸다.
-        return (self.invincible_timer > 0 or self.bullet_wall is not None
+        return (self.invincible_timer > 0 or self.bullet_wall is not None or self.at_altar()
                 or self.state is self.dash_state or self.state is self.cut_state)
 
     def take_damage(self):
@@ -528,7 +547,8 @@ class Player:
             if self.state is self.hit_state:
                 return 0
             return sum(MOVE_KEYS[key] for key in self.held_move) * config.BOSS_FIGHT_MOVE_SPEED
-        return config.SCROLL_SPEED * config.STAGES[self.stage]['speed']
+        run_speed = config.SCROLL_SPEED * config.STAGES[self.stage]['speed']
+        return run_speed * self.altar.speed_ratio() if self.altar else run_speed
 
     def play_hit_feedback(self, monster, by_dash):
         y = monster.dash_y() + config.PLAYER_H / 2
@@ -551,7 +571,7 @@ class Player:
         self.play_hit_feedback(monster, by_dash)
         self.kills += 1
         self.combo += 1
-        if self.combo % config.COMBO_HEAL == 0 and self.hp < config.HP_MAX:
+        if self.combo % config.COMBO_HEAL == 0 and self.hp < self.max_hp:
             sound.play('heal')
             self.hp += 1
 

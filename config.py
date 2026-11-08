@@ -78,8 +78,16 @@ WALL_W = 120
 WALL_WARNING_TIME = 1.5
 # 불릿 타임 3초 동안 스크롤 속도 × 0.6초만큼 전진하므로 그보다 멀리서 시작해야 입력할 시간이 다 보장된다 (CT-6).
 WALL_ENTRY_TIME = 0.7
-ARENA_LENGTH = 2600
-ARENA_WALL_OFFSET = 1900
+ARENA_LENGTH = 2000
+ARENA_WALL_OFFSET = 1300
+
+ALTAR_CHUNK_LENGTH = 2200
+# 원석이 화면에 들어올 때(플레이어 앞 960px) 앞 청크의 적이 모두 뒤에 있도록 청크 안쪽 깊이 둔다.
+ALTAR_OFFSET = 1300
+ALTAR_STOP_GAP = 130
+ALTAR_SLOW_DISTANCE = 830
+ALTAR_MIN_SPEED_RATIO = 0.15
+ALTAR_COUNTDOWN = 3
 
 # 내려찍기를 피하지 않고 베기와 일섬만 쓰면 HP 3칸으로는 이길 수 없는 값이다.
 BOSS_HP = 36
