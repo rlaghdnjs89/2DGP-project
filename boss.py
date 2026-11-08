@@ -101,6 +101,7 @@ class Boss(Monster):
     def __init__(self, x, y, player, wall):
         super().__init__(x, y, player)
         self.wall = wall
+        self.start_x = x
         self.hp = self.MAX_HP
         self.state = 'wait'
         self.timer = 0
@@ -233,12 +234,19 @@ class Boss(Monster):
         # 칼 판정이 여러 프레임 살아 있어도 한 번 휘두르면 한 번만 맞는다.
         if group == 'sword:monster' and other is not self.last_sword:
             self.last_sword = other
-            self.on_slash()
+            self.on_slash(other)
 
-    def on_slash(self):
-        self.take_hit(record.stat('attack'))
+    def on_slash(self, sword):
+        ratio = config.TRIPLE_DAMAGE_RATIO if sword.finisher else 1
+        self.take_hit(record.stat('attack') * ratio)
         if self.hp > 0:
             self.apply_element()
+            if sword.finisher:
+                self.knock_back()
+
+    def knock_back(self):
+        # 시작 자리 뒤로는 밀리지 않는다.
+        self.x = min(self.x + config.TRIPLE_KNOCKBACK, self.start_x)
 
     def on_dash_hit(self):
         self.take_hit(record.stat('attack') * config.DASH_DAMAGE_RATIO, by_dash=True)
@@ -360,9 +368,9 @@ class Warden(Boss):
             sound.play('boss_roar')
             self.player.camera.shake(config.BOSS_DEATH_SHAKE_TIME, config.BOSS_DEATH_SHAKE_AMP)
 
-    def on_slash(self):
+    def on_slash(self, sword):
         if self.state != 'guard':
-            super().on_slash()
+            super().on_slash(sword)
             return
         # 방패는 베기를 튕겨낸다. 일섬만 깰 수 있다. 화상은 방패를 무시한다.
         if record.has_skill('fire1'):
@@ -458,7 +466,6 @@ class Witch(Boss):
 
     def __init__(self, x, y, player, wall):
         super().__init__(x, y + config.WITCH_ANCHOR_Y[0], player, wall)
-        self.start_x = x
         self.pattern = 0
         self.hidden = False
         self.destination = (x, self.y)
@@ -579,6 +586,9 @@ class Witch(Boss):
             self.take_hit(record.stat('attack') * config.WITCH_REFLECT_DAMAGE_RATIO)
         else:
             super().handle_collision(group, other)
+
+    def knock_back(self):
+        pass
 
     def on_dash_hit(self):
         # 돌진하는 사이 사라졌으면 빗나간다.

@@ -1,3 +1,5 @@
+import math
+
 from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_a,
                     SDLK_d, SDLK_s, SDLK_w, get_time)
 
@@ -214,9 +216,10 @@ class Cut:
 
 
 class Sword:
-    def __init__(self, player, spin):
+    def __init__(self, player, spin, finisher):
         self.player = player
         self.spin = spin
+        self.finisher = finisher
         self.timer = config.SWORD_TIME
 
     def update(self, dt):
@@ -290,7 +293,10 @@ class Player:
         self.boss = None
         self.altar = None
         self.window = None
+        self.next_wall = None
         self.cleared = False
+        self.triple_count = 0
+        self.triple_timer = 0
         self.held_move = set()
         self.bullet_wall = None
         self.bullet_timer = 0
@@ -329,6 +335,9 @@ class Player:
             if target:
                 self.start_dash(target)
                 return True
+            if record.has_skill('blink'):
+                self.blink()
+                return True
         if self.slash_buffer > 0 and self.state is not self.slash_state:
             self.start_slash()
             return True
@@ -340,13 +349,30 @@ class Player:
         spin = self.state is self.jump_state and record.has_skill('spin')
         self.slash_state.prev_state = self.state
         self.change_state(self.slash_state)
-        self.sword = Sword(self, spin)
+        finisher = self.count_triple()
+        self.sword = Sword(self, spin, finisher)
         game_world.add_object(self.sword, game_world.LAYER_EFFECT)
-        self.play_slash_effect(spin)
+        self.play_slash_effect(spin, finisher)
         game_world.add_collision_pair('sword:monster', self.sword, None)
         game_world.add_collision_pair('sword:bullet', self.sword, None)
 
-    def play_slash_effect(self, spin):
+    def count_triple(self):
+        """이번 베기가 3연격의 마지막이면 True를 돌려준다."""
+        if not record.has_skill('triple'):
+            return False
+        if self.triple_timer <= 0:
+            self.triple_count = 0
+            self.triple_timer = config.TRIPLE_WINDOW
+        self.triple_count += 1
+        if self.triple_count < 3:
+            return False
+        self.triple_timer = 0
+        return True
+
+    def play_slash_effect(self, spin, finisher):
+        if finisher:
+            game_world.add_object(Effect('double-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
+            return
         if spin:
             game_world.add_object(Effect('spin-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
             return
@@ -375,6 +401,27 @@ class Player:
             game_world.remove_object(self.sword)
         self.dash_state.target = target
         self.change_state(self.dash_state)
+
+    def blink(self):
+        sound.play('teleport')
+        self.dash_buffer = 0
+        self.dash_charges -= 1
+        game_world.add_object(Effect('blink-out', self.x, self.y, speed=config.BLINK_FX_SPEED), game_world.LAYER_EFFECT)
+        self.x = min(self.x + config.BLINK_DISTANCE, self.forward_limit())
+        if not self.on_ground:
+            self.vy = 0
+            self.hang_timer = config.DASH_HANG_TIME
+        game_world.add_object(Effect('blink-in', self.x, self.y, speed=config.BLINK_FX_SPEED), game_world.LAYER_EFFECT)
+
+    def forward_limit(self):
+        """스킬로 앞으로 튀어 나갈 때 넘으면 안 되는 위치."""
+        if self.boss:
+            return self.boss.dash_x()
+        if self.altar:
+            return self.altar.stop_x()
+        if self.next_wall:
+            return self.next_wall.x - config.PLAYER_W / 2 - config.BOSS_CONTACT_GAP
+        return math.inf
 
     def finish_dash(self, target):
         target.on_dash_hit()
@@ -532,6 +579,7 @@ class Player:
         self.slash_buffer = max(0, self.slash_buffer - dt)
         self.dash_buffer = max(0, self.dash_buffer - dt)
         self.tick_dash_recharge(dt)
+        self.triple_timer = max(0, self.triple_timer - dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
         # 돌진 중에는 Dash가 위치를 직접 정하고, 절단 중에는 그 자리에 떠서 힘을 모은다.

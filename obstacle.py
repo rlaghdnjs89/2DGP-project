@@ -114,6 +114,7 @@ class Wall:
         self.top_image = get_image(WALL_TOP_IMAGE)
         self.bottom_image = get_image(WALL_BOTTOM_IMAGE)
         self.seal_image = get_image(WALL_SEAL_IMAGE)
+        player.next_wall = self
 
     def update(self, dt):
         self.time += dt
@@ -173,10 +174,12 @@ class Wall:
 
     def cut(self):
         self.state = 'cut'
+        self.player.next_wall = None
         game_world.remove_collision('player:wall', self)
 
     def shatter(self):
         sound.play('wall_break')
+        self.player.next_wall = None
         game_world.remove_object(self)
         strip = Strip(WALL_BREAK_IMAGE, WALL_BREAK_FRAME_W)
         center = (self.x + config.WALL_W / 2, config.GROUND_TOP + strip.image.h * config.SPRITE_SCALE / 2)
