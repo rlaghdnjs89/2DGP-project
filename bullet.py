@@ -15,7 +15,7 @@ def direction_to(x0, y0, x1, y1):
 
 
 class Bullet:
-    def __init__(self, x, y, target_x, target_y, owner):
+    def __init__(self, x, y, target_x, target_y, owner, image='assets/monster/bullet.png'):
         self.x = x
         self.y = y
         self.owner = owner
@@ -25,7 +25,7 @@ class Bullet:
         self.vy = dy * config.BULLET_SPEED
         self.reflected = False
         self.time = 0
-        self.strip = Strip('assets/monster/bullet.png', FRAME_W)
+        self.strip = Strip(image, FRAME_W)
 
     def update(self, dt):
         # 불릿 타임에는 탄막이 멈춘다 (CT-3).
@@ -34,7 +34,7 @@ class Bullet:
         self.time += dt
         self.x += self.vx * dt
         self.y += self.vy * dt
-        if abs(self.x - self.player.x) > config.SCREEN_W or not 0 < self.y < config.SCREEN_H:
+        if abs(self.x - self.player.x) > config.SCREEN_W or not config.GROUND_TOP < self.y < config.SCREEN_H:
             game_world.remove_object(self)
 
     def draw(self, camera):

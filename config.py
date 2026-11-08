@@ -36,19 +36,21 @@ STAGES = (
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase1',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
-     'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png'},
+     'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png', 'arena_platforms': ()},
     {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.0, 'gold_rate': 1.5,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase2',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
      'ground': 'assets/map/ground_phase2.png',
-     'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png'},
+     'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png',
+     # 아레나 시작 기준 (왼쪽, 오른쪽, 지면 위 높이). 카메라가 멈추면 화면 150~370px, 480~720px에 놓인다.
+     'arena_platforms': ((375, 595, 130), (705, 945, 250))},
     {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.5, 'gold_rate': 2,
      'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
      'gate': 'assets/map/gate_phase3.png', 'music': 'bgm_phase3',
      'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
      'ground': 'assets/map/ground_phase3.png',
-     'platform': 'assets/map/platform_phase3.png', 'platform_cap': 'assets/map/platform_cap_phase3.png'},
+     'platform': 'assets/map/platform_phase3.png', 'platform_cap': 'assets/map/platform_cap_phase3.png', 'arena_platforms': ()},
 )
 STAGE_INVINCIBLE_TIME = 1.0
 # 달린 시간으로 잰다. 보스전 시간은 세지 않는다.
@@ -147,6 +149,24 @@ BOSS_DEATH_SHAKE_AMP = 14
 BOSS_FIGHT_MOVE_SPEED = 360
 # 충돌 판정이 경계를 포함하므로 맞닿지 않게 띄운다.
 BOSS_CONTACT_GAP = 2
+
+WITCH_HP = 1000
+WITCH_W = 90
+WITCH_H = 170
+WITCH_IDLE_TIME = 0.9
+# 시작 위치에서 잰 순간이동 자리. 처음 자리가 화면 770px쯤이고 오른쪽 장벽은 1075px이다.
+WITCH_ANCHOR_X = (0, 130, 240)
+# 지면 위 높이. 땅에서 베면 닿지 않고, 저중력 점프(300px)나 발판에서는 닿는다.
+WITCH_ANCHOR_Y = (170, 300, 430)
+WITCH_MUZZLE_Y = 110
+# 플레이어가 코앞에 있으면 그 자리로는 순간이동하지 않는다. 플레이어가 마녀를 넘어가지 못하는 규칙 때문이다.
+WITCH_TELEPORT_GAP = 150
+WITCH_TELEPORT_TIME = 0.5
+WITCH_FAN_WINDUP = 0.6
+WITCH_FAN_SPREAD = 0.28
+WITCH_REFLECT_DAMAGE_RATIO = 3
+BLINK_FX_SPEED = 3
+BLINK_FX_SCALE = 3
 
 # 5단계 능력치의 공통 비용이다. 초반은 첫 모음으로 바로 살 수 있게 싸고 후반으로 갈수록 비싸다.
 STAT_COSTS = (40, 80, 140, 220, 320)

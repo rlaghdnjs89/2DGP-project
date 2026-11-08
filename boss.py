@@ -1,3 +1,4 @@
+import math
 import random
 
 from pico2d import draw_rectangle
@@ -6,6 +7,7 @@ import config
 import game_world
 import record
 import sound
+from bullet import Bullet
 from monster import Monster
 from sprite import Effect, OneShot, Strip, load_fx_sheet
 
@@ -204,7 +206,7 @@ class Boss(Monster):
                 self.show_status('slowed')
         elif record.has_skill('bolt1') and random.random() < config.ZAP_CHANCE:
             sound.play('zap')
-            effect = Effect('zap-hit', self.x, self.y + config.BOSS_H / 2)
+            effect = Effect('zap-hit', self.x, self.y + self.H / 2)
             game_world.add_object(effect, game_world.LAYER_EFFECT)
             self.lose_hp(record.stat('attack') * config.ZAP_DAMAGE_RATIO)
 
@@ -224,7 +226,7 @@ class Boss(Monster):
             self.player.cleared = True
         self.player.freeze(config.BOSS_DEATH_HIT_STOP)
         self.player.camera.shake(config.BOSS_DEATH_SHAKE_TIME, config.BOSS_DEATH_SHAKE_AMP)
-        center_y = self.y + config.BOSS_H / 2
+        center_y = self.y + self.H / 2
         game_world.add_object(Effect('plasma-explosion', self.x, center_y, scale=config.BOSS_DEATH_FX_SCALE), game_world.LAYER_EFFECT)
 
     def handle_collision(self, group, other):
@@ -245,8 +247,8 @@ class Boss(Monster):
         self.take_hit(record.stat('attack') * config.DIVE_BOSS_DAMAGE_RATIO)
 
     def get_bb(self):
-        half_w = config.BOSS_W / 2
-        return self.x - half_w, self.y, self.x + half_w, self.y + config.BOSS_H
+        half_w = self.W / 2
+        return self.x - half_w, self.y, self.x + half_w, self.y + self.H
 
     def dash_x(self):
         return self.get_bb()[0] - config.PLAYER_W / 2 - config.BOSS_CONTACT_GAP
@@ -270,6 +272,8 @@ WARDEN_PATTERN = ('slam', 'wave', 'slam', 'guard')
 class Warden(Boss):
     NAME = '봉인의 수문장'
     MAX_HP = config.BOSS_HP
+    W = config.BOSS_W
+    H = config.BOSS_H
 
     def __init__(self, x, y, player, wall):
         super().__init__(x, y, player, wall)
@@ -391,3 +395,125 @@ class Warden(Boss):
     def make_death(self):
         strip = Strip('assets/monster/boss_death.png', WARDEN_FRAME_W)
         return OneShot(strip, WARDEN_DEATH_FPS, self.x, self.y + WARDEN_CENTER_Y)
+
+
+WITCH_FRAME_W = 96
+WITCH_CENTER_Y = 90
+WITCH_FPS = {'float': 8, 'cast': 8}
+WITCH_DEATH_FPS = 8
+WITCH_CIRCLE_FRAME_W = 48
+WITCH_CIRCLE_FPS = 12
+WITCH_CAST_STATES = ('fan_windup',)
+WITCH_PATTERN = ('fan', 'teleport')
+# 가운데가 조준 방향이다. 검은 탄은 패링할 수 없다.
+WITCH_FAN = ('black', 'purple', 'black', 'purple', 'black')
+WITCH_COLLISION_GROUPS = ('player:monster', 'sword:monster', 'reflected:mage')
+
+
+class Witch(Boss):
+    NAME = '균열의 마녀'
+    MAX_HP = config.WITCH_HP
+    W = config.WITCH_W
+    H = config.WITCH_H
+    AIRBORNE = True
+
+    def __init__(self, x, y, player, wall):
+        super().__init__(x, y + config.WITCH_ANCHOR_Y[0], player, wall)
+        self.start_x = x
+        self.pattern = 0
+        self.hidden = False
+        self.destination = (x, self.y)
+        self.sprites = {name: Strip(f'assets/monster/witch_{name}.png', WITCH_FRAME_W) for name in WITCH_FPS}
+        self.flash_sprites = {name: Strip(f'assets/monster/witch_{name}_flash.png', WITCH_FRAME_W) for name in WITCH_FPS}
+        game_world.add_collision_pair('reflected:mage', None, self)
+
+    def muzzle_y(self):
+        return self.y + config.WITCH_MUZZLE_Y
+
+    def think(self, dt):
+        self.timer -= dt
+        if self.timer <= 0:
+            self.next_state()
+
+    def next_state(self):
+        if self.state == 'fan_windup':
+            self.fire_fan()
+            self.enter('idle', config.WITCH_IDLE_TIME)
+        elif self.state == 'vanish':
+            self.reappear()
+            self.enter('idle', config.WITCH_IDLE_TIME)
+        else:
+            self.start_pattern()
+
+    def start_pattern(self):
+        attack = WITCH_PATTERN[self.pattern]
+        self.pattern = (self.pattern + 1) % len(WITCH_PATTERN)
+        if attack == 'fan':
+            self.enter('fan_windup', config.WITCH_FAN_WINDUP)
+        else:
+            self.vanish()
+
+    def fire_fan(self):
+        sound.play('fire')
+        muzzle_y = self.muzzle_y()
+        aim = math.atan2(self.player.y + config.PLAYER_H / 2 - muzzle_y, self.player.x - self.x)
+        for i, kind in enumerate(WITCH_FAN):
+            angle = aim + (i - len(WITCH_FAN) // 2) * config.WITCH_FAN_SPREAD
+            bullet = Bullet(self.x, muzzle_y, self.x + math.cos(angle), muzzle_y + math.sin(angle), self, f'assets/monster/bullet_{kind}.png')
+            self.attacks.append(bullet)
+            game_world.add_object(bullet, game_world.LAYER_EFFECT)
+            game_world.add_collision_pair('player:bullet', None, bullet)
+            if kind == 'purple':
+                game_world.add_collision_pair('sword:bullet', None, bullet)
+
+    def pick_destination(self):
+        spots = [(self.start_x + dx, config.GROUND_TOP + height) for dx in config.WITCH_ANCHOR_X for height in config.WITCH_ANCHOR_Y
+                 if not (self.start_x + dx == self.x and config.GROUND_TOP + height == self.y)]
+        far = [spot for spot in spots if spot[0] - self.player.x >= config.WITCH_TELEPORT_GAP]
+        # 플레이어가 맨 오른쪽까지 와 있으면 가장 먼 자리의 다른 높이로 간다.
+        rightmost = self.start_x + config.WITCH_ANCHOR_X[-1]
+        return random.choice(far or [spot for spot in spots if spot[0] == rightmost])
+
+    def vanish(self):
+        sound.play('teleport')
+        game_world.add_object(Effect('blink-out', self.x, self.y, speed=config.BLINK_FX_SPEED, scale=config.BLINK_FX_SCALE), game_world.LAYER_EFFECT)
+        self.hidden = True
+        for group in WITCH_COLLISION_GROUPS:
+            game_world.remove_collision(group, self)
+        self.destination = self.pick_destination()
+        # 나타날 자리를 미리 보여 준다.
+        x, y = self.destination
+        circle = OneShot(Strip('assets/monster/witch_circle.png', WITCH_CIRCLE_FRAME_W), WITCH_CIRCLE_FPS, x, y + self.H / 2)
+        self.attacks.append(circle)
+        game_world.add_object(circle, game_world.LAYER_EFFECT)
+        self.enter('vanish', config.WITCH_TELEPORT_TIME)
+
+    def reappear(self):
+        self.x, self.y = self.destination
+        self.hidden = False
+        game_world.add_object(Effect('blink-in', self.x, self.y, speed=config.BLINK_FX_SPEED, scale=config.BLINK_FX_SCALE), game_world.LAYER_EFFECT)
+        for group in WITCH_COLLISION_GROUPS:
+            game_world.add_collision_pair(group, None, self)
+
+    def handle_collision(self, group, other):
+        if group == 'reflected:mage':
+            self.take_hit(record.stat('attack') * config.WITCH_REFLECT_DAMAGE_RATIO)
+        else:
+            super().handle_collision(group, other)
+
+    def on_dash_hit(self):
+        # 돌진하는 사이 사라졌으면 빗나간다.
+        if not self.hidden:
+            super().on_dash_hit()
+
+    def draw(self, camera):
+        if self.hidden:
+            return
+        name = 'cast' if self.state in WITCH_CAST_STATES else 'float'
+        sprite = (self.flash_sprites if self.flash > 0 else self.sprites)[name]
+        frame = int(self.time * WITCH_FPS[name]) % sprite.count
+        sprite.draw(frame, self.x - camera.x, self.y + WITCH_CENTER_Y - camera.y)
+
+    def make_death(self):
+        strip = Strip('assets/monster/witch_death.png', WITCH_FRAME_W)
+        return OneShot(strip, WITCH_DEATH_FPS, self.x, self.y + WITCH_CENTER_Y)

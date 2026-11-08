@@ -733,7 +733,8 @@ def make_mage():
     ]
     save(strip(death), 'monster/mage_death.png')
 
-    for name, glow_c, body_c, core_c in (('bullet', 'a8341c', 'ff7a2f', 'fff0b0'), ('bullet_reflected', '1f6fb0', '5fd8ff', 'f0fcff')):
+    for name, glow_c, body_c, core_c in (('bullet', 'a8341c', 'ff7a2f', 'fff0b0'), ('bullet_reflected', '1f6fb0', '5fd8ff', 'f0fcff'),
+                                         ('bullet_purple', '5b2fa6', 'c77dff', 'ffe9ff'), ('bullet_black', 'ff3b6b', '1a0f28', '5a3a8a')):
         frames = []
         for i in range(4):
             img = new_frame(16, 16)
@@ -932,6 +933,79 @@ def make_boss():
     for i, (amount, tint) in enumerate(((0.15, (230, 190, 255)), (0.3, (200, 130, 255)), (0.5, (170, 100, 240)), (0.7, (130, 70, 200)), (0.88, (90, 50, 150)))):
         death.append(dissolve(body, amount, 51 + i, tint, 6 + i * 8))
     save(strip(death), 'monster/boss_death.png')
+
+
+# 균열의 마녀: 뾰족한 관을 쓴 채 떠다니는 보라 로브, 두 손으로 탄을 모은다 ----------------
+
+W = {
+    'outline': hex_color('100620'),
+    'robe': hex_color('3a1f6e'),
+    'robe_light': hex_color('6a3fb0'),
+    'robe_dark': hex_color('221045'),
+    'skin': hex_color('d8c8f0'),
+    'eye': hex_color('ff5fd2'),
+    'crown': hex_color('e9b949'),
+    'glow': hex_color('c77dff'),
+    'core': hex_color('ffe9ff'),
+}
+WITCH_FRAME = 96
+WITCH_FRAME_H = 112
+
+
+def draw_witch(bob, arm_lift, glow):
+    img = new_frame(WITCH_FRAME, WITCH_FRAME_H)
+    cx = WITCH_FRAME / 2
+    hem = WITCH_FRAME_H - 8 + bob
+    shoulder = hem - 54
+    head = (cx + 2, shoulder - 12)
+    polygon(img, [(cx - 26, hem - 4), (cx - 14, hem + 2), (cx - 4, hem - 6), (cx + 8, hem + 3), (cx + 22, hem - 7), (cx + 11, shoulder), (cx - 11, shoulder)], W['robe'])
+    polygon(img, [(cx + 22, hem - 7), (cx + 8, hem + 3), (cx + 3, shoulder), (cx + 11, shoulder)], W['robe_light'])
+    polygon(img, [(cx - 26, hem - 4), (cx - 14, hem + 2), (cx - 5, shoulder), (cx - 11, shoulder)], W['robe_dark'])
+    rect(img, cx - 9, shoulder + 16, cx + 10, shoulder + 19, W['crown'])
+    disc(img, head[0], head[1], 9, W['skin'])
+    polygon(img, [(head[0] - 11, head[1] - 2), (head[0] - 8, head[1] - 24), (head[0] - 1, head[1] - 8), (head[0] + 3, head[1] - 28),
+                  (head[0] + 7, head[1] - 8), (head[0] + 13, head[1] - 22), (head[0] + 11, head[1] - 2)], W['crown'])
+    rect(img, head[0] + 2, head[1] - 1, head[0] + 5, head[1] + 2, W['eye'])
+    rect(img, head[0] + 6, head[1] - 1, head[0] + 8, head[1] + 2, W['eye'])
+    hand = (cx + 22, shoulder + 10 - arm_lift)
+    capsule(img, (cx + 6, shoulder + 4), hand, 3.2, 2.4, W['robe_light'])
+    capsule(img, (cx - 6, shoulder + 4), (cx - 18, shoulder + 14 - arm_lift / 2), 3.2, 2.4, W['robe_dark'])
+    disc(img, hand[0], hand[1], 2.6, W['skin'])
+    img = outlined(img, W['outline'])
+    if glow:
+        disc(img, hand[0] + 4, hand[1] - 2, 8, W['glow'])
+        disc(img, hand[0] + 4, hand[1] - 2, 4, W['core'])
+    return flipped(img)
+
+
+def save_witch_strip(name, frames):
+    save(strip(frames), f'monster/witch_{name}.png')
+    save(strip([tint_all(frame, (255, 255, 255)) for frame in frames]), f'monster/witch_{name}_flash.png')
+
+
+def make_witch():
+    save_witch_strip('float', [draw_witch(math.sin(i / 6 * math.pi * 2) * 2, 0, False) for i in range(6)])
+    save_witch_strip('cast', [draw_witch(-2, 10 + i * 3, True) for i in range(3)])
+    body = draw_witch(0, 0, False)
+    death = [tint_all(body, (255, 240, 255))]
+    for i, (amount, tint) in enumerate(((0.2, (230, 190, 255)), (0.4, (190, 130, 255)), (0.6, (150, 90, 230)), (0.8, (100, 60, 180)))):
+        death.append(dissolve(body, amount, 61 + i, tint, 6 + i * 8))
+    save(strip(death), 'monster/witch_death.png')
+
+    frames = []
+    for i in range(6):
+        img = new_frame(48, 48)
+        px = img.load()
+        for y in range(48):
+            for x in range(48):
+                d = math.hypot(x + 0.5 - 24, y + 0.5 - 24)
+                a = math.atan2(y + 0.5 - 24, x + 0.5 - 24) + i * 0.5
+                if 19 <= d <= 22 or (11 <= d <= 13 and math.sin(a * 6) > 0):
+                    px[x, y] = hex_color('c77dff')
+                elif 13 < d < 19 and abs(math.sin(a * 3)) < 0.12:
+                    px[x, y] = hex_color('ffe9ff')
+        frames.append(img)
+    save(strip(frames), 'monster/witch_circle.png')
 
 
 # 배경 --------------------------------------------------------------------
@@ -1547,6 +1621,7 @@ if __name__ == '__main__':
     make_mage()
     make_boss()
     make_boss_wave()
+    make_witch()
     make_backgrounds()
     make_map()
     make_obstacles()

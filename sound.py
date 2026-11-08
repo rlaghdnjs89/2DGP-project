@@ -28,6 +28,7 @@ SFX = {
     'boss_wave': ('boss_wave',),
     'rock': ('rock',),
     'zap': ('zap',),
+    'teleport': ('teleport',),
     'heal': ('heal',),
     'ui_start': ('ui_start',),
     'game_over': ('game_over',),

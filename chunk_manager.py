@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import config
 import game_world
-from boss import Warden
+from boss import Warden, Witch
 from monster import Familiar, Goblin, Grunt, Mage
 from obstacle import EvolutionAltar, Ground, Platform, StageGate, Wall, make_high_obstacle, make_low_obstacle
 
@@ -73,7 +73,7 @@ def build_island(name):
 
 
 # 스테이지 순서다.
-BOSSES = (Warden, Warden, Warden)
+BOSSES = (Warden, Witch, Warden)
 
 CHUNK_BUILDERS = {
     'A': build_chunk_a,
@@ -145,6 +145,8 @@ class ChunkManager:
 
     def spawn_arena(self):
         self.add_ground(self.end_x, self.end_x + config.ARENA_LENGTH)
+        for left, right, height in config.STAGES[self.stage]['arena_platforms']:
+            self.add_platform(self.end_x + left, self.end_x + right, height)
         wall_x = self.end_x + config.ARENA_WALL_OFFSET
         # 마지막 보스를 쓰러뜨리면 바로 클리어이므로 뒤를 막는 장벽이 없다.
         wall = self.add_wall(wall_x) if self.stage + 1 < len(config.STAGES) else None

@@ -238,6 +238,11 @@ def make_boss_sfx():
     add(zap, tone(1800, 0.18, pulse, slide=-3000, release=0.05), gain=0.4)
     save(zap, 'zap', 0.5)
 
+    teleport = silence(0.4)
+    add(teleport, tone(600, 0.3, triangle, slide=2400, vibrato=0.04, release=0.1), gain=0.5)
+    add(teleport, tone(900, 0.3, lambda p: pulse(p, 0.125), slide=-1500, release=0.1), 0.05, 0.25)
+    save(teleport, 'teleport', 0.6)
+
 
 def make_gold_sfx():
     coin = silence(0.16)
