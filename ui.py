@@ -201,7 +201,9 @@ class HUD:
             image = full if i < self.player.hp else empty
             image.draw_to_origin(left, bottom, HP_SIZE, HP_SIZE)
 
-        self.draw_stage()
+        # 강화 창이 상단 가운데를 가리므로 창을 연 동안은 그리지 않는다.
+        if not self.player.window:
+            self.draw_stage()
 
         right = config.SCREEN_W - MARGIN
         top = config.SCREEN_H - MARGIN - GOLD_SIZE / 2
@@ -215,7 +217,7 @@ class HUD:
         self.draw_dash()
         if self.player.boss:
             self.draw_boss()
-        else:
+        elif not self.player.window:
             self.draw_progress()
 
         if self.flash > 0:
