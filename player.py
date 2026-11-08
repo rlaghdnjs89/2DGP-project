@@ -257,6 +257,7 @@ class Player:
         self.combo = 0
         self.stage = 0
         self.boss = None
+        self.cleared = False
         self.held_move = set()
         self.bullet_wall = None
         self.bullet_timer = 0

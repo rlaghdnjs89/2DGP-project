@@ -31,19 +31,19 @@ SLIDE_MAX_TIME = 1.0
 SLIDE_H = PLAYER_H * 0.5
 
 STAGES = (
-    {'name': '무너지는 고성', 'score': 0, 'gravity': 1.0, 'speed': 1.0, 'score_rate': 1,
+    {'name': '무너지는 고성', 'gravity': 1.0, 'speed': 1.0, 'score_rate': 1,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase1',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png'},
-    {'name': '무중력 균열', 'score': 3000, 'gravity': 0.5, 'speed': 1.0, 'score_rate': 1,
+    {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.0, 'score_rate': 1,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase2',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
      'ground': 'assets/map/ground_phase2.png',
      'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png'},
-    {'name': '폭주하는 심연', 'score': 8000, 'gravity': 1.0, 'speed': 1.5, 'score_rate': 2,
+    {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.5, 'score_rate': 2,
      'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
      'gate': 'assets/map/gate_phase3.png', 'music': 'bgm_phase3',
      'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
@@ -51,6 +51,8 @@ STAGES = (
      'platform': 'assets/map/platform_phase3.png', 'platform_cap': 'assets/map/platform_cap_phase3.png'},
 )
 STAGE_INVINCIBLE_TIME = 1.0
+# 달린 시간으로 잰다. 보스전 시간은 세지 않는다.
+STAGE_RUN_TIME = 90
 GATE_W = 40
 
 BULLET_TIME_SCALE = 0.2
@@ -74,13 +76,11 @@ IMPACT_FRAME_SCALE = 5
 IMPACT_FRAME_SPEED = 8
 
 WALL_W = 120
-# 달린 시간으로 잰다. 보스전 시간은 세지 않는다.
-WALL_CYCLE = 30
 WALL_WARNING_TIME = 1.5
 # 불릿 타임 3초 동안 스크롤 속도 × 0.6초만큼 전진하므로 그보다 멀리서 시작해야 입력할 시간이 다 보장된다 (CT-6).
 WALL_ENTRY_TIME = 0.7
-CHUNK_F_LENGTH = 2600
-WALL_OFFSET = 1900
+ARENA_LENGTH = 2600
+ARENA_WALL_OFFSET = 1900
 
 # 내려찍기를 피하지 않고 베기와 일섬만 쓰면 HP 3칸으로는 이길 수 없는 값이다.
 BOSS_HP = 36
@@ -118,6 +118,8 @@ INVINCIBLE_TIME = 1.5
 HIT_STUN_TIME = 0.3
 GAME_OVER_TIME = 0.5
 GAME_OVER_TIME_SCALE = 0.25
+# 마지막 보스가 쓰러지는 장면을 보여 준 뒤 결과 화면으로 넘어간다.
+CLEAR_TIME = 1.5
 
 SLASH_TIME = 0.25
 # 판정이 살아 있는 시간. 이후 SLASH_TIME까지는 다음 베기를 막는 후딜레이다.

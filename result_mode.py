@@ -23,6 +23,7 @@ SUB_COLOR = (200, 195, 220)
 score = 0
 kills = 0
 stage = 0
+cleared = False
 best = 0
 is_new = False
 time = 0
@@ -30,10 +31,11 @@ camera = None
 
 
 def set_result(player):
-    global score, kills, stage
+    global score, kills, stage, cleared
     score = player.score
     kills = player.kills
     stage = player.stage
+    cleared = player.cleared
 
 
 def init():
@@ -67,7 +69,7 @@ def draw():
     draw_overlay('assets/ui/black.png', OVERLAY_OPACITY)
 
     x = config.SCREEN_W / 2
-    draw_text(TITLE_SIZE, x, config.SCREEN_H * 0.82, 'GAME OVER', align=0.5)
+    draw_text(TITLE_SIZE, x, config.SCREEN_H * 0.82, 'CLEAR' if cleared else 'GAME OVER', align=0.5)
     draw_text(LINE_SIZE, x, config.SCREEN_H * 0.68, '최종 점수', SUB_COLOR, align=0.5)
     draw_text(SCORE_SIZE, x, config.SCREEN_H * 0.6, f'{score:,}', align=0.5)
     if is_new and math.sin(time * BLINK_SPEED) > -0.3:

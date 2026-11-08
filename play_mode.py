@@ -94,10 +94,13 @@ def update(dt):
     game_world.handle_collisions()
     camera.follow(player, dt)
     chunks.update(camera, dt)
-    if game_over_timer is None and (player.hp <= 0 or player.get_bb()[3] < 0):
-        game_over_timer = config.GAME_OVER_TIME
-        sound.stop_music()
-        sound.play('game_over')
+    if game_over_timer is None:
+        if player.cleared:
+            game_over_timer = config.CLEAR_TIME
+        elif player.hp <= 0 or player.get_bb()[3] < 0:
+            game_over_timer = config.GAME_OVER_TIME
+            sound.stop_music()
+            sound.play('game_over')
 
 
 def draw():

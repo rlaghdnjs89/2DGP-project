@@ -153,7 +153,7 @@ class Wall:
         if self.player.boss or self.player.bullet_wall or not 0 < gap <= self.player.speed() * config.WALL_WARNING_TIME:
             return
         if self.sealed:
-            draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인된 장벽! 수문장을 베어라', WARNING_COLOR, align=1)
+            draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인된 장벽! 보스를 베어라', WARNING_COLOR, align=1)
         else:
             draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인 해제! 발도술 준비', READY_COLOR, align=1)
 

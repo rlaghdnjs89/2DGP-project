@@ -348,7 +348,10 @@ class Boss(Monster):
         self.player.on_kill(self, by_dash)
         self.die()
         self.player.end_boss_fight()
-        self.wall.unseal()
+        if self.wall:
+            self.wall.unseal()
+        else:
+            self.player.cleared = True
         self.player.freeze(config.BOSS_DEATH_HIT_STOP)
         self.player.camera.shake(config.BOSS_DEATH_SHAKE_TIME, config.BOSS_DEATH_SHAKE_AMP)
         center_y = self.y + config.BOSS_H / 2
