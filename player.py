@@ -104,7 +104,7 @@ class Slash:
         self.timer += dt
         # 왼손과 오른손 조작을 분리하므로 베는 중에도 점프와 슬라이딩은 그대로 받는다.
         self.prev_state.update(dt)
-        if player.state is self and self.timer >= config.SLASH_TIME:
+        if player.state is self and self.timer >= record.stat('attack_speed'):
             player.change_state(self.prev_state)
 
 
@@ -249,9 +249,9 @@ class Player:
         self.s_held = False
         self.sword = None
         self.dash_charges = config.DASH_MAX_CHARGES
-        self.dash_recharge = config.DASH_RECHARGE_TIME
+        self.dash_recharge = record.stat('dash_recharge')
         self.hang_timer = 0
-        self.max_hp = config.HP_MAX
+        self.max_hp = int(record.stat('hp'))
         self.hp = self.max_hp
         self.invincible_timer = 0
         self.kills = 0
@@ -344,12 +344,12 @@ class Player:
 
     def tick_dash_recharge(self, dt):
         if self.dash_charges == config.DASH_MAX_CHARGES:
-            self.dash_recharge = config.DASH_RECHARGE_TIME
+            self.dash_recharge = record.stat('dash_recharge')
             return
         self.dash_recharge -= dt
         if self.dash_recharge <= 0:
             self.dash_charges += 1
-            self.dash_recharge = config.DASH_RECHARGE_TIME
+            self.dash_recharge = record.stat('dash_recharge')
 
     def enter_boss_fight(self, boss):
         sound.play('boss_roar')
@@ -360,6 +360,11 @@ class Player:
 
     def at_altar(self):
         return self.altar is not None and self.altar.is_stopped()
+
+    def apply_stats(self):
+        # 원석에서는 항상 HP가 가득 차 있으므로 늘어난 칸도 채운다.
+        self.max_hp = int(record.stat('hp'))
+        self.hp = self.max_hp
 
     def arrive_at_altar(self):
         self.hp = self.max_hp
@@ -570,7 +575,7 @@ class Player:
 
     def gain_gold(self, amount, x, y):
         # 배율로 생기는 소수점이 쌓이도록 따로 누적하고 정수 부분만 골드로 옮긴다.
-        self.gold_fraction += amount
+        self.gold_fraction += amount * (1 + record.stat('gold_gain'))
         gained = int(self.gold_fraction)
         self.gold_fraction -= gained
         record.data['gold'] += gained

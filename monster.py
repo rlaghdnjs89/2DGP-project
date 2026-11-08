@@ -370,10 +370,10 @@ class Boss(Monster):
         # 칼 판정이 여러 프레임 살아 있어도 한 번 휘두르면 한 번만 맞는다.
         if group == 'sword:monster' and other is not self.last_sword:
             self.last_sword = other
-            self.take_hit(1)
+            self.take_hit(record.stat('attack'))
 
     def on_dash_hit(self):
-        self.take_hit(config.BOSS_DASH_DAMAGE, by_dash=True)
+        self.take_hit(record.stat('attack') * config.DASH_DAMAGE_RATIO, by_dash=True)
 
     def draw(self, camera):
         if self.state in ('windup', 'strike'):

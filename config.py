@@ -90,11 +90,12 @@ ALTAR_MIN_SPEED_RATIO = 0.15
 ALTAR_COUNTDOWN = 3
 
 # 내려찍기를 피하지 않고 베기와 일섬만 쓰면 HP 3칸으로는 이길 수 없는 값이다.
-BOSS_HP = 36
+BOSS_HP = 360
 # 스테이지 순서다. 처음 쓰러뜨릴 때와 다시 쓰러뜨릴 때의 골드.
 BOSS_FIRST_GOLD = (200, 400, 800)
 BOSS_REPEAT_GOLD = (100, 200, 400)
-BOSS_DASH_DAMAGE = 3
+# 일섬 피해는 베기의 3배다.
+DASH_DAMAGE_RATIO = 3
 BOSS_W = 110
 BOSS_H = 210
 # 일섬 사거리(400)보다 멀리서 보스전을 시작해 카메라가 멈추기 전에는 일섬이 닿지 않게 한다.
@@ -122,7 +123,16 @@ BOSS_FIGHT_MOVE_SPEED = 360
 # 충돌 판정이 경계를 포함하므로 맞닿지 않게 띄운다.
 BOSS_CONTACT_GAP = 2
 
-HP_MAX = 3
+# 5단계 능력치의 공통 비용이다. 초반은 첫 모음으로 바로 살 수 있게 싸고 후반으로 갈수록 비싸다.
+STAT_COSTS = (40, 80, 140, 220, 320)
+STATS = {
+    'hp': {'name': '체력', 'effect': '최대 HP +1', 'base': 3, 'step': 1, 'costs': (80, 200, 400), 'format': '{:.0f}칸'},
+    'attack': {'name': '공격력', 'effect': '보스에게 주는 베기 피해 +3', 'base': 10, 'step': 3, 'costs': STAT_COSTS, 'format': '{:.0f}'},
+    'attack_speed': {'name': '공격 속도', 'effect': '베기 후딜레이 -0.02초', 'base': 0.25, 'step': -0.02, 'costs': STAT_COSTS, 'format': '{:.2f}초'},
+    'dash_recharge': {'name': '일섬 충전', 'effect': '충전 시간 -0.4초', 'base': 4.0, 'step': -0.4, 'costs': STAT_COSTS, 'format': '{:.1f}초'},
+    'gold_gain': {'name': '골드 획득', 'effect': '얻는 골드 +10%', 'base': 0, 'step': 0.1, 'costs': STAT_COSTS, 'format': '+{:.0%}'},
+}
+
 INVINCIBLE_TIME = 1.5
 HIT_STUN_TIME = 0.3
 GAME_OVER_TIME = 0.5
@@ -130,8 +140,7 @@ GAME_OVER_TIME_SCALE = 0.25
 # 마지막 보스가 쓰러지는 장면을 보여 준 뒤 결과 화면으로 넘어간다.
 CLEAR_TIME = 1.5
 
-SLASH_TIME = 0.25
-# 판정이 살아 있는 시간. 이후 SLASH_TIME까지는 다음 베기를 막는 후딜레이다.
+# 판정이 살아 있는 시간. 이후 공격 속도 능력치의 시간까지는 다음 베기를 막는 후딜레이다.
 SWORD_TIME = 0.1
 SWORD_REACH = 140
 SWORD_H = 140
@@ -139,8 +148,6 @@ SWORD_H = 140
 DASH_RANGE = 400
 DASH_TIME = 0.15
 DASH_MAX_CHARGES = 2
-# 2초면 적이 나오는 속도보다 빨리 차서 지상 적의 70~80%를 일섬으로 처치할 수 있어 제한이 약하다.
-DASH_RECHARGE_TIME = 4.0
 DASH_HANG_TIME = 0.3
 
 CHUNK_A_LENGTH = 2400
@@ -162,7 +169,7 @@ PIT_W_LONG = 360
 PIT_CHANCE = 0.3
 
 # 일섬을 다 쓴 직후에 진입해도 1회가 충전되도록 충전 시간만큼 평지를 둔다 (DS-8).
-CLIFF_RUN_UP_TIME = DASH_RECHARGE_TIME
+CLIFF_RUN_UP_TIME = STATS['dash_recharge']['base']
 # 평지가 보장하는 일섬 1회와 공중 점프로 건널 수 있는 폭이다. 2단 점프만으로는 못 건넌다.
 CLIFF_W = 600
 # 낭떠러지 시작점 기준 (x, 지면 위 높이). 간격은 사거리 400px 안이다 (DS-7).

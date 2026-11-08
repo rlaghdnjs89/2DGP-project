@@ -1,12 +1,14 @@
 import json
 import os
 
+import config
+
 PATH = 'save.json'
 VERSION = 2
 
 
 def default_data():
-    return {'version': VERSION, 'gold': 0, 'bosses': [], 'best_stage': 0, 'best_clear_time': None}
+    return {'version': VERSION, 'gold': 0, 'stats': {name: 0 for name in config.STATS}, 'bosses': [], 'best_stage': 0, 'best_clear_time': None}
 
 
 data = default_data()
@@ -31,6 +33,28 @@ def save():
     with open(temp, 'w', encoding='utf-8') as f:
         json.dump(data, f)
     os.replace(temp, PATH)
+
+
+def stat(name):
+    info = config.STATS[name]
+    return info['base'] + info['step'] * data['stats'][name]
+
+
+def next_stat_cost(name):
+    """다음 단계의 비용. 최대 단계면 None이다."""
+    costs = config.STATS[name]['costs']
+    level = data['stats'][name]
+    return costs[level] if level < len(costs) else None
+
+
+def buy_stat(name):
+    cost = next_stat_cost(name)
+    if cost is None or data['gold'] < cost:
+        return False
+    data['gold'] -= cost
+    data['stats'][name] += 1
+    save()
+    return True
 
 
 def reset():
