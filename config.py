@@ -108,6 +108,9 @@ BOSS_INTRO_TIME = 1.2
 BOSS_WALK_SPEED = 130
 BOSS_ATTACK_RANGE = 230
 BOSS_RECOVER_TIME = 1.2
+# 공격 준비 동작 동안 흰 몸을 겹쳐 그려 빛나게 한다.
+BOSS_GLOW_OPACITY = 0.5
+BOSS_GLOW_SPEED = 18
 # 첫 파동을 1단 점프로 넘으면 착지할 무렵 둘째 파동이 와 공중 점프를 써야 한다.
 BOSS_WAVE_WINDUP = 0.6
 BOSS_WAVE_INTERVAL = 0.55

@@ -304,6 +304,16 @@ class Boss(Monster):
     def on_pierce_hit(self):
         self.take_hit(record.stat('attack') * config.DASH_DAMAGE_RATIO * config.PIERCE_DAMAGE_RATIO, by_dash=True)
 
+    def draw_body(self, camera, body_sprites, name, fps, center_y):
+        sprite = (self.flash_sprites if self.flash > 0 else body_sprites)[name]
+        frame = int(self.time * fps) % sprite.count
+        x, y = self.x - camera.x, self.y + center_y - camera.y
+        sprite.draw(frame, x, y)
+        # 공격이 나가기 전에 몸이 빛나 다음에 피할 수 있다고 느끼게 한다.
+        if self.state in self.TELEGRAPH_STATES:
+            glow = config.BOSS_GLOW_OPACITY * (0.5 + 0.5 * math.sin(self.time * config.BOSS_GLOW_SPEED))
+            self.flash_sprites[name].draw(frame, x, y, glow)
+
     def get_bb(self):
         half_w = self.W / 2
         return self.x - half_w, self.y, self.x + half_w, self.y + self.H
@@ -328,6 +338,7 @@ WARDEN_PATTERN = ('slam', 'wave', 'slam', 'guard')
 
 
 class Warden(Boss):
+    TELEGRAPH_STATES = ('windup', 'strike', 'wave_windup')
     NAME = '봉인의 수문장'
     MAX_HP = config.BOSS_HP
     W = config.BOSS_W
@@ -445,10 +456,7 @@ class Warden(Boss):
             draw_rectangle(left - camera.x, bottom, self.x - config.BOSS_W / 2 - camera.x, bottom + 8,
                            *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
         name = WARDEN_STATE_SPRITE[self.state]
-        body = self.rage_sprites if self.raging else self.sprites
-        sprite = (self.flash_sprites if self.flash > 0 else body)[name]
-        frame = int(self.time * WARDEN_FPS[name]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + WARDEN_CENTER_Y - camera.y)
+        self.draw_body(camera, self.rage_sprites if self.raging else self.sprites, name, WARDEN_FPS[name], WARDEN_CENTER_Y)
 
     def make_death(self):
         strip = Strip('assets/monster/boss_death.png', WARDEN_FRAME_W)
@@ -515,6 +523,7 @@ class EclipseClone:
 
 
 class Executor(Boss):
+    TELEGRAPH_STATES = ('combo_windup', 'throw_windup', 'pillar_windup')
     NAME = '심연의 집행자'
     MAX_HP = config.EXEC_HP
     W = config.EXEC_W
@@ -667,9 +676,7 @@ class Executor(Boss):
 
     def draw(self, camera):
         name = self.sprite_name()
-        sprite = (self.flash_sprites if self.flash > 0 else self.sprites)[name]
-        frame = int(self.time * EXEC_FPS[name]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + EXEC_CENTER_Y - camera.y)
+        self.draw_body(camera, self.sprites, name, EXEC_FPS[name], EXEC_CENTER_Y)
 
     def make_death(self):
         strip = Strip('assets/monster/exec_death.png', EXEC_FRAME_W)
@@ -715,6 +722,7 @@ class BlackHole:
 
 
 class Witch(Boss):
+    TELEGRAPH_STATES = WITCH_CAST_STATES
     NAME = '균열의 마녀'
     MAX_HP = config.WITCH_HP
     W = config.WITCH_W
@@ -868,9 +876,7 @@ class Witch(Boss):
         if self.hidden:
             return
         name = 'cast' if self.state in WITCH_CAST_STATES else 'float'
-        sprite = (self.flash_sprites if self.flash > 0 else self.sprites)[name]
-        frame = int(self.time * WITCH_FPS[name]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + WITCH_CENTER_Y - camera.y)
+        self.draw_body(camera, self.sprites, name, WITCH_FPS[name], WITCH_CENTER_Y)
 
     def make_death(self):
         strip = Strip('assets/monster/witch_death.png', WITCH_FRAME_W)
