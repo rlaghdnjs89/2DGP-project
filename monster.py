@@ -60,6 +60,9 @@ class Monster:
     def on_dive_hit(self):
         self.kill()
 
+    def on_flurry_hit(self):
+        self.kill()
+
     def die(self):
         game_world.remove_object(self)
         game_world.add_object(self.make_death(), game_world.LAYER_EFFECT)

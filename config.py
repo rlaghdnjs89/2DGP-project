@@ -240,6 +240,8 @@ SKILLS = {
     'dive': {'name': '급강하', 'branch': 'move', 'tier': 1, 'slot': 1, 'cost': 200, 'desc': '공중에서 S로 수직 낙하한다. 착지 충격파(좌우 150px)로 지상 적을 처치하고, 보스에게는 베기 2배 피해를 준다.'},
     'triple': {'name': '3연격', 'branch': 'sword', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '0.6초 안에 세 번 베면 세 번째가 피해 3배와 넉백을 준다.'},
     'blink': {'name': '점멸', 'branch': 'move', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '일섬 대상이 없으면 앞으로 200px 순간이동한다. 충전을 1회 쓰며 낭떠러지 보험이 된다.'},
+    'flurry': {'name': '천검난무 (Q)', 'branch': 'sword', 'tier': 3, 'slot': 0, 'cost': 800, 'desc': 'Q로 1.5초 동안 주변을 연속으로 베고 그동안 무적이다. 쿨타임 20초.'},
+    'pierce': {'name': '관통 일섬 (E)', 'branch': 'move', 'tier': 3, 'slot': 0, 'cost': 800, 'desc': 'E로 화면 끝까지 직선으로 돌진하며 경로의 적을 모두 벤다. 보스는 뚫지 못하고 일섬 3배 피해를 받는다. 쿨타임 20초.'},
     'fire1': {'name': '화염 베기', 'branch': 'fire', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스에게 화상을 입힌다. 3초 동안 초당 공격력의 30% 피해를 주며 방패와 갑옷을 무시한다.'},
     'ice1': {'name': '서리 베기', 'branch': 'ice', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스를 5번 벨 때마다 2초 동안 보스의 동작이 0.7배속이 된다.'},
     'bolt1': {'name': '감전 베기', 'branch': 'bolt', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스를 벨 때 25% 확률로 번개가 떨어져 공격력의 50% 피해를 추가로 준다.'},
@@ -287,6 +289,16 @@ TRIPLE_WINDOW = 0.6
 TRIPLE_DAMAGE_RATIO = 3
 TRIPLE_KNOCKBACK = 70
 BLINK_DISTANCE = 200
+FLURRY_TIME = 1.5
+FLURRY_COOLDOWN = 20
+FLURRY_INTERVAL = 0.15
+FLURRY_RADIUS = 260
+FLURRY_FX_SPEED = 1.5
+PIERCE_TIME = 0.3
+PIERCE_COOLDOWN = 20
+PIERCE_DAMAGE_RATIO = 3
+# 화면 오른쪽 끝에서 이만큼 안쪽에서 멈춘다.
+PIERCE_END_MARGIN = 60
 SPIN_RADIUS = 130
 
 DASH_RANGE = 400

@@ -282,6 +282,12 @@ class Boss(Monster):
     def on_dive_hit(self):
         self.take_hit(record.stat('attack') * config.DIVE_BOSS_DAMAGE_RATIO)
 
+    def on_flurry_hit(self):
+        self.take_hit(record.stat('attack'))
+
+    def on_pierce_hit(self):
+        self.take_hit(record.stat('attack') * config.DASH_DAMAGE_RATIO * config.PIERCE_DAMAGE_RATIO, by_dash=True)
+
     def get_bb(self):
         half_w = self.W / 2
         return self.x - half_w, self.y, self.x + half_w, self.y + self.H

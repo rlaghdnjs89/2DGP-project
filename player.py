@@ -1,7 +1,7 @@
 import math
 
 from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_a,
-                    SDLK_d, SDLK_s, SDLK_w, get_time)
+                    SDLK_d, SDLK_e, SDLK_q, SDLK_s, SDLK_w, get_time)
 
 import config
 import game_world
@@ -157,6 +157,78 @@ class Dash:
             player.finish_dash(self.target)
 
 
+class Flurry:
+    """천검난무. 그 자리에 떠서 주변을 연속으로 베고 그동안 무적이다."""
+    ANIMATION = 'slash'
+
+    def __init__(self, player):
+        self.player = player
+        self.timer = 0
+        self.next_hit = 0
+        self.effect = None
+
+    def enter(self):
+        player = self.player
+        self.timer = config.FLURRY_TIME
+        self.next_hit = 0
+        player.flurry_cooldown = config.FLURRY_COOLDOWN
+        player.vy = 0
+        self.effect = Effect('dagger-flurry', 0, 0, player, config.FLURRY_FX_SPEED, loop=True)
+        game_world.add_object(self.effect, game_world.LAYER_EFFECT)
+
+    def update(self, dt):
+        player = self.player
+        self.timer -= dt
+        self.next_hit -= dt
+        # 다음 프레임의 중력을 건너뛰어 그 높이에 머문다.
+        player.hang_timer = dt
+        if self.next_hit <= 0:
+            self.next_hit = config.FLURRY_INTERVAL
+            self.hit_around()
+        if self.timer <= 0:
+            game_world.remove_object(self.effect)
+            player.change_state(player.run_state if player.on_ground else player.jump_state)
+
+    def hit_around(self):
+        player = self.player
+        sound.play('slash')
+        center_y = player.y + config.PLAYER_H / 2
+        for monster in game_world.collision_pairs['player:monster'][1][:]:
+            if math.hypot(monster.dash_x() - player.x, monster.dash_y() + config.PLAYER_H / 2 - center_y) <= config.FLURRY_RADIUS:
+                monster.on_flurry_hit()
+
+
+class Pierce:
+    """관통 일섬. 화면 끝까지 곧게 돌진하며 경로의 적을 벤다."""
+    ANIMATION = 'dash'
+
+    def __init__(self, player):
+        self.player = player
+        self.timer = 0
+        self.start_x = 0
+        self.end_x = 0
+
+    def enter(self):
+        player = self.player
+        self.timer = 0
+        self.start_x = player.x
+        self.end_x = max(player.x, min(player.camera.base_x + config.SCREEN_W - config.PIERCE_END_MARGIN, player.forward_limit()))
+        player.pierce_cooldown = config.PIERCE_COOLDOWN
+        player.vy = 0
+        player.hang_timer = 0
+
+    def update(self, dt):
+        player = self.player
+        self.timer += dt
+        t = min(1, self.timer / config.PIERCE_TIME)
+        player.x = self.start_x + (self.end_x - self.start_x) * t
+        for monster in game_world.collision_pairs['player:monster'][1][:]:
+            if not monster.IS_BOSS and game_world.collide(player, monster):
+                monster.kill(by_dash=True)
+        if t >= 1:
+            player.finish_pierce()
+
+
 class Layer:
     """이펙트 사이에 끼워 넣는 그리기 호출."""
 
@@ -294,6 +366,8 @@ class Player:
         self.altar = None
         self.window = None
         self.next_wall = None
+        self.flurry_cooldown = 0
+        self.pierce_cooldown = 0
         self.cleared = False
         self.triple_count = 0
         self.triple_timer = 0
@@ -313,6 +387,8 @@ class Player:
         self.slash_state = Slash(self)
         self.dash_state = Dash(self)
         self.dive_state = Dive(self)
+        self.flurry_state = Flurry(self)
+        self.pierce_state = Pierce(self)
         self.cut_state = Cut(self)
         self.hit_state = Hit(self)
         self.state = self.run_state
@@ -412,6 +488,30 @@ class Player:
             self.vy = 0
             self.hang_timer = config.DASH_HANG_TIME
         game_world.add_object(Effect('blink-in', self.x, self.y, speed=config.BLINK_FX_SPEED), game_world.LAYER_EFFECT)
+
+    def can_use_skill_key(self):
+        return self.state in (self.run_state, self.jump_state, self.slash_state)
+
+    def use_flurry(self):
+        if record.has_skill('flurry') and self.flurry_cooldown <= 0 and self.can_use_skill_key():
+            self.change_state(self.flurry_state)
+
+    def use_pierce(self):
+        if record.has_skill('pierce') and self.pierce_cooldown <= 0 and self.can_use_skill_key():
+            sound.play('dash')
+            if self.sword:
+                game_world.remove_object(self.sword)
+            self.change_state(self.pierce_state)
+
+    def finish_pierce(self):
+        sound.play('kill')
+        game_world.add_object(Effect('crit-hit', self.x, self.y + config.PLAYER_H / 2, speed=DASH_KILL_FX_SPEED), game_world.LAYER_EFFECT)
+        boss = self.boss
+        # 공중의 마녀처럼 높이가 다르면 닿지 않는다.
+        if boss and self.y <= boss.y + boss.H and self.y + config.PLAYER_H >= boss.y:
+            boss.on_pierce_hit()
+        self.hang_timer = config.DASH_HANG_TIME
+        self.change_state(self.jump_state)
 
     def forward_limit(self):
         """스킬로 앞으로 튀어 나갈 때 넘으면 안 되는 위치."""
@@ -566,6 +666,10 @@ class Player:
             self.slash_buffer = config.INPUT_BUFFER
         elif event.type == SDL_KEYDOWN and event.key == SDLK_SPACE:
             self.dash_buffer = config.INPUT_BUFFER
+        elif event.type == SDL_KEYDOWN and event.key == SDLK_q:
+            self.use_flurry()
+        elif event.type == SDL_KEYDOWN and event.key == SDLK_e:
+            self.use_pierce()
 
     def freeze(self, time):
         self.hit_stop = max(self.hit_stop, time)
@@ -573,7 +677,7 @@ class Player:
     def update(self, dt):
         self.animation_time += dt
         self.trail = [(x, y, age + dt) for x, y, age in self.trail if age + dt < config.TRAIL_TIME]
-        if self.state is self.dash_state:
+        if self.state is self.dash_state or self.state is self.pierce_state:
             self.trail.append((self.x, self.y, 0))
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
@@ -582,10 +686,12 @@ class Player:
         self.dash_buffer = max(0, self.dash_buffer - dt)
         self.tick_dash_recharge(dt)
         self.triple_timer = max(0, self.triple_timer - dt)
+        self.flurry_cooldown = max(0, self.flurry_cooldown - dt)
+        self.pierce_cooldown = max(0, self.pierce_cooldown - dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
-        # 돌진 중에는 Dash가 위치를 직접 정하고, 절단 중에는 그 자리에 떠서 힘을 모은다.
-        if self.state is self.dash_state or self.state is self.cut_state:
+        # 돌진 중에는 상태가 위치를 직접 정하고, 절단 중에는 그 자리에 떠서 힘을 모은다.
+        if self.state in (self.dash_state, self.pierce_state, self.cut_state):
             return
 
         self.x += self.speed() * dt
@@ -638,7 +744,7 @@ class Player:
     def is_invincible(self):
         # 불릿 타임에는 장벽 외의 피해를 받지 않는다. 장벽에 닿으면 불릿 타임을 먼저 끝낸다.
         return (self.invincible_timer > 0 or self.bullet_target is not None or self.at_altar()
-                or self.state is self.dash_state or self.state is self.cut_state)
+                or self.state in (self.dash_state, self.pierce_state, self.flurry_state, self.cut_state))
 
     def take_damage(self):
         if self.is_invincible():
