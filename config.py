@@ -31,13 +31,16 @@ SLIDE_MAX_TIME = 1.0
 SLIDE_H = PLAYER_H * 0.5
 
 STAGES = (
+    # pattern_tiers는 달린 비율이 앞 값을 넘으면 그 등급에서 조각을 고른다. 없으면 직접 설계한 군도를 쓴다.
     {'name': '무너지는 고성', 'gravity': 1.0, 'speed': 1.0, 'gold_rate': 1,
+     'pattern_tiers': ((0, ('easy',)), (0.25, ('easy', 'normal')), (0.6, ('normal',))),
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase1',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png', 'arena_platforms': ()},
     {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.0, 'gold_rate': 1.5,
+     'pattern_tiers': (),
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase2',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
@@ -46,6 +49,7 @@ STAGES = (
      # 아레나 시작 기준 (왼쪽, 오른쪽, 지면 위 높이). 카메라가 멈추면 화면 150~370px, 480~720px에 놓인다.
      'arena_platforms': ((375, 595, 130), (705, 945, 250))},
     {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.5, 'gold_rate': 2,
+     'pattern_tiers': ((0, ('normal',)), (0.3, ('normal', 'hard')), (0.65, ('hard',))),
      'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
      'gate': 'assets/map/gate_phase3.png', 'music': 'bgm_phase3',
      'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
@@ -333,12 +337,8 @@ DIVE_HIT_STOP = 0.06
 DIVE_SHAKE_TIME = 0.25
 DIVE_SHAKE_AMP = 9
 
-CHUNK_A_LENGTH = 2400
-CHUNK_B_LENGTH = 2800
-# 청크가 이어지는 곳에서도 장애물 간격이 좁아지지 않게 양 끝을 비운다.
+# 낭떠러지 뒤에 착지할 자리를 비운다.
 CHUNK_MARGIN = 300
-OBSTACLE_GAP_MIN = 550
-OBSTACLE_GAP_MAX = 750
 
 LOW_OBSTACLE_W = 60
 LOW_OBSTACLE_H = 60
@@ -349,7 +349,6 @@ HIGH_OBSTACLE_CLEARANCE = 70
 # 1단 점프 체공 거리는 약 250px, 2단 점프는 약 440px다.
 PIT_W_SHORT = 160
 PIT_W_LONG = 360
-PIT_CHANCE = 0.3
 
 # 일섬을 다 쓴 직후에 진입해도 1회가 충전되도록 충전 시간만큼 평지를 둔다 (DS-8).
 CLIFF_RUN_UP_TIME = STATS['dash_recharge']['base']
@@ -382,20 +381,61 @@ ISLAND_CHUNKS = {
         'familiars': ((900, 260), (1125, 400), (1350, 280), (1850, 260), (2320, 240)),
     },
 }
-# 청크 D. x는 청크 시작 기준, 높은 장애물로 슬라이딩을 요구한 뒤 지면과 발판의 마법사를 만난다.
-CHUNK_D = {
-    'length': 2600,
-    'high_obstacle': 500,
-    'platforms': ((1500, 1900, 130),),
-    'mages': ((1150, 0), (1700, 130)),
+# 달리기 구간의 패턴 조각. 난이도를 바꾸려면 여기의 목록과 간격만 고치면 된다.
+# (종류, x) 목록이고 x는 조각 시작에서 잰 거리(px)다. x와 구덩이 폭에 스테이지 속도를 곱하므로 대응할 시간은 스테이지마다 같다.
+#   rock: 낮은 장애물, 점프           pillar: 높은 장애물, 슬라이딩
+#   pit: 1단 점프로 넘는 구덩이       pit_long: 2단 점프로 넘는 구덩이
+#   grunt: 달려와 베는 근접병         goblin: 웅크렸다가 달려드는 고블린
+#   mage: 지상 마법사                 mage_high: 발판 위 마법사
+#   bat: 서 있으면 부딪히는 사역마    bat_high: 점프하면 부딪히는 사역마
+# 속도 400px/s에서 100px은 0.25초다. 1단 점프는 체공 0.64초(254px), 2단 점프는 약 1.1초(440px)다.
+# 만들 때 지킬 것: 슬라이딩 중에는 공격할 수 없으므로 pillar 바로 뒤에 grunt, goblin을 두면 피할 수 없다.
+# 천장까지 막는 pillar 앞에 mage_high 발판을 두면 발판에 착지했을 때 넘을 수 없다. 고블린은 스테이지 속도와 상관없이 650px/s로 달린다.
+PATTERNS = {
+    # 입력 둘, 1초 안팎의 간격으로 조각마다 한 가지를 익힌다.
+    'easy': (
+        (('rock', 0), ('rock', 420)),
+        (('pillar', 0), ('rock', 480)),
+        (('grunt', 0), ('grunt', 300)),
+        (('goblin', 0), ('rock', 500)),
+        (('bat', 0), ('bat', 280)),
+        (('pit', 0), ('rock', 520)),
+        (('rock', 0), ('mage', 480)),
+    ),
+    # 입력 둘에서 셋, 0.5~0.8초 간격으로 이어 간다.
+    'normal': (
+        (('rock', 0), ('goblin', 120), ('bat', 200)),
+        (('rock', 0), ('pillar', 340)),
+        (('pillar', 0), ('grunt', 480), ('rock', 700)),
+        (('goblin', 0), ('pillar', 200)),
+        (('bat', 0), ('rock', 180), ('bat_high', 300)),
+        (('pit', 0), ('goblin', 400), ('rock', 560)),
+        (('rock', 0), ('rock', 300), ('grunt', 620)),
+        (('mage', 0), ('pillar', 260)),
+        (('mage_high', 0), ('grunt', 200), ('rock', 420)),
+    ),
+    # 입력 셋 이상, 0.3~0.6초 간격이거나 2단 점프를 요구한다.
+    'hard': (
+        (('rock', 0), ('rock', 140), ('goblin', 420)),
+        (('pillar', 0), ('pillar', 260), ('rock', 560)),
+        (('goblin', 0), ('goblin', 120), ('goblin', 240)),
+        (('pit_long', 0), ('bat_high', 170), ('rock', 560)),
+        (('rock', 0), ('bat_high', 130), ('rock', 300), ('bat', 470)),
+        (('grunt', 0), ('rock', 170), ('grunt', 330), ('pillar', 520)),
+        (('mage', 0), ('rock', 180), ('mage_high', 420), ('goblin', 660)),
+        (('pit', 0), ('pillar', 380), ('goblin', 440)),
+    ),
 }
-# 청크 G. 고블린이 한 마리씩 달려들도록 고블린 시야보다 넓게 띄운다.
-CHUNK_G = {
-    'length': 2700,
-    'goblins': (700, 1500, 2300),
-}
-# 스테이지 3은 D를 두 번 넣어 마법사 비중을 높인다.
-STAGE_CHUNKS = (('A', 'B', 'C', 'D', 'G'), ('E1', 'E2', 'E3'), ('A', 'B', 'C', 'D', 'D', 'G'))
+# 조각과 조각 사이의 빈 거리(px). 줄이면 쉴 틈이 줄어든다. 1단 점프 체공 거리보다 길어 앞 조각에서 착지할 자리는 남긴다.
+PATTERN_GAP_MIN = 420
+PATTERN_GAP_MAX = 600
+# 낭떠러지는 조각 사이에 끼우는 휴식 구간이다. 앞에 4초 평지를 두므로 조각 몇 개마다 넣을지가 곧 쉬는 빈도다.
+CLIFF_EVERY_MIN = 6
+CLIFF_EVERY_MAX = 9
+BAT_H = 100
+BAT_HIGH_H = 220
+MAGE_PLATFORM_H = 130
+MAGE_PLATFORM_HALF_W = 200
 
 GRUNT_W = 60
 GRUNT_H = 90
@@ -406,10 +446,6 @@ GRUNT_WINDUP_TIME = 0.25
 GRUNT_ATTACK_TIME = 0.15
 GRUNT_RECOVER_TIME = 0.4
 GRUNT_ATTACK_REACH = 50
-# 근접병은 시야에 들어온 뒤 100px쯤 달려오므로 장애물 뒤에 이만큼 비워 착지 자리를 남긴다.
-GRUNT_GAP_MIN = 350
-GRUNT_GAP_MAX = 450
-GRUNT_3RD_CHANCE = 0.5
 GRUNT_GOLD = 5
 
 GOBLIN_W = 50

@@ -10,60 +10,47 @@ from obstacle import EvolutionAltar, Ground, Platform, StageGate, Wall, make_hig
 Chunk = namedtuple('Chunk', 'length obstacles pits monsters platforms', defaults=((), (), (), ()))
 
 
-def grunt_gap():
-    return random.randint(config.GRUNT_GAP_MIN, config.GRUNT_GAP_MAX)
+# 조각의 종류별 (몬스터, 지면 위 높이).
+PATTERN_MONSTERS = {
+    'grunt': (Grunt, 0),
+    'goblin': (Goblin, 0),
+    'mage': (Mage, 0),
+    'mage_high': (Mage, config.MAGE_PLATFORM_H),
+    'bat': (Familiar, config.BAT_H),
+    'bat_high': (Familiar, config.BAT_HIGH_H),
+}
+PATTERN_OBSTACLES = {'rock': (make_low_obstacle, config.LOW_OBSTACLE_W), 'pillar': (make_high_obstacle, config.HIGH_OBSTACLE_W)}
+PATTERN_PITS = {'pit': config.PIT_W_SHORT, 'pit_long': config.PIT_W_LONG}
 
 
-def build_chunk_a(stage):
-    obstacles = []
-    monsters = []
-    x = random.randint(config.CHUNK_MARGIN, config.CHUNK_MARGIN + 150)
-    for _ in range(2):
-        obstacles.append((make_low_obstacle, x))
-        x += config.LOW_OBSTACLE_W + grunt_gap()
-        monsters.append((Grunt, x, config.GROUND_TOP))
-        x += random.randint(config.OBSTACLE_GAP_MIN // 2, config.OBSTACLE_GAP_MAX // 2)
-    if random.random() < config.GRUNT_3RD_CHANCE:
-        monsters.append((Grunt, x, config.GROUND_TOP))
-    return Chunk(config.CHUNK_A_LENGTH, obstacles, monsters=monsters)
-
-
-def build_chunk_b(stage):
-    length = config.CHUNK_B_LENGTH
-    kinds = [(make_low_obstacle, config.LOW_OBSTACLE_W), (make_high_obstacle, config.HIGH_OBSTACLE_W)]
-    random.shuffle(kinds)
-    obstacles = []
-    pits = []
-    x = config.CHUNK_MARGIN
-    # 낮은 장애물과 높은 장애물을 번갈아 놓아 점프와 슬라이딩을 교대로 요구한다.
-    while x + config.PIT_W_LONG <= length - config.CHUNK_MARGIN:
-        if random.random() < config.PIT_CHANCE:
-            width = random.choice((config.PIT_W_SHORT, config.PIT_W_LONG))
-            pits.append((x, width))
+def build_pattern(pattern, stage):
+    speed = config.STAGES[stage]['speed']
+    start = random.randint(config.PATTERN_GAP_MIN, config.PATTERN_GAP_MAX) * speed
+    obstacles, pits, monsters, platforms = [], [], [], []
+    end = start
+    for kind, x in pattern:
+        offset = int(start + x * speed)
+        width = 0
+        if kind in PATTERN_OBSTACLES:
+            make, width = PATTERN_OBSTACLES[kind]
+            obstacles.append((make, offset))
+        elif kind in PATTERN_PITS:
+            width = int(PATTERN_PITS[kind] * speed)
+            pits.append((offset, width))
         else:
-            make, width = kinds[len(obstacles) % 2]
-            obstacles.append((make, x))
-        x += width + random.randint(config.OBSTACLE_GAP_MIN, config.OBSTACLE_GAP_MAX)
-    return Chunk(length, obstacles, pits)
+            make, height = PATTERN_MONSTERS[kind]
+            monsters.append((make, offset, config.GROUND_TOP + height))
+            if kind == 'mage_high':
+                platforms.append((offset - config.MAGE_PLATFORM_HALF_W, offset + config.MAGE_PLATFORM_HALF_W, config.MAGE_PLATFORM_H))
+        end = max(end, offset + width)
+    return Chunk(int(end), obstacles, pits, monsters, platforms)
 
 
-def build_chunk_c(stage):
+def build_cliff(stage):
     start = int(config.SCROLL_SPEED * config.STAGES[stage]['speed'] * config.CLIFF_RUN_UP_TIME)
     pits = [(start, config.CLIFF_W)]
     monsters = [(Familiar, start + x, config.GROUND_TOP + y) for x, y in config.CLIFF_FAMILIARS]
     return Chunk(start + config.CLIFF_W + config.CHUNK_MARGIN, pits=pits, monsters=monsters)
-
-
-def build_chunk_d(stage):
-    layout = config.CHUNK_D
-    obstacles = [(make_high_obstacle, layout['high_obstacle'])]
-    monsters = [(Mage, x, config.GROUND_TOP + y) for x, y in layout['mages']]
-    return Chunk(layout['length'], obstacles, monsters=monsters, platforms=layout['platforms'])
-
-
-def build_chunk_g(stage):
-    monsters = [(Goblin, x, config.GROUND_TOP) for x in config.CHUNK_G['goblins']]
-    return Chunk(config.CHUNK_G['length'], monsters=monsters)
 
 
 def build_island(name):
@@ -75,17 +62,6 @@ def build_island(name):
 # 스테이지 순서다.
 BOSSES = (Warden, Witch, Executor)
 
-CHUNK_BUILDERS = {
-    'A': build_chunk_a,
-    'B': build_chunk_b,
-    'C': build_chunk_c,
-    'D': build_chunk_d,
-    'G': build_chunk_g,
-    'E1': lambda stage: build_island('E1'),
-    'E2': lambda stage: build_island('E2'),
-    'E3': lambda stage: build_island('E3'),
-}
-
 
 class ChunkManager:
     def __init__(self, player):
@@ -95,6 +71,7 @@ class ChunkManager:
         self.stage = 0
         self.run_time = 0
         self.altar_placed = False
+        self.patterns_until_cliff = random.randint(config.CLIFF_EVERY_MIN, config.CLIFF_EVERY_MAX)
         # 시작 지점에서 반응할 시간을 주도록 첫 화면은 평지로 둔다.
         self.add_ground(0, config.SCREEN_W)
         self.end_x = config.SCREEN_W
@@ -160,8 +137,7 @@ class ChunkManager:
             self.run_time = 0
             self.add_gate(self.stage)
 
-    def spawn_chunk(self, chunk):
-        built = CHUNK_BUILDERS[chunk](self.stage)
+    def spawn_chunk(self, built, name):
         ground_left = self.end_x
         for offset, width in built.pits:
             self.add_ground(ground_left, self.end_x + offset)
@@ -174,13 +150,26 @@ class ChunkManager:
         for make, offset, y in built.monsters:
             self.add_monster(make(self.end_x + offset, y, self.player))
         self.end_x += built.length
-        self.last_chunk = chunk
+        self.last_chunk = name
 
     def progress(self):
         return min(1, self.run_time / config.STAGE_RUN_TIME)
 
-    def pick_chunk(self):
-        return random.choice([chunk for chunk in config.STAGE_CHUNKS[self.stage] if chunk != self.last_chunk])
+    def pick_pattern(self):
+        tiers = next(tiers for start, tiers in reversed(config.STAGES[self.stage]['pattern_tiers']) if self.progress() >= start)
+        return random.choice([pattern for tier in tiers for pattern in config.PATTERNS[tier] if pattern != self.last_chunk])
+
+    def spawn_run_chunk(self):
+        if not config.STAGES[self.stage]['pattern_tiers']:
+            name = random.choice([island for island in config.ISLAND_CHUNKS if island != self.last_chunk])
+            self.spawn_chunk(build_island(name), name)
+        elif self.patterns_until_cliff == 0:
+            self.patterns_until_cliff = random.randint(config.CLIFF_EVERY_MIN, config.CLIFF_EVERY_MAX)
+            self.spawn_chunk(build_cliff(self.stage), 'cliff')
+        else:
+            self.patterns_until_cliff -= 1
+            pattern = self.pick_pattern()
+            self.spawn_chunk(build_pattern(pattern, self.stage), pattern)
 
     def update(self, camera, dt):
         # 아레나를 붙인 뒤 다음 스테이지의 관문을 지나기 전까지는 달린 시간을 세지 않는다.
@@ -188,7 +177,7 @@ class ChunkManager:
             self.run_time += dt
         if self.end_x <= camera.x + config.SCREEN_W:
             if self.run_time < config.STAGE_RUN_TIME:
-                self.spawn_chunk(self.pick_chunk())
+                self.spawn_run_chunk()
             elif not self.altar_placed:
                 self.spawn_altar()
             else:
