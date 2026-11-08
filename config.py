@@ -30,7 +30,7 @@ INPUT_BUFFER = 0.12
 SLIDE_MAX_TIME = 1.0
 SLIDE_H = PLAYER_H * 0.5
 
-PHASES = (
+STAGES = (
     {'name': '무너지는 고성', 'score': 0, 'gravity': 1.0, 'speed': 1.0, 'score_rate': 1,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase1',
@@ -50,7 +50,7 @@ PHASES = (
      'ground': 'assets/map/ground_phase3.png',
      'platform': 'assets/map/platform_phase3.png', 'platform_cap': 'assets/map/platform_cap_phase3.png'},
 )
-PHASE_INVINCIBLE_TIME = 1.0
+STAGE_INVINCIBLE_TIME = 1.0
 GATE_W = 40
 
 BULLET_TIME_SCALE = 0.2
@@ -90,7 +90,7 @@ BOSS_W = 110
 BOSS_H = 210
 # 일섬 사거리(400)보다 멀리서 보스전을 시작해 카메라가 멈추기 전에는 일섬이 닿지 않게 한다.
 BOSS_ENGAGE_GAP = 450
-# 보스에 붙어 쓰러뜨려도 장벽까지 Phase 3 스크롤 속도 × 0.6초(360px) 이상 남아 불릿 타임이 다 보장된다 (CT-6).
+# 보스에 붙어 쓰러뜨려도 장벽까지 스테이지 3 스크롤 속도 × 0.6초(360px) 이상 남아 불릿 타임이 다 보장된다 (CT-6).
 BOSS_WALL_GAP = 305
 BOSS_INTRO_TIME = 1.2
 BOSS_WALK_SPEED = 130
@@ -193,8 +193,8 @@ CHUNK_G = {
     'length': 2700,
     'goblins': (700, 1500, 2300),
 }
-# 페이즈 3은 D를 두 번 넣어 마법사 비중을 높인다.
-PHASE_CHUNKS = (('A', 'B', 'C', 'D', 'G'), ('E1', 'E2', 'E3'), ('A', 'B', 'C', 'D', 'D', 'G'))
+# 스테이지 3은 D를 두 번 넣어 마법사 비중을 높인다.
+STAGE_CHUNKS = (('A', 'B', 'C', 'D', 'G'), ('E1', 'E2', 'E3'), ('A', 'B', 'C', 'D', 'D', 'G'))
 
 GRUNT_W = 60
 GRUNT_H = 90

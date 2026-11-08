@@ -22,7 +22,7 @@ SUB_COLOR = (200, 195, 220)
 
 score = 0
 kills = 0
-phase = 0
+stage = 0
 best = 0
 is_new = False
 time = 0
@@ -30,10 +30,10 @@ camera = None
 
 
 def set_result(player):
-    global score, kills, phase
+    global score, kills, stage
     score = player.score
     kills = player.kills
-    phase = player.phase
+    stage = player.stage
 
 
 def init():
@@ -63,7 +63,7 @@ def update(dt):
 
 
 def draw():
-    draw_background(phase, camera)
+    draw_background(stage, camera)
     draw_overlay('assets/ui/black.png', OVERLAY_OPACITY)
 
     x = config.SCREEN_W / 2
@@ -75,6 +75,6 @@ def draw():
 
     draw_text(LINE_SIZE, x, config.SCREEN_H * 0.42, f'최고 기록  {best:,}', align=0.5)
     draw_text(LINE_SIZE, x, config.SCREEN_H * 0.36, f'처치 수  {kills}', align=0.5)
-    phase_name = config.PHASES[phase]['name']
-    draw_text(LINE_SIZE, x, config.SCREEN_H * 0.3, f'도달 페이즈  PHASE {phase + 1} · {phase_name}', align=0.5)
+    stage_name = config.STAGES[stage]['name']
+    draw_text(LINE_SIZE, x, config.SCREEN_H * 0.3, f'도달 스테이지  STAGE {stage + 1} · {stage_name}', align=0.5)
     draw_text(LINE_SIZE, x, config.SCREEN_H * 0.14, 'R 재도전     ESC 타이틀', SUB_COLOR, align=0.5)

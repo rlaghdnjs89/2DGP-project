@@ -255,7 +255,7 @@ class Player:
         self.distance_score = 0
         self.kills = 0
         self.combo = 0
-        self.phase = 0
+        self.stage = 0
         self.boss = None
         self.held_move = set()
         self.bullet_wall = None
@@ -452,7 +452,7 @@ class Player:
         self.invincible_timer = max(0, self.invincible_timer - dt)
 
         if not self.boss:
-            self.distance_score += config.DISTANCE_SCORE_RATE * config.PHASES[self.phase]['speed'] * dt
+            self.distance_score += config.DISTANCE_SCORE_RATE * config.STAGES[self.stage]['speed'] * dt
         # 소수점이 쌓이도록 따로 누적하고 정수 부분만 점수로 옮긴다.
         gained = int(self.distance_score)
         self.distance_score -= gained
@@ -472,12 +472,12 @@ class Player:
             self.hang_timer -= dt
         else:
             # 등가속도 공식을 그대로 써서 프레임 수와 무관하게 점프 높이가 같게 한다.
-            gravity = config.GRAVITY * config.PHASES[self.phase]['gravity']
+            gravity = config.GRAVITY * config.STAGES[self.stage]['gravity']
             if self.vy <= 0:
                 gravity *= config.FALL_GRAVITY_RATIO
             self.y += self.vy * dt - gravity * dt * dt / 2
             self.vy -= gravity * dt
-            # 중력이 약한 페이즈에서는 2단 점프로 화면 위까지 올라갈 수 있어 천장에서 멈춘다.
+            # 중력이 약한 스테이지에서는 2단 점프로 화면 위까지 올라갈 수 있어 천장에서 멈춘다.
             if self.y + config.PLAYER_H > config.SCREEN_H:
                 self.y = config.SCREEN_H - config.PLAYER_H
                 self.vy = min(self.vy, 0)
@@ -537,11 +537,11 @@ class Player:
             if self.state is self.hit_state:
                 return 0
             return sum(MOVE_KEYS[key] for key in self.held_move) * config.BOSS_FIGHT_MOVE_SPEED
-        return config.SCROLL_SPEED * config.PHASES[self.phase]['speed']
+        return config.SCROLL_SPEED * config.STAGES[self.stage]['speed']
 
     def add_score(self, points):
         # 진입 순간 총점이 뛰지 않도록 얻는 시점에 배율을 곱한다 (Q1).
-        self.score += points * config.PHASES[self.phase]['score_rate']
+        self.score += points * config.STAGES[self.stage]['score_rate']
 
     def play_hit_feedback(self, monster, by_dash):
         y = monster.dash_y() + config.PLAYER_H / 2
@@ -570,11 +570,11 @@ class Player:
             sound.play('heal')
             self.hp += 1
 
-    def enter_phase(self, phase):
+    def enter_stage(self, stage):
         sound.play('gate')
-        sound.play_music(phase)
-        self.phase = phase
-        self.invincible_timer = max(self.invincible_timer, config.PHASE_INVINCIBLE_TIME)
+        sound.play_music(stage)
+        self.stage = stage
+        self.invincible_timer = max(self.invincible_timer, config.STAGE_INVINCIBLE_TIME)
 
     def handle_collision(self, group, other):
         if group == 'player:ground':
@@ -583,8 +583,8 @@ class Player:
                 self.vy = 0
                 self.on_ground = True
         elif group == 'player:gate':
-            if other.phase > self.phase:
-                self.enter_phase(other.phase)
+            if other.stage > self.stage:
+                self.enter_stage(other.stage)
         elif group == 'player:bullet':
             # 피해를 주면 곧바로 무적이 되므로 탄 쪽에서 무적을 확인하면 맞은 탄이 사라지지 않는다.
             if not self.is_invincible():

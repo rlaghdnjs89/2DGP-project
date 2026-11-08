@@ -2,8 +2,8 @@ import config
 from sprite import get_image
 
 
-def draw_background(phase, camera):
-    for path, parallax in config.PHASES[phase]['background']:
+def draw_background(stage, camera):
+    for path, parallax in config.STAGES[stage]['background']:
         image = get_image(path)
         w = image.w * config.SPRITE_SCALE
         h = image.h * config.SPRITE_SCALE
@@ -21,4 +21,4 @@ class Background:
         pass
 
     def draw(self, camera):
-        draw_background(self.player.phase, camera)
+        draw_background(self.player.stage, camera)

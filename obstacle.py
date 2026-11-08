@@ -60,23 +60,23 @@ class Obstacle:
         pass
 
 
-def make_low_obstacle(left, phase):
-    image = random.choice(config.PHASES[phase]['low'])
+def make_low_obstacle(left, stage):
+    image = random.choice(config.STAGES[stage]['low'])
     return Obstacle(left, config.GROUND_TOP, config.LOW_OBSTACLE_W, config.LOW_OBSTACLE_H, image)
 
 
-def make_high_obstacle(left, phase):
+def make_high_obstacle(left, stage):
     bottom = config.GROUND_TOP + config.HIGH_OBSTACLE_CLEARANCE
     # 천장까지 막아 점프로는 넘을 수 없게 한다.
-    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, config.PHASES[phase]['high'])
+    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, config.STAGES[stage]['high'])
 
 
-class PhaseGate:
-    def __init__(self, x, phase):
+class StageGate:
+    def __init__(self, x, stage):
         self.x = x
-        self.phase = phase
+        self.stage = stage
         self.time = 0
-        self.sprite = Strip(config.PHASES[phase]['gate'], GATE_FRAME_W)
+        self.sprite = Strip(config.STAGES[stage]['gate'], GATE_FRAME_W)
 
     def update(self, dt):
         self.time += dt
@@ -176,12 +176,12 @@ class Wall:
 
 
 class Platform:
-    def __init__(self, left, right, top, phase):
+    def __init__(self, left, right, top, stage):
         self.left = left
         self.right = right
         self.top = top
-        self.image = get_image(config.PHASES[phase]['platform'])
-        self.cap = get_image(config.PHASES[phase]['platform_cap'])
+        self.image = get_image(config.STAGES[stage]['platform'])
+        self.cap = get_image(config.STAGES[stage]['platform_cap'])
 
     def update(self, dt):
         pass
@@ -203,11 +203,11 @@ class Platform:
 
 
 class Ground:
-    def __init__(self, left, right, phase):
+    def __init__(self, left, right, stage):
         self.left = left
         self.right = right
         self.top = config.GROUND_TOP
-        self.image = get_image(config.PHASES[phase]['ground'])
+        self.image = get_image(config.STAGES[stage]['ground'])
 
     def update(self, dt):
         pass

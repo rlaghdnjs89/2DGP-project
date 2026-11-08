@@ -38,8 +38,8 @@ def load():
             sounds[name] = [load_wav(f'assets/sound/{file}.wav') for file in files]
             for sound in sounds[name]:
                 sound.set_volume(config.SFX_VOLUME)
-        for phase_info in config.PHASES:
-            music[phase_info['music']] = load_music(f'assets/sound/{phase_info["music"]}.wav')
+        for stage_info in config.STAGES:
+            music[stage_info['music']] = load_music(f'assets/sound/{stage_info["music"]}.wav')
     # 오디오 장치가 없는 PC에서는 pico2d가 IOError를 낸다. 소리 없이 게임은 그대로 돌린다.
     except IOError:
         sounds.clear()
@@ -51,9 +51,9 @@ def play(name):
         random.choice(sounds[name]).play()
 
 
-def play_music(phase):
+def play_music(stage):
     global current
-    name = config.PHASES[phase]['music']
+    name = config.STAGES[stage]['music']
     if name in music and current != name:
         current = name
         music[name].set_volume(config.MUSIC_VOLUME)

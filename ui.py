@@ -16,7 +16,7 @@ SCORE_SIZE = 24
 COMBO_SIZE = 24
 DASH_SIZE = 24
 DASH_EMPTY_COLOR = (130, 130, 130)
-PHASE_SIZE = 24
+STAGE_SIZE = 24
 BOSS_BAR_W = 560
 BOSS_BAR_H = 14
 BOSS_BAR_TOP = 92
@@ -73,14 +73,14 @@ def draw_overlay(path, opacity):
 class HUD:
     def __init__(self, player):
         self.player = player
-        self.shown_phase = player.phase
+        self.shown_stage = player.stage
         self.shown_hp = player.hp
         self.time = 0
         self.best = record.load_best()
         self.flash = 0
         self.heart_shake = 0
         self.heal_notice = 0
-        # 배너는 페이즈가 바뀔 때만 나오므로 처음에는 이미 끝난 상태로 둔다.
+        # 배너는 스테이지가 바뀔 때만 나오므로 처음에는 이미 끝난 상태로 둔다.
         self.banner_time = BANNER_HOLD_TIME + BANNER_SHRINK_TIME
 
     def update(self, dt):
@@ -94,25 +94,25 @@ class HUD:
         elif self.player.hp > self.shown_hp:
             self.heal_notice = HEAL_NOTICE_TIME
         self.shown_hp = self.player.hp
-        if self.shown_phase != self.player.phase:
-            self.shown_phase = self.player.phase
+        if self.shown_stage != self.player.stage:
+            self.shown_stage = self.player.stage
             self.flash = FLASH_TIME
             self.banner_time = 0
 
-    def phase_label(self):
-        return f'PHASE {self.player.phase + 1} · {config.PHASES[self.player.phase]["name"]}'
+    def stage_label(self):
+        return f'STAGE {self.player.stage + 1} · {config.STAGES[self.player.stage]["name"]}'
 
-    def draw_phase(self):
+    def draw_stage(self):
         center_x = config.SCREEN_W / 2
-        top_y = config.SCREEN_H - MARGIN - PHASE_SIZE / 2
+        top_y = config.SCREEN_H - MARGIN - STAGE_SIZE / 2
         t = (self.banner_time - BANNER_HOLD_TIME) / BANNER_SHRINK_TIME
         if t >= 1:
-            draw_text(PHASE_SIZE, center_x, top_y, self.phase_label(), align=0.5)
+            draw_text(STAGE_SIZE, center_x, top_y, self.stage_label(), align=0.5)
             return
         t = max(0, t)
         size = BANNER_SIZES[min(len(BANNER_SIZES) - 1, int(t * len(BANNER_SIZES)))]
         y = config.SCREEN_H * 0.72 + (top_y - config.SCREEN_H * 0.72) * t
-        draw_text(size, center_x, y, self.phase_label(), align=0.5)
+        draw_text(size, center_x, y, self.stage_label(), align=0.5)
 
     def draw_dash(self):
         charges = self.player.dash_charges
@@ -160,11 +160,11 @@ class HUD:
             image = full if i < self.player.hp else empty
             image.draw_to_origin(left, bottom, HP_SIZE, HP_SIZE)
 
-        self.draw_phase()
+        self.draw_stage()
 
         right = config.SCREEN_W - MARGIN
         top = config.SCREEN_H - MARGIN - SCORE_SIZE / 2
-        rate = config.PHASES[self.player.phase]['score_rate']
+        rate = config.STAGES[self.player.stage]['score_rate']
         rate_text = f' ×{rate}' if rate > 1 else ''
         draw_text(SCORE_SIZE, right, top, f'SCORE {self.player.score:,}{rate_text}', align=1)
         draw_text(SCORE_SIZE, right, top - SCORE_SIZE - 6, f'BEST {max(self.best, self.player.score):,}', align=1)

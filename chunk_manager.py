@@ -4,7 +4,7 @@ from collections import namedtuple
 import config
 import game_world
 from monster import Boss, Familiar, Goblin, Grunt, Mage
-from obstacle import Ground, PhaseGate, Platform, Wall, make_high_obstacle, make_low_obstacle
+from obstacle import Ground, StageGate, Platform, Wall, make_high_obstacle, make_low_obstacle
 
 Chunk = namedtuple('Chunk', 'length obstacles pits monsters platforms wall', defaults=((), (), (), (), None))
 
@@ -13,7 +13,7 @@ def grunt_gap():
     return random.randint(config.GRUNT_GAP_MIN, config.GRUNT_GAP_MAX)
 
 
-def build_chunk_a(phase):
+def build_chunk_a(stage):
     obstacles = []
     monsters = []
     x = random.randint(config.CHUNK_MARGIN, config.CHUNK_MARGIN + 150)
@@ -27,7 +27,7 @@ def build_chunk_a(phase):
     return Chunk(config.CHUNK_A_LENGTH, obstacles, monsters=monsters)
 
 
-def build_chunk_b(phase):
+def build_chunk_b(stage):
     length = config.CHUNK_B_LENGTH
     kinds = [(make_low_obstacle, config.LOW_OBSTACLE_W), (make_high_obstacle, config.HIGH_OBSTACLE_W)]
     random.shuffle(kinds)
@@ -46,21 +46,21 @@ def build_chunk_b(phase):
     return Chunk(length, obstacles, pits)
 
 
-def build_chunk_c(phase):
-    start = int(config.SCROLL_SPEED * config.PHASES[phase]['speed'] * config.CLIFF_RUN_UP_TIME)
+def build_chunk_c(stage):
+    start = int(config.SCROLL_SPEED * config.STAGES[stage]['speed'] * config.CLIFF_RUN_UP_TIME)
     pits = [(start, config.CLIFF_W)]
     monsters = [(Familiar, start + x, config.GROUND_TOP + y) for x, y in config.CLIFF_FAMILIARS]
     return Chunk(start + config.CLIFF_W + config.CHUNK_MARGIN, pits=pits, monsters=monsters)
 
 
-def build_chunk_d(phase):
+def build_chunk_d(stage):
     layout = config.CHUNK_D
     obstacles = [(make_high_obstacle, layout['high_obstacle'])]
     monsters = [(Mage, x, config.GROUND_TOP + y) for x, y in layout['mages']]
     return Chunk(layout['length'], obstacles, monsters=monsters, platforms=layout['platforms'])
 
 
-def build_chunk_g(phase):
+def build_chunk_g(stage):
     monsters = [(Goblin, x, config.GROUND_TOP) for x in config.CHUNK_G['goblins']]
     return Chunk(config.CHUNK_G['length'], monsters=monsters)
 
@@ -71,7 +71,7 @@ def build_island(name):
     return Chunk(layout['length'], pits=layout['pits'], monsters=monsters, platforms=layout['platforms'])
 
 
-def build_chunk_f(phase):
+def build_chunk_f(stage):
     return Chunk(config.CHUNK_F_LENGTH, wall=config.WALL_OFFSET)
 
 
@@ -81,9 +81,9 @@ CHUNK_BUILDERS = {
     'C': build_chunk_c,
     'D': build_chunk_d,
     'G': build_chunk_g,
-    'E1': lambda phase: build_island('E1'),
-    'E2': lambda phase: build_island('E2'),
-    'E3': lambda phase: build_island('E3'),
+    'E1': lambda stage: build_island('E1'),
+    'E2': lambda stage: build_island('E2'),
+    'E3': lambda stage: build_island('E3'),
     'F': build_chunk_f,
 }
 
@@ -93,26 +93,26 @@ class ChunkManager:
         self.player = player
         self.objects = []
         self.last_chunk = None
-        self.phase = 0
+        self.stage = 0
         self.cycle_time = 0
         # 시작 지점에서 반응할 시간을 주도록 첫 화면은 평지로 둔다.
         self.add_ground(0, config.SCREEN_W)
         self.end_x = config.SCREEN_W
 
     def add_ground(self, left, right):
-        ground = Ground(left, right, self.phase)
+        ground = Ground(left, right, self.stage)
         self.objects.append(ground)
         game_world.add_object(ground, game_world.LAYER_MAP)
         game_world.add_collision_pair('player:ground', None, ground)
 
     def add_platform(self, left, right, height):
-        platform = Platform(left, right, config.GROUND_TOP + height, self.phase)
+        platform = Platform(left, right, config.GROUND_TOP + height, self.stage)
         self.objects.append(platform)
         game_world.add_object(platform, game_world.LAYER_MAP)
         game_world.add_collision_pair('player:ground', None, platform)
 
-    def add_gate(self, phase):
-        gate = PhaseGate(self.end_x, phase)
+    def add_gate(self, stage):
+        gate = StageGate(self.end_x, stage)
         self.objects.append(gate)
         game_world.add_object(gate, game_world.LAYER_MAP)
         game_world.add_collision_pair('player:gate', None, gate)
@@ -136,7 +136,7 @@ class ChunkManager:
         self.add_monster(Boss(x - config.BOSS_WALL_GAP, config.GROUND_TOP, self.player, wall))
 
     def spawn_chunk(self, chunk):
-        built = CHUNK_BUILDERS[chunk](self.phase)
+        built = CHUNK_BUILDERS[chunk](self.stage)
         ground_left = self.end_x
         for offset, width in built.pits:
             self.add_ground(ground_left, self.end_x + offset)
@@ -145,7 +145,7 @@ class ChunkManager:
         for left, right, height in built.platforms:
             self.add_platform(self.end_x + left, self.end_x + right, height)
         for make, offset in built.obstacles:
-            self.add_obstacle(make(self.end_x + offset, self.phase))
+            self.add_obstacle(make(self.end_x + offset, self.stage))
         for make, offset, y in built.monsters:
             self.add_monster(make(self.end_x + offset, y, self.player))
         if built.wall is not None:
@@ -154,17 +154,17 @@ class ChunkManager:
         self.last_chunk = chunk
 
     def pick_chunk(self):
-        return random.choice([chunk for chunk in config.PHASE_CHUNKS[self.phase] if chunk != self.last_chunk])
+        return random.choice([chunk for chunk in config.STAGE_CHUNKS[self.stage] if chunk != self.last_chunk])
 
     def update(self, camera, dt):
         if not self.player.boss:
             self.cycle_time += dt
         if self.end_x <= camera.x + config.SCREEN_W:
-            next_phase = self.phase + 1
-            # 일섬 연쇄 도중에 물리가 바뀌지 않도록 청크가 이어지는 지점에서만 페이즈를 넘긴다 (Q7).
-            if next_phase < len(config.PHASES) and self.player.score >= config.PHASES[next_phase]['score']:
-                self.phase = next_phase
-                self.add_gate(next_phase)
+            next_stage = self.stage + 1
+            # 일섬 연쇄 도중에 물리가 바뀌지 않도록 청크가 이어지는 지점에서만 스테이지를 넘긴다 (Q7).
+            if next_stage < len(config.STAGES) and self.player.score >= config.STAGES[next_stage]['score']:
+                self.stage = next_stage
+                self.add_gate(next_stage)
             if self.cycle_time >= config.WALL_CYCLE:
                 self.spawn_chunk('F')
                 self.cycle_time = 0

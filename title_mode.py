@@ -56,7 +56,7 @@ def update(dt):
 
 def draw():
     draw_background(0, camera)
-    draw_strip(get_image(config.PHASES[0]['ground']), camera.x, camera.x + config.SCREEN_W, 0, camera)
+    draw_strip(get_image(config.STAGES[0]['ground']), camera.x, camera.x + config.SCREEN_W, 0, camera)
     run_sprite.draw(int(time * RUN_FPS) % run_sprite.count, config.PLAYER_SCREEN_X, config.GROUND_TOP + config.SPRITE_CENTER_Y)
 
     center_x = config.SCREEN_W / 2
