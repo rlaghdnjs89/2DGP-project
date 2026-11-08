@@ -4,7 +4,8 @@ import config
 import game_world
 import record
 import sound
-from ui import Button, draw_text, mouse_pos, text_width, get_font
+from sprite import Effect
+from ui import Button, draw_text, get_font, mouse_pos, text_width
 
 # 왼쪽의 플레이어와 석상이 보이도록 오른쪽에 둔다.
 PANEL_LEFT = 540
@@ -32,6 +33,7 @@ GOLD_COLOR = (255, 214, 90)
 SUB_COLOR = (200, 195, 220)
 DENY_COLOR = (255, 80, 80)
 CHALLENGE_BUTTON = ((LIST_LEFT + LIST_RIGHT) / 2, 62, 200, 56)
+UPGRADE_FX_SPEED = 1.5
 
 
 def draw_wrapped(size, x, y, text, width, color=SUB_COLOR):
@@ -108,6 +110,7 @@ class UpgradeWindow:
         self.rows = [StatRow(name, i) for i, name in enumerate(config.STATS)]
         self.hover = None
         self.button = Button(*CHALLENGE_BUTTON, '도전')
+        self.effect = None
         game_world.add_object(self, game_world.LAYER_UI)
 
     def close(self):
@@ -131,8 +134,19 @@ class UpgradeWindow:
                 self.altar.start_challenge()
                 return
             row = self.row_at(x, y)
-            if row and not row.buy(self.player):
-                sound.play('deny')
+            if row:
+                self.try_buy(row)
+
+    def try_buy(self, row):
+        if not row.buy(self.player):
+            sound.play('deny')
+            return
+        sound.play('upgrade')
+        # 연달아 사도 빛이 겹겹이 쌓이지 않게 새 연출로 바꾼다.
+        if self.effect:
+            game_world.remove_object(self.effect)
+        self.effect = Effect('level-up', self.altar.x, config.GROUND_TOP, speed=UPGRADE_FX_SPEED)
+        game_world.add_object(self.effect, game_world.LAYER_EFFECT)
 
     def update(self, dt):
         pass

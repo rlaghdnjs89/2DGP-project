@@ -13,6 +13,7 @@ SFX = {
     'parry': ('parry',),
     'coin': ('coin',),
     'deny': ('deny',),
+    'upgrade': ('upgrade',),
     'fire': ('fire',),
     'gate': ('gate',),
     'cut': ('cut',),

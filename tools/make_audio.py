@@ -229,6 +229,12 @@ def make_gold_sfx():
     add(deny, tone(120, 0.1, pulse, release=0.04), 0.08, 0.5)
     save(deny, 'deny', 0.5)
 
+    upgrade = silence(0.7)
+    for i, n in enumerate(('C5', 'E5', 'G5', 'C6')):
+        add(upgrade, tone(note_freq(n), 0.3, triangle, release=0.2), i * 0.07, 0.5)
+    add(upgrade, tone(note_freq('C7'), 0.3, pulse, release=0.25), 0.28, 0.12)
+    save(upgrade, 'upgrade', 0.7)
+
 
 # 배경음 --------------------------------------------------------------------
 
