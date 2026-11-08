@@ -127,6 +127,7 @@ class ChunkManager:
         game_world.add_object(monster, game_world.LAYER_MONSTER)
         game_world.add_collision_pair('player:monster', None, monster)
         game_world.add_collision_pair('sword:monster', None, monster)
+        game_world.add_collision_pair('shard:monster', None, monster)
 
     def add_wall(self, x):
         wall = Wall(x, self.player)

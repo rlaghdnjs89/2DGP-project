@@ -200,10 +200,24 @@ SKILLS = {
     'fire1': {'name': '화염 베기', 'branch': 'fire', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스에게 화상을 입힌다. 3초 동안 초당 공격력의 30% 피해를 주며 방패와 갑옷을 무시한다.'},
     'ice1': {'name': '서리 베기', 'branch': 'ice', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스를 5번 벨 때마다 2초 동안 보스의 동작이 0.7배속이 된다.'},
     'bolt1': {'name': '감전 베기', 'branch': 'bolt', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스를 벨 때 25% 확률로 번개가 떨어져 공격력의 50% 피해를 추가로 준다.'},
+    'fire2': {'name': '시체 폭발', 'branch': 'fire', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '처치한 적이 터져 반경 120px 안의 적을 처치한다.'},
+    'ice2': {'name': '얼음 파편', 'branch': 'ice', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '처치한 적이 깨지며 파편 3개가 앞으로 날아가 적을 처치한다.'},
+    'bolt2': {'name': '연쇄 번개', 'branch': 'bolt', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '처치하면 가장 가까운 적 1마리에게 번개가 튀어 처치한다. 연쇄된다.'},
 }
 BRANCH_NAMES = {'sword': '검술', 'move': '기동', 'fire': '화염', 'ice': '빙결', 'bolt': '번개'}
 ELEMENTS = ('fire', 'ice', 'bolt')
 ELEMENT_CHANGE_COST = 300
+CORPSE_RADIUS = 120
+CORPSE_FX_SPEED = 3
+CORPSE_FX_SCALE = 1
+SHARD_ANGLES = (-18, 0, 18)
+SHARD_SPEED = 800
+SHARD_LIFE = 0.7
+SHATTER_FX_SPEED = 2.5
+SHATTER_FX_SCALE = 1
+# 끝없이 번지면 화면의 적이 한 번에 사라지므로 닿는 거리를 둔다.
+CHAIN_RANGE = 450
+CHAIN_DELAY = 0.1
 BURN_TIME = 3
 BURN_DAMAGE_RATIO = 0.3
 FROST_HITS = 5

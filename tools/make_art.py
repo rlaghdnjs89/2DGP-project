@@ -733,6 +733,11 @@ def make_mage():
     ]
     save(strip(death), 'monster/mage_death.png')
 
+    shard = new_frame(14, 6)
+    polygon(shard, [(0, 3), (5, 0), (14, 3), (5, 6)], hex_color('bff4ff'))
+    polygon(shard, [(0, 3), (5, 3), (14, 3), (5, 6)], hex_color('5fd8ff'))
+    save(shard, 'monster/ice_shard.png')
+
     for name, glow_c, body_c, core_c in (('bullet', 'a8341c', 'ff7a2f', 'fff0b0'), ('bullet_reflected', '1f6fb0', '5fd8ff', 'f0fcff'),
                                          ('bullet_purple', '5b2fa6', 'c77dff', 'ffe9ff'), ('bullet_black', 'ff3b6b', '1a0f28', '5a3a8a')):
         frames = []

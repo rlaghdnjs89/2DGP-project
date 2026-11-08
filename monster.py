@@ -2,6 +2,7 @@ import math
 
 import config
 import game_world
+import skills
 import sound
 from bullet import Bullet
 from sprite import OneShot, Strip
@@ -25,15 +26,26 @@ FAMILIAR_FPS = 12
 
 
 class Monster:
+    IS_BOSS = False
+
     def __init__(self, x, y, player):
         self.x = x
         self.y = y
         self.player = player
+        self.dead = False
 
     def handle_collision(self, group, other):
-        if group == 'sword:monster':
-            other.player.on_kill(self)
-            self.die()
+        if group in ('sword:monster', 'shard:monster'):
+            self.kill()
+
+    def kill(self, by_dash=False, bonus=0):
+        # 한 프레임에 칼과 스킬이 함께 닿아도 한 번만 처치한다.
+        if self.dead:
+            return
+        self.dead = True
+        self.die()
+        self.player.on_kill(self, by_dash, bonus)
+        skills.on_monster_killed(self.player, self)
 
     def gold(self, by_dash, bonus):
         base = self.GOLD + bonus + (self.DASH_BONUS if by_dash else 0)
@@ -43,12 +55,10 @@ class Monster:
         return self.x
 
     def on_dash_hit(self):
-        self.player.on_kill(self, by_dash=True)
-        self.die()
+        self.kill(by_dash=True)
 
     def on_dive_hit(self):
-        self.player.on_kill(self)
-        self.die()
+        self.kill()
 
     def die(self):
         game_world.remove_object(self)
@@ -242,7 +252,6 @@ class Mage(Monster):
 
     def handle_collision(self, group, other):
         if group == 'reflected:mage':
-            self.player.on_kill(self, bonus=config.MAGE_REFLECT_BONUS)
-            self.die()
+            self.kill(bonus=config.MAGE_REFLECT_BONUS)
         else:
             super().handle_collision(group, other)

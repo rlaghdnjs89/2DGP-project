@@ -47,6 +47,7 @@ def init():
     game_world.add_collision_pair('player:strike', player, None)
     game_world.add_collision_pair('player:wall', player, None)
     game_world.add_collision_pair('reflected:mage', None, None)
+    game_world.add_collision_pair('shard:monster', None, None)
 
 
 def handle_event(event):

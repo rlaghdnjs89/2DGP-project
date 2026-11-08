@@ -97,6 +97,7 @@ class GroundHazard:
 class Boss(Monster):
     """스테이지 끝을 지키는 보스의 공통 동작. 상태별 행동은 think에서 정한다."""
     AIRBORNE = False
+    IS_BOSS = True
 
     def __init__(self, x, y, player, wall):
         super().__init__(x, y, player)
@@ -416,7 +417,7 @@ WITCH_PATTERN = ('fan', 'teleport', 'summon', 'fan', 'teleport')
 WITCH_RAGE_PATTERN = ('fan', 'teleport', 'hole', 'summon', 'fan', 'teleport')
 # 가운데가 조준 방향이다. 검은 탄은 패링할 수 없다.
 WITCH_FAN = ('black', 'purple', 'black', 'purple', 'black')
-WITCH_COLLISION_GROUPS = ('player:monster', 'sword:monster', 'reflected:mage')
+WITCH_COLLISION_GROUPS = ('player:monster', 'sword:monster', 'reflected:mage', 'shard:monster')
 
 
 class SummonedFamiliar(Familiar):
@@ -539,6 +540,7 @@ class Witch(Boss):
             game_world.add_object(familiar, game_world.LAYER_MONSTER)
             game_world.add_collision_pair('player:monster', None, familiar)
             game_world.add_collision_pair('sword:monster', None, familiar)
+            game_world.add_collision_pair('shard:monster', None, familiar)
 
     def open_hole(self):
         sound.play('blackhole')
