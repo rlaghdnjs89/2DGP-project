@@ -252,6 +252,10 @@ class Boss(Monster):
             self.lose_hp(record.stat('attack') * config.ZAP_DAMAGE_RATIO)
 
     def defeat(self, by_dash):
+        # 일섬으로 돌진하는 사이 화상이나 번개로 먼저 쓰러질 수 있다.
+        if self.dead:
+            return
+        self.dead = True
         self.player.on_kill(self, by_dash)
         for name in list(self.status_fx):
             self.hide_status(name)
