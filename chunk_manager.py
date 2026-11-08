@@ -3,7 +3,8 @@ from collections import namedtuple
 
 import config
 import game_world
-from monster import Boss, Familiar, Goblin, Grunt, Mage
+from boss import Warden
+from monster import Familiar, Goblin, Grunt, Mage
 from obstacle import EvolutionAltar, Ground, Platform, StageGate, Wall, make_high_obstacle, make_low_obstacle
 
 Chunk = namedtuple('Chunk', 'length obstacles pits monsters platforms', defaults=((), (), (), ()))
@@ -70,6 +71,9 @@ def build_island(name):
     monsters = [(Familiar, x, config.GROUND_TOP + y) for x, y in layout['familiars']]
     return Chunk(layout['length'], pits=layout['pits'], monsters=monsters, platforms=layout['platforms'])
 
+
+# 스테이지 순서다.
+BOSSES = (Warden, Warden, Warden)
 
 CHUNK_BUILDERS = {
     'A': build_chunk_a,
@@ -144,7 +148,7 @@ class ChunkManager:
         wall_x = self.end_x + config.ARENA_WALL_OFFSET
         # 마지막 보스를 쓰러뜨리면 바로 클리어이므로 뒤를 막는 장벽이 없다.
         wall = self.add_wall(wall_x) if self.stage + 1 < len(config.STAGES) else None
-        self.add_monster(Boss(wall_x - config.BOSS_WALL_GAP, config.GROUND_TOP, self.player, wall))
+        self.add_monster(BOSSES[self.stage](wall_x - config.BOSS_WALL_GAP, config.GROUND_TOP, self.player, wall))
         self.end_x += config.ARENA_LENGTH
         self.last_chunk = None
         self.altar_placed = False

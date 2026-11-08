@@ -171,7 +171,7 @@ class HUD:
         bottom = config.SCREEN_H - BOSS_BAR_TOP
         draw_text(BOSS_NAME_SIZE, x, bottom + BOSS_BAR_H + 16, boss.NAME, align=0.5)
         draw_rectangle(left, bottom, right, bottom + BOSS_BAR_H, *BOSS_BAR_BG, 255, True)
-        draw_rectangle(left, bottom, left + BOSS_BAR_W * boss.hp / config.BOSS_HP, bottom + BOSS_BAR_H, *BOSS_BAR_COLOR, 255, True)
+        draw_rectangle(left, bottom, left + BOSS_BAR_W * boss.hp / boss.MAX_HP, bottom + BOSS_BAR_H, *BOSS_BAR_COLOR, 255, True)
         draw_rectangle(left, bottom, right, bottom + BOSS_BAR_H, 240, 240, 250, 255, False)
         if boss.state == 'intro':
             draw_text(BOSS_INTRO_SIZE, x, config.SCREEN_H * 0.66, f'{boss.NAME} 등장', BOSS_INTRO_COLOR, align=0.5)
