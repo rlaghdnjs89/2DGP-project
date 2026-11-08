@@ -153,7 +153,7 @@ BOSS_CONTACT_GAP = 2
 WITCH_HP = 1000
 WITCH_W = 90
 WITCH_H = 170
-WITCH_IDLE_TIME = 0.9
+WITCH_IDLE_TIME = 0.45
 # 시작 위치에서 잰 순간이동 자리. 처음 자리가 화면 770px쯤이고 오른쪽 장벽은 1075px이다.
 WITCH_ANCHOR_X = (0, 130, 240)
 # 지면 위 높이. 땅에서 베면 닿지 않고, 저중력 점프(300px)나 발판에서는 닿는다.
@@ -164,7 +164,12 @@ WITCH_TELEPORT_GAP = 150
 WITCH_TELEPORT_TIME = 0.5
 WITCH_FAN_WINDUP = 0.6
 WITCH_FAN_SPREAD = 0.28
+WITCH_BULLET_SPEED = 420
 WITCH_REFLECT_DAMAGE_RATIO = 3
+# 저중력에서는 점프해 붙어 베기만 반복해도 10초 안에 끝나므로, 반사 탄과 일섬이 주된 공격 수단이 되게 베기를 줄인다.
+WITCH_SLASH_DAMAGE_RATE = 0.2
+# 이만큼 베이면 다음 행동 대신 바로 순간이동해 거리를 벌린다.
+WITCH_ESCAPE_HITS = 2
 WITCH_SUMMON_WINDUP = 0.6
 # 마녀 기준 x, 지면 위 높이. 땅에서 마녀 쪽으로 올라가는 계단이라 일섬(사거리 400px)으로 밟아 이어 갈 수 있다.
 WITCH_SUMMON_SPOTS = ((-330, 190), (-210, 300), (-90, 410))

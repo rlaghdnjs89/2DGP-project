@@ -469,9 +469,9 @@ class Witch(Boss):
         super().__init__(x, y + config.WITCH_ANCHOR_Y[0], player, wall)
         self.pattern = 0
         self.hidden = False
-        self.destination = (x, self.y)
         self.familiars = []
         self.hole = None
+        self.slash_hits = 0
         self.sprites = {name: Strip(f'assets/monster/witch_{name}.png', WITCH_FRAME_W) for name in WITCH_FPS}
         self.flash_sprites = {name: Strip(f'assets/monster/witch_{name}_flash.png', WITCH_FRAME_W) for name in WITCH_FPS}
         game_world.add_collision_pair('reflected:mage', None, self)
@@ -485,7 +485,9 @@ class Witch(Boss):
             self.next_state()
 
     def next_state(self):
-        if self.state == 'fan_windup':
+        if self.state == 'idle':
+            self.start_pattern()
+        elif self.state == 'fan_windup':
             self.fire_fan()
             self.enter('idle', config.WITCH_IDLE_TIME)
         elif self.state == 'vanish':
@@ -501,6 +503,10 @@ class Witch(Boss):
             self.start_pattern()
 
     def start_pattern(self):
+        if self.slash_hits >= config.WITCH_ESCAPE_HITS:
+            self.slash_hits = 0
+            self.vanish()
+            return
         low_hp = self.hp <= self.MAX_HP * config.WITCH_HOLE_HP_RATIO
         pattern = WITCH_RAGE_PATTERN if low_hp else WITCH_PATTERN
         # 패턴이 바뀌는 순간 자리가 어긋나지 않게 길이에 맞춰 돌린다.
@@ -521,7 +527,7 @@ class Witch(Boss):
         aim = math.atan2(self.player.y + config.PLAYER_H / 2 - muzzle_y, self.player.x - self.x)
         for i, kind in enumerate(WITCH_FAN):
             angle = aim + (i - len(WITCH_FAN) // 2) * config.WITCH_FAN_SPREAD
-            bullet = Bullet(self.x, muzzle_y, self.x + math.cos(angle), muzzle_y + math.sin(angle), self, f'assets/monster/bullet_{kind}.png')
+            bullet = Bullet(self.x, muzzle_y, self.x + math.cos(angle), muzzle_y + math.sin(angle), self, f'assets/monster/bullet_{kind}.png', config.WITCH_BULLET_SPEED)
             self.attacks.append(bullet)
             game_world.add_object(bullet, game_world.LAYER_EFFECT)
             game_world.add_collision_pair('player:bullet', None, bullet)
@@ -568,16 +574,14 @@ class Witch(Boss):
         self.hidden = True
         for group in WITCH_COLLISION_GROUPS:
             game_world.remove_collision(group, self)
-        self.destination = self.pick_destination()
-        # 나타날 자리를 미리 보여 준다.
-        x, y = self.destination
-        circle = OneShot(Strip('assets/monster/witch_circle.png', WITCH_CIRCLE_FRAME_W), WITCH_CIRCLE_FPS, x, y + self.H / 2)
+        # 나타날 자리를 미리 보여 준다. 반사 탄이 따라가도록 위치도 먼저 옮겨 둔다.
+        self.x, self.y = self.pick_destination()
+        circle = OneShot(Strip('assets/monster/witch_circle.png', WITCH_CIRCLE_FRAME_W), WITCH_CIRCLE_FPS, self.x, self.y + self.H / 2)
         self.attacks.append(circle)
         game_world.add_object(circle, game_world.LAYER_EFFECT)
         self.enter('vanish', config.WITCH_TELEPORT_TIME)
 
     def reappear(self):
-        self.x, self.y = self.destination
         self.hidden = False
         game_world.add_object(Effect('blink-in', self.x, self.y, speed=config.BLINK_FX_SPEED, scale=config.BLINK_FX_SCALE), game_world.LAYER_EFFECT)
         for group in WITCH_COLLISION_GROUPS:
@@ -591,6 +595,13 @@ class Witch(Boss):
 
     def knock_back(self):
         pass
+
+    def on_slash(self, sword):
+        self.slash_hits += 1
+        ratio = config.TRIPLE_DAMAGE_RATIO if sword.finisher else 1
+        self.take_hit(record.stat('attack') * ratio * config.WITCH_SLASH_DAMAGE_RATE)
+        if self.hp > 0:
+            self.apply_element()
 
     def on_dash_hit(self):
         # 돌진하는 사이 사라졌으면 빗나간다.
