@@ -19,6 +19,8 @@ BURST_FX = 'plasma-explosion'
 # 시트에서 검기가 빠르게 끝나도록 빨리 재생한다.
 SLASH_FX_SPEED = 1.6
 SLASH_FX_Y = 8
+THRUST_FX_SPEED = 2.5
+THRUST_FX_SCALE = 1.5
 KILL_FX_SPEED = 1.5
 KILL_FX_SCALE = 2
 DASH_KILL_FX_SPEED = 2
@@ -193,8 +195,9 @@ class Cut:
 
 
 class Sword:
-    def __init__(self, player):
+    def __init__(self, player, spin):
         self.player = player
+        self.spin = spin
         self.timer = config.SWORD_TIME
 
     def update(self, dt):
@@ -206,9 +209,14 @@ class Sword:
         pass
 
     def get_bb(self):
+        if self.spin:
+            center_y = self.player.y + config.PLAYER_H / 2
+            return (self.player.x - config.SPIN_RADIUS, center_y - config.SPIN_RADIUS,
+                    self.player.x + config.SPIN_RADIUS, center_y + config.SPIN_RADIUS)
         left = self.player.x + config.PLAYER_W / 2
         bottom = self.player.y + (config.PLAYER_H - config.SWORD_H) / 2
-        return left, bottom, left + config.SWORD_REACH, bottom + config.SWORD_H
+        reach = config.THRUST_REACH if record.has_skill('thrust') else config.SWORD_REACH
+        return left, bottom, left + reach, bottom + config.SWORD_H
 
     def handle_collision(self, group, other):
         pass
@@ -309,13 +317,22 @@ class Player:
     def start_slash(self):
         sound.play('slash')
         self.slash_buffer = 0
+        spin = self.state is self.jump_state and record.has_skill('spin')
         self.slash_state.prev_state = self.state
         self.change_state(self.slash_state)
-        self.sword = Sword(self)
+        self.sword = Sword(self, spin)
         game_world.add_object(self.sword, game_world.LAYER_EFFECT)
-        game_world.add_object(Effect('sword-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
+        self.play_slash_effect(spin)
         game_world.add_collision_pair('sword:monster', self.sword, None)
         game_world.add_collision_pair('sword:bullet', self.sword, None)
+
+    def play_slash_effect(self, spin):
+        if spin:
+            game_world.add_object(Effect('spin-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
+            return
+        game_world.add_object(Effect('sword-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
+        if record.has_skill('thrust'):
+            game_world.add_object(Effect('thrust', 0, 0, self, THRUST_FX_SPEED, THRUST_FX_SCALE), game_world.LAYER_EFFECT)
 
     def find_dash_target(self):
         def dist2(monster):
