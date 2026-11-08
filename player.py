@@ -359,6 +359,7 @@ class Player:
         self.hp = self.max_hp
         self.invincible_timer = 0
         self.kills = 0
+        self.run_time = 0
         self.run_gold = 0
         self.gold_fraction = 0
         self.combo = 0

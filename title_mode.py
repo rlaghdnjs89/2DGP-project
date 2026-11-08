@@ -25,7 +25,7 @@ SHADOW_COLOR = (40, 20, 70)
 ACCENT_COLOR = (255, 90, 110)
 GOLD_COLOR = (255, 214, 90)
 SUB_COLOR = (200, 195, 220)
-HELP = 'W 점프 (공중에서 2단)   S 슬라이딩   SPACE 일섬   좌클릭 베기   A D 보스전 이동   ESC 일시 정지'
+HELP = 'W 점프 (공중에서 2단)   S 슬라이딩   SPACE 일섬   좌클릭 베기   A D 보스전 이동   F 강화   ESC 일시 정지'
 
 camera = None
 time = 0

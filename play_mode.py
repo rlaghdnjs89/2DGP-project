@@ -83,6 +83,7 @@ def update(dt):
     if player.window:
         game_world.update_layer(game_world.LAYER_EFFECT, dt)
         return
+    player.run_time += dt
     camera.update_shake(dt)
     # 멈춤 동안 로직만 쉬고 입력은 handle_event로 계속 받아 버퍼에 남는다.
     if player.hit_stop > 0:
