@@ -46,6 +46,10 @@ class Monster:
         self.player.on_kill(self, by_dash=True)
         self.die()
 
+    def on_dive_hit(self):
+        self.player.on_kill(self)
+        self.die()
+
     def die(self):
         game_world.remove_object(self)
         game_world.add_object(self.make_death(), game_world.LAYER_EFFECT)

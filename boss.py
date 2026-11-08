@@ -180,6 +180,9 @@ class Boss(Monster):
     def on_dash_hit(self):
         self.take_hit(record.stat('attack') * config.DASH_DAMAGE_RATIO, by_dash=True)
 
+    def on_dive_hit(self):
+        self.take_hit(record.stat('attack') * config.DIVE_BOSS_DAMAGE_RATIO)
+
     def get_bb(self):
         half_w = config.BOSS_W / 2
         return self.x - half_w, self.y, self.x + half_w, self.y + config.BOSS_H

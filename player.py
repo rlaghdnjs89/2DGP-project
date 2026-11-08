@@ -86,8 +86,27 @@ class Jump:
         elif player.jump_buffer > 0 and player.air_jumps > 0:
             player.air_jumps -= 1
             player.jump()
+        elif player.slide_buffer > 0 and record.has_skill('dive'):
+            player.change_state(player.dive_state)
         else:
             player.try_attack()
+
+
+class Dive:
+    ANIMATION = 'fall'
+
+    def __init__(self, player):
+        self.player = player
+
+    def enter(self):
+        self.player.slide_buffer = 0
+        self.player.hang_timer = 0
+
+    def update(self, dt):
+        player = self.player
+        player.vy = -config.DIVE_SPEED
+        if player.on_ground:
+            player.land_dive()
 
 
 class Slash:
@@ -256,7 +275,7 @@ class Player:
         self.dash_buffer = 0
         self.s_held = False
         self.sword = None
-        self.dash_charges = config.DASH_MAX_CHARGES
+        self.dash_charges = self.max_dash_charges()
         self.dash_recharge = record.stat('dash_recharge')
         self.hang_timer = 0
         self.max_hp = int(record.stat('hp'))
@@ -287,6 +306,7 @@ class Player:
         self.jump_state = Jump(self)
         self.slash_state = Slash(self)
         self.dash_state = Dash(self)
+        self.dive_state = Dive(self)
         self.cut_state = Cut(self)
         self.hit_state = Hit(self)
         self.state = self.run_state
@@ -360,8 +380,24 @@ class Player:
             self.hang_timer = config.DASH_HANG_TIME
         self.change_state(self.jump_state)
 
+    def land_dive(self):
+        sound.play('rock')
+        self.freeze(config.DIVE_HIT_STOP)
+        self.camera.shake(config.DIVE_SHAKE_TIME, config.DIVE_SHAKE_AMP)
+        game_world.add_object(Effect('heavy-landing', self.x, self.y), game_world.LAYER_EFFECT)
+        left, right = self.x - config.DIVE_REACH, self.x + config.DIVE_REACH
+        for monster in game_world.collision_pairs['player:monster'][1][:]:
+            bb = monster.get_bb()
+            # 지상 적만 맞는다. 공중의 사역마와 발판 위의 적은 충격파가 닿지 않는다.
+            if not monster.AIRBORNE and bb[0] <= right and bb[2] >= left and abs(monster.y - self.y) < config.PLAYER_H:
+                monster.on_dive_hit()
+        self.change_state(self.run_state)
+
+    def max_dash_charges(self):
+        return config.DASH_MAX_CHARGES + 1 if record.has_skill('charge') else config.DASH_MAX_CHARGES
+
     def tick_dash_recharge(self, dt):
-        if self.dash_charges == config.DASH_MAX_CHARGES:
+        if self.dash_charges == self.max_dash_charges():
             self.dash_recharge = record.stat('dash_recharge')
             return
         self.dash_recharge -= dt
@@ -572,7 +608,7 @@ class Player:
         if self.state is self.cut_state:
             return 0
         if self.boss:
-            if self.state is self.hit_state:
+            if self.state is self.hit_state or self.state is self.dive_state:
                 return 0
             return sum(MOVE_KEYS[key] for key in self.held_move) * config.BOSS_FIGHT_MOVE_SPEED
         run_speed = config.SCROLL_SPEED * config.STAGES[self.stage]['speed']

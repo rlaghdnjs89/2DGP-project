@@ -157,8 +157,8 @@ class HUD:
 
     def draw_dash(self):
         charges = self.player.dash_charges
-        text = f'일섬 {charges}/{config.DASH_MAX_CHARGES}'
-        if charges < config.DASH_MAX_CHARGES:
+        text = f'일섬 {charges}/{self.player.max_dash_charges()}'
+        if charges < self.player.max_dash_charges():
             text += f'  {self.player.dash_recharge:.1f}'
         color = TEXT_COLOR if charges > 0 else DASH_EMPTY_COLOR
         draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, text, color)
