@@ -546,9 +546,7 @@ class Executor(Boss):
             game_world.add_object(obj, layer)
 
     def damage_rate(self):
-        if self.state == 'groggy':
-            return config.EXEC_GROGGY_DAMAGE_RATE
-        return 1 if self.state == 'recover' else config.EXEC_ARMOR_DAMAGE_RATE
+        return 1 if self.state in ('recover', 'groggy') else config.EXEC_ARMOR_DAMAGE_RATE
 
     def think(self, dt):
         if self.state == 'walk':
