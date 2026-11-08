@@ -8,7 +8,7 @@ VERSION = 2
 
 
 def default_data():
-    return {'version': VERSION, 'gold': 0, 'stats': {name: 0 for name in config.STATS}, 'bosses': [], 'best_stage': 0, 'best_clear_time': None}
+    return {'version': VERSION, 'gold': 0, 'stats': {name: 0 for name in config.STATS}, 'skills': [], 'element': None, 'bosses': [], 'best_stage': 0, 'best_clear_time': None}
 
 
 data = default_data()
@@ -53,6 +53,55 @@ def buy_stat(name):
         return False
     data['gold'] -= cost
     data['stats'][name] += 1
+    save()
+    return True
+
+
+def has_skill(skill_id):
+    return skill_id in data['skills']
+
+
+def element_spent(element):
+    return sum(config.SKILLS[skill]['cost'] for skill in data['skills'] if config.SKILLS[skill]['branch'] == element)
+
+
+def is_element_change(skill_id):
+    branch = config.SKILLS[skill_id]['branch']
+    return branch in config.ELEMENTS and data['element'] not in (None, branch)
+
+
+def skill_price(skill_id):
+    """다른 원소로 바꿀 때는 변경 비용을 더하고, 지금 원소에 쓴 골드를 돌려받는 만큼 뺀다."""
+    cost = config.SKILLS[skill_id]['cost']
+    if is_element_change(skill_id):
+        return cost + config.ELEMENT_CHANGE_COST - element_spent(data['element'])
+    return cost
+
+
+def skill_lock_reason(skill_id):
+    """아직 살 수 없는 이유. 살 수 있으면 None이다."""
+    info = config.SKILLS[skill_id]
+    tier = info['tier']
+    if tier == 1:
+        return None
+    # 보스 번호는 스테이지 순서이고, 2단계는 보스 1(0번), 3단계는 보스 2(1번)가 연다.
+    if tier - 2 not in data['bosses']:
+        return f'보스 {tier - 1} 처치 후 해금'
+    learned = [skill for skill in data['skills'] if config.SKILLS[skill]['branch'] == info['branch'] and config.SKILLS[skill]['tier'] == tier - 1]
+    return None if learned else f'{config.BRANCH_NAMES[info["branch"]]} {tier - 1}단계를 먼저 배워야 합니다'
+
+
+def buy_skill(skill_id):
+    price = skill_price(skill_id)
+    if has_skill(skill_id) or skill_lock_reason(skill_id) or data['gold'] < price:
+        return False
+    branch = config.SKILLS[skill_id]['branch']
+    if is_element_change(skill_id):
+        data['skills'] = [skill for skill in data['skills'] if config.SKILLS[skill]['branch'] != data['element']]
+    if branch in config.ELEMENTS:
+        data['element'] = branch
+    data['gold'] -= price
+    data['skills'].append(skill_id)
     save()
     return True
 

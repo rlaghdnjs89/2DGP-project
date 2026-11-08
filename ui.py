@@ -96,8 +96,8 @@ class Button:
     def contains(self, x, y):
         return self.left <= x <= self.right and self.bottom <= y <= self.top
 
-    def draw(self):
-        fill = BUTTON_HOVER if self.hover else BUTTON_COLOR
+    def draw(self, selected=False):
+        fill = BUTTON_HOVER if self.hover or selected else BUTTON_COLOR
         draw_rectangle(self.left, self.bottom, self.right, self.top, *fill, 255, True)
         draw_rectangle(self.left, self.bottom, self.right, self.top, *BUTTON_BORDER, 255, False)
         draw_text(BUTTON_TEXT_SIZE, (self.left + self.right) / 2, (self.bottom + self.top) / 2, self.text, align=0.5)

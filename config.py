@@ -158,6 +158,21 @@ STATS = {
     'gold_gain': {'name': '골드 획득', 'effect': '얻는 골드 +10%', 'base': 0, 'step': 0.1, 'costs': STAT_COSTS, 'format': '+{:.0%}'},
 }
 
+# 갈래마다 1단계는 처음부터, 2단계는 보스 1 처치 후, 3단계는 보스 2 처치 후에 열린다.
+# slot은 같은 단계에 노드가 둘일 때 위아래 자리다.
+SKILLS = {
+    'spin': {'name': '회전 베기', 'branch': 'sword', 'tier': 1, 'slot': 0, 'cost': 150, 'desc': '공중에서 베면 몸 둘레 전체에 판정이 생겨 위아래 사역마도 벤다.'},
+    'thrust': {'name': '찌르기', 'branch': 'sword', 'tier': 1, 'slot': 1, 'cost': 200, 'desc': '베기 사거리가 140px에서 220px로 늘어난다.'},
+    'charge': {'name': '일섬 충전 +1', 'branch': 'move', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '일섬 최대 충전이 2회에서 3회로 늘어난다.'},
+    'dive': {'name': '급강하', 'branch': 'move', 'tier': 1, 'slot': 1, 'cost': 200, 'desc': '공중에서 S로 수직 낙하한다. 착지 충격파(좌우 150px)로 지상 적을 처치하고, 보스에게는 베기 2배 피해를 준다.'},
+    'fire1': {'name': '화염 베기', 'branch': 'fire', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스에게 화상을 입힌다. 3초 동안 초당 공격력의 30% 피해를 주며 방패와 갑옷을 무시한다.'},
+    'ice1': {'name': '서리 베기', 'branch': 'ice', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스를 5번 벨 때마다 2초 동안 보스의 동작이 0.7배속이 된다.'},
+    'bolt1': {'name': '감전 베기', 'branch': 'bolt', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '보스를 벨 때 25% 확률로 번개가 떨어져 공격력의 50% 피해를 추가로 준다.'},
+}
+BRANCH_NAMES = {'sword': '검술', 'move': '기동', 'fire': '화염', 'ice': '빙결', 'bolt': '번개'}
+ELEMENTS = ('fire', 'ice', 'bolt')
+ELEMENT_CHANGE_COST = 300
+
 INVINCIBLE_TIME = 1.5
 HIT_STUN_TIME = 0.3
 GAME_OVER_TIME = 0.5

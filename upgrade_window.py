@@ -4,7 +4,7 @@ import config
 import game_world
 import record
 import sound
-from sprite import Effect
+from sprite import Effect, get_image
 from ui import Button, draw_text, get_font, mouse_pos, text_width
 
 # 왼쪽의 플레이어와 석상이 보이도록 오른쪽에 둔다.
@@ -34,6 +34,21 @@ SUB_COLOR = (200, 195, 220)
 DENY_COLOR = (255, 80, 80)
 CHALLENGE_BUTTON = ((LIST_LEFT + LIST_RIGHT) / 2, 62, 200, 56)
 UPGRADE_FX_SPEED = 1.5
+TAB_Y = PANEL_TOP - 32
+TAB_W = 110
+TAB_H = 40
+TAB_X = (760, 880)
+COLUMNS = ('sword', 'move', 'fire', 'ice', 'bolt')
+NODE_W = 90
+NODE_H = 64
+NODE_GAP_X = 9
+NODE_GAP_Y = 12
+TREE_TOP = LIST_TOP - 34
+NODE_LEARNED = (214, 176, 70)
+NODE_LOCKED = (30, 26, 44)
+NODE_LEARNED_TEXT = (30, 20, 10)
+LOCK_SIZE = 20
+LINE_COLOR = (110, 100, 140)
 
 
 def draw_wrapped(size, x, y, text, width, color=SUB_COLOR):
@@ -101,13 +116,74 @@ class StatRow:
         return False
 
 
+class SkillNode:
+    def __init__(self, skill_id):
+        self.id = skill_id
+        self.info = config.SKILLS[skill_id]
+        self.left = LIST_LEFT + COLUMNS.index(self.info['branch']) * (NODE_W + NODE_GAP_X)
+        # 1단계 자리가 둘이므로 2단계부터는 한 칸 아래에 놓는다.
+        row = self.info['slot'] if self.info['tier'] == 1 else self.info['tier']
+        self.top = TREE_TOP - row * (NODE_H + NODE_GAP_Y)
+
+    def contains(self, x, y):
+        return self.left <= x <= self.left + NODE_W and self.top - NODE_H <= y <= self.top
+
+    def draw(self, hover):
+        learned = record.has_skill(self.id)
+        locked = record.skill_lock_reason(self.id)
+        if learned:
+            fill, text_color = NODE_LEARNED, NODE_LEARNED_TEXT
+        elif locked:
+            fill, text_color = NODE_LOCKED, SUB_COLOR
+        else:
+            fill, text_color = (ROW_HOVER if hover else ROW_COLOR), (250, 250, 250)
+        right, bottom = self.left + NODE_W, self.top - NODE_H
+        draw_rectangle(self.left, bottom, right, self.top, *fill, 255, True)
+        draw_rectangle(self.left, bottom, right, self.top, *(BORDER_COLOR if hover else LINE_COLOR), 255, False)
+        center_x = self.left + NODE_W / 2
+        draw_text(SMALL_SIZE, center_x, self.top - 20, self.info['name'], text_color, align=0.5)
+        if learned:
+            draw_text(SMALL_SIZE, center_x, bottom + 18, '배움', text_color, align=0.5)
+        elif locked:
+            get_image('assets/ui/lock.png').draw_to_origin(center_x - LOCK_SIZE / 2, bottom + 6, LOCK_SIZE, LOCK_SIZE)
+        else:
+            price = record.skill_price(self.id)
+            draw_text(SMALL_SIZE, center_x, bottom + 18, f'{price}G', GOLD_COLOR if record.data['gold'] >= price else DENY_COLOR, align=0.5)
+
+    def draw_detail(self, y):
+        width = DETAIL_RIGHT - DETAIL_LEFT
+        y = draw_wrapped(BIG_SIZE, DETAIL_LEFT, y, self.info['name'], width, (250, 250, 250)) - 8
+        y = draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, f'{config.BRANCH_NAMES[self.info["branch"]]} {self.info["tier"]}단계', width) - 6
+        y = draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, self.info['desc'], width, (250, 250, 250)) - 12
+        reason = record.skill_lock_reason(self.id)
+        if record.has_skill(self.id):
+            draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, '이미 배웠습니다.', width, GOLD_COLOR)
+            return
+        if reason:
+            draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, reason, width, DENY_COLOR)
+            return
+        if record.is_element_change(self.id):
+            element = record.data['element']
+            text = f'각인 변경: {config.ELEMENT_CHANGE_COST}G를 내고 {config.BRANCH_NAMES[element]}에 쓴 {record.element_spent(element)}G를 돌려받습니다.'
+            y = draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, text, width, DENY_COLOR) - 8
+        elif self.info['branch'] in config.ELEMENTS and not record.data['element']:
+            y = draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, '처음 사는 각인이 원소를 정합니다.', width) - 8
+        draw_wrapped(BIG_SIZE, DETAIL_LEFT, y, f'{record.skill_price(self.id)}G', width, GOLD_COLOR)
+
+    def buy(self, player):
+        return record.buy_skill(self.id)
+
+
 class UpgradeWindow:
     """진화의 원석 앞에서 F로 여는 강화 창. 여는 동안 세계는 멈추고 이펙트만 움직인다."""
 
     def __init__(self, player, altar):
         self.player = player
         self.altar = altar
-        self.rows = [StatRow(name, i) for i, name in enumerate(config.STATS)]
+        self.tabs = {'stats': [StatRow(name, i) for i, name in enumerate(config.STATS)],
+                     'skills': [SkillNode(skill_id) for skill_id in config.SKILLS]}
+        self.tab_buttons = {'stats': Button(TAB_X[0], TAB_Y, TAB_W, TAB_H, '능력치'), 'skills': Button(TAB_X[1], TAB_Y, TAB_W, TAB_H, '스킬트리')}
+        self.tab = 'stats'
         self.hover = None
         self.button = Button(*CHALLENGE_BUTTON, '도전')
         self.effect = None
@@ -117,28 +193,35 @@ class UpgradeWindow:
         game_world.remove_object(self)
         self.player.window = None
 
-    def row_at(self, x, y):
-        return next((row for row in self.rows if row.contains(x, y)), None)
+    def item_at(self, x, y):
+        return next((item for item in self.tabs[self.tab] if item.contains(x, y)), None)
 
     def handle_event(self, event):
         if event.type == SDL_KEYDOWN and event.key in (SDLK_f, SDLK_ESCAPE):
             self.close()
         elif event.type == SDL_MOUSEMOTION:
             x, y = mouse_pos(event)
-            self.hover = self.row_at(x, y)
+            self.hover = self.item_at(x, y)
             self.button.hover = self.button.contains(x, y)
+            for button in self.tab_buttons.values():
+                button.hover = button.contains(x, y)
         elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT:
             x, y = mouse_pos(event)
             if self.button.contains(x, y):
                 self.close()
                 self.altar.start_challenge()
                 return
-            row = self.row_at(x, y)
-            if row:
-                self.try_buy(row)
+            for tab, button in self.tab_buttons.items():
+                if button.contains(x, y):
+                    self.tab = tab
+                    self.hover = None
+                    return
+            item = self.item_at(x, y)
+            if item:
+                self.try_buy(item)
 
-    def try_buy(self, row):
-        if not row.buy(self.player):
+    def try_buy(self, item):
+        if not item.buy(self.player):
             sound.play('deny')
             return
         sound.play('upgrade')
@@ -147,6 +230,14 @@ class UpgradeWindow:
             game_world.remove_object(self.effect)
         self.effect = Effect('level-up', self.altar.x, config.GROUND_TOP, speed=UPGRADE_FX_SPEED)
         game_world.add_object(self.effect, game_world.LAYER_EFFECT)
+
+    def draw_tree_lines(self):
+        for i, branch in enumerate(COLUMNS):
+            left = LIST_LEFT + i * (NODE_W + NODE_GAP_X)
+            center_x = left + NODE_W / 2
+            draw_text(SMALL_SIZE, center_x, LIST_TOP - 14, config.BRANCH_NAMES[branch], SUB_COLOR, align=0.5)
+            nodes = [node for node in self.tabs['skills'] if node.info['branch'] == branch]
+            draw_rectangle(center_x - 1, min(node.top - NODE_H for node in nodes), center_x + 1, max(node.top for node in nodes), *LINE_COLOR, 255, True)
 
     def update(self, dt):
         pass
@@ -158,8 +249,12 @@ class UpgradeWindow:
         draw_text(BIG_SIZE, PANEL_RIGHT - 12, PANEL_TOP - 26, f'골드 {record.data["gold"]:,}', GOLD_COLOR, align=1)
         draw_text(SMALL_SIZE, PANEL_RIGHT - 12, PANEL_TOP - 50, f'이번 런 +{self.player.run_gold:,}', SUB_COLOR, align=1)
 
-        for row in self.rows:
-            row.draw(row is self.hover)
+        for tab, button in self.tab_buttons.items():
+            button.draw(tab == self.tab)
+        if self.tab == 'skills':
+            self.draw_tree_lines()
+        for item in self.tabs[self.tab]:
+            item.draw(item is self.hover)
 
         if self.hover:
             self.hover.draw_detail(LIST_TOP - 16)

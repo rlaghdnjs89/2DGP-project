@@ -1518,6 +1518,16 @@ def make_coin():
     save(strip(frames), 'ui/coin.png')
 
 
+def make_lock():
+    img = new_frame(10, 10)
+    rect(img, 1, 4, 9, 10, hex_color('c8c0d8'))
+    rect(img, 4, 6, 6, 8, hex_color('2a2238'))
+    rect(img, 2, 1, 3, 4, hex_color('8d86a0'))
+    rect(img, 7, 1, 8, 4, hex_color('8d86a0'))
+    rect(img, 3, 0, 7, 1, hex_color('8d86a0'))
+    save(img, 'ui/lock.png')
+
+
 def make_ui():
     save(make_heart('ef3b52', 'b0213f', 'ffc2c8'), 'ui/heart_full.png')
     save(make_heart('3a3348', '2a2536', '4a4358'), 'ui/heart_empty.png')
@@ -1543,4 +1553,5 @@ if __name__ == '__main__':
     make_gate()
     make_altar()
     make_coin()
+    make_lock()
     make_ui()
