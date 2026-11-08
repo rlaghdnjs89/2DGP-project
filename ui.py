@@ -32,6 +32,10 @@ BUTTON_COLOR = (60, 44, 96)
 BUTTON_HOVER = (96, 72, 150)
 BUTTON_BORDER = (240, 240, 250)
 BUTTON_TEXT_SIZE = 24
+PROGRESS_BAR_W = 420
+PROGRESS_BAR_H = 8
+PROGRESS_BAR_TOP = 56
+PROGRESS_COLOR = (255, 214, 90)
 HEART_SHAKE_TIME = 0.3
 HEART_SHAKE = 4
 HEAL_NOTICE_TIME = 1.2
@@ -97,8 +101,9 @@ class Button:
 
 
 class HUD:
-    def __init__(self, player):
+    def __init__(self, player, chunks):
         self.player = player
+        self.chunks = chunks
         self.shown_stage = player.stage
         self.shown_hp = player.hp
         self.time = 0
@@ -138,6 +143,14 @@ class HUD:
         size = BANNER_SIZES[min(len(BANNER_SIZES) - 1, int(t * len(BANNER_SIZES)))]
         y = config.SCREEN_H * 0.72 + (top_y - config.SCREEN_H * 0.72) * t
         draw_text(size, center_x, y, self.stage_label(), align=0.5)
+
+    def draw_progress(self):
+        left = config.SCREEN_W / 2 - PROGRESS_BAR_W / 2
+        right = left + PROGRESS_BAR_W
+        bottom = config.SCREEN_H - PROGRESS_BAR_TOP
+        draw_rectangle(left, bottom, right, bottom + PROGRESS_BAR_H, *BOSS_BAR_BG, 255, True)
+        draw_rectangle(left, bottom, left + PROGRESS_BAR_W * self.chunks.progress(), bottom + PROGRESS_BAR_H, *PROGRESS_COLOR, 255, True)
+        draw_rectangle(left, bottom, right, bottom + PROGRESS_BAR_H, *BUTTON_BORDER, 255, False)
 
     def draw_dash(self):
         charges = self.player.dash_charges
@@ -191,11 +204,13 @@ class HUD:
         if self.player.combo > 0:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2, f'COMBO {self.player.combo}', align=1)
         if self.heal_notice > 0:
-            draw_text(COMBO_SIZE, right, config.SCREEN_H / 2 - COMBO_SIZE - 8, 'HP +1', HEAL_COLOR, align=1)
+            draw_text(COMBO_SIZE, right, config.SCREEN_H / 2 - COMBO_SIZE - 8, 'HP 회복', HEAL_COLOR, align=1)
 
         self.draw_dash()
         if self.player.boss:
             self.draw_boss()
+        else:
+            self.draw_progress()
 
         if self.flash > 0:
             draw_overlay('assets/ui/white.png', self.flash / FLASH_TIME)

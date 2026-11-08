@@ -169,6 +169,9 @@ class ChunkManager:
         self.end_x += built.length
         self.last_chunk = chunk
 
+    def progress(self):
+        return min(1, self.run_time / config.STAGE_RUN_TIME)
+
     def pick_chunk(self):
         return random.choice([chunk for chunk in config.STAGE_CHUNKS[self.stage] if chunk != self.last_chunk])
 
