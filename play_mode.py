@@ -3,6 +3,7 @@ from pico2d import SDL_KEYDOWN, SDL_KEYUP, SDLK_ESCAPE, SDLK_q
 import config
 import game_framework
 import game_world
+import record
 import result_mode
 import sound
 import title_mode
@@ -60,6 +61,7 @@ def handle_event(event):
         if event.type == SDL_KEYDOWN and event.key == SDLK_q:
             # 멈춘 음악을 그대로 두면 타이틀에서 같은 곡을 다시 틀지 못한다.
             sound.stop_music()
+            record.save()
             game_framework.change_mode(title_mode)
         # 멈춘 동안 S를 떼어도 슬라이딩 입력이 눌린 채로 남지 않게 한다.
         elif event.type == SDL_KEYUP:

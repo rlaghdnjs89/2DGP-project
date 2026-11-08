@@ -3,6 +3,7 @@ from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, S
 
 import config
 import game_world
+import record
 import sound
 from sprite import Effect, Strip, load_fx_sheet
 from ui import draw_overlay
@@ -255,6 +256,7 @@ class Player:
         self.kills = 0
         self.combo = 0
         self.stage = 0
+        record.data['best_stage'] = max(record.data['best_stage'], self.stage + 1)
         self.boss = None
         self.altar = None
         self.cleared = False
@@ -579,6 +581,7 @@ class Player:
         sound.play('gate')
         sound.play_music(stage)
         self.stage = stage
+        record.data['best_stage'] = max(record.data['best_stage'], stage + 1)
         self.invincible_timer = max(self.invincible_timer, config.STAGE_INVINCIBLE_TIME)
 
     def handle_collision(self, group, other):
