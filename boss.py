@@ -66,6 +66,30 @@ class FloorWave:
         pass
 
 
+class GroundHazard:
+    """바닥에 범위를 표시했다가 정해진 시간 뒤 판정을 내는 공격."""
+
+    def __init__(self, boss, x, w, h, warning_time, impact_sound):
+        self.boss = boss
+        self.left = x - w / 2
+        self.right = x + w / 2
+        self.h = h
+        self.timer = warning_time
+        self.impact_sound = impact_sound
+
+    def update(self, dt):
+        self.timer -= dt
+        if self.timer <= 0:
+            sound.play(self.impact_sound)
+            self.boss.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
+            self.boss.add_attack(AttackBox(self.left, config.GROUND_TOP, self.right, config.GROUND_TOP + self.h))
+            game_world.remove_object(self)
+
+    def draw(self, camera):
+        bottom = config.GROUND_TOP - 8 - camera.y
+        draw_rectangle(self.left - camera.x, bottom, self.right - camera.x, bottom + 8, *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
+
+
 class Boss(Monster):
     """스테이지 끝을 지키는 보스의 공통 동작. 상태별 행동은 think에서 정한다."""
     AIRBORNE = False
@@ -90,10 +114,14 @@ class Boss(Monster):
         self.time += dt
         self.flash = max(0, self.flash - dt)
         if self.state != 'wait':
-            self.think(dt)
+            self.think(dt * self.time_rate())
         elif self.x - self.player.x <= config.BOSS_ENGAGE_GAP:
             self.player.enter_boss_fight(self)
             self.enter('intro', config.BOSS_INTRO_TIME)
+
+    def add_hazard(self, hazard):
+        self.attacks.append(hazard)
+        game_world.add_object(hazard, game_world.LAYER_EFFECT)
 
     def add_attack(self, attack):
         self.attacks.append(attack)
@@ -104,8 +132,14 @@ class Boss(Monster):
         stage = self.player.stage
         return config.BOSS_REPEAT_GOLD[stage] if stage in record.data['bosses'] else config.BOSS_FIRST_GOLD[stage]
 
+    def time_rate(self):
+        return 1
+
     def damage_rate(self):
         return 1
+
+    def on_damaged(self):
+        pass
 
     def take_hit(self, damage, by_dash=False):
         self.hp -= damage * self.damage_rate()
@@ -113,6 +147,7 @@ class Boss(Monster):
         sound.play('boss_hit')
         if self.hp > 0:
             self.player.play_hit_feedback(self, by_dash)
+            self.on_damaged()
         else:
             self.defeat(by_dash)
 
@@ -163,7 +198,7 @@ WARDEN_FPS = {'idle': 5, 'walk': 9, 'windup': 6, 'attack': 6, 'recover': 5, 'gua
 WARDEN_DEATH_FPS = 8
 WARDEN_ATTACK_FX = 'heavy-cleave'
 WARDEN_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'windup': 'windup', 'strike': 'attack', 'recover': 'recover',
-                       'guard': 'guard', 'groggy': 'groggy', 'wave_windup': 'windup', 'wave_gap': 'attack'}
+                       'guard': 'guard', 'groggy': 'groggy', 'wave_windup': 'windup', 'wave_gap': 'attack', 'wave_recover': 'recover'}
 # 이 순서대로 공격을 돌린다. 내려찍기는 플레이어가 사거리에 들어올 때까지 걸어간다.
 WARDEN_PATTERN = ('slam', 'wave', 'slam', 'guard')
 
@@ -175,9 +210,11 @@ class Warden(Boss):
     def __init__(self, x, y, player, wall):
         super().__init__(x, y, player, wall)
         self.pattern = 0
+        self.raging = False
         self.cleave = load_fx_sheet(WARDEN_ATTACK_FX)[1]['meta']['pixelfx']['act']
         self.sprites = {name: Strip(f'assets/monster/boss_{name}.png', WARDEN_FRAME_W) for name in WARDEN_FPS}
         self.flash_sprites = {name: Strip(f'assets/monster/boss_{name}_flash.png', WARDEN_FRAME_W) for name in WARDEN_FPS}
+        self.rage_sprites = {name: Strip(f'assets/monster/boss_{name}_rage.png', WARDEN_FRAME_W) for name in WARDEN_FPS}
 
     def think(self, dt):
         if self.state == 'walk':
@@ -207,15 +244,24 @@ class Warden(Boss):
             self.enter('strike', self.cleave['hits'][0]['t'])
         elif self.state == 'strike':
             self.slam()
+            if self.raging:
+                self.drop_rocks()
             self.enter('recover', config.BOSS_RECOVER_TIME)
         elif self.state == 'wave_windup':
             self.send_wave()
             self.enter('wave_gap', config.BOSS_WAVE_INTERVAL)
         elif self.state == 'wave_gap':
             self.send_wave()
-            self.enter('recover', config.BOSS_WAVE_RECOVER)
+            self.enter('wave_recover', config.BOSS_WAVE_RECOVER)
         else:
             self.enter('walk')
+
+    def drop_rocks(self):
+        player_x = self.player.x
+        for x in (player_x - config.ROCK_SPREAD, player_x, player_x + config.ROCK_SPREAD):
+            self.add_hazard(GroundHazard(self, x, config.ROCK_W, config.ROCK_H, config.ROCK_WARNING_TIME, 'rock'))
+            effect = Effect('boulder', x - config.ROCK_ARC_X * config.SPRITE_SCALE, self.y)
+            game_world.add_object(effect, game_world.LAYER_EFFECT)
 
     def send_wave(self):
         sound.play('boss_wave')
@@ -223,7 +269,7 @@ class Warden(Boss):
         left = self.x - config.BOSS_W / 2
         effect = Effect('ground-slam', left, self.y, speed=config.BOSS_WAVE_FX_SPEED)
         game_world.add_object(effect, game_world.LAYER_EFFECT)
-        self.add_attack(FloorWave(left, self.y, config.BOSS_WAVE_SPEED, self.player.camera))
+        self.add_attack(FloorWave(left, self.y, config.BOSS_WAVE_SPEED * self.time_rate(), self.player.camera))
 
     def slam(self):
         sound.play('boss_slam')
@@ -232,8 +278,17 @@ class Warden(Boss):
         self.player.camera.shake(hit['shake'], hit['amp'] * config.SPRITE_SCALE)
         self.add_attack(AttackBox(self.x - config.BOSS_STRIKE_REACH, self.y, self.x - config.BOSS_W / 2, self.y + config.BOSS_STRIKE_H))
 
+    def time_rate(self):
+        return config.BOSS_RAGE_SPEED if self.raging else 1
+
     def damage_rate(self):
         return config.BOSS_GROGGY_DAMAGE_RATE if self.state == 'groggy' else 1
+
+    def on_damaged(self):
+        if not self.raging and self.hp <= self.MAX_HP * config.BOSS_RAGE_HP_RATIO:
+            self.raging = True
+            sound.play('boss_roar')
+            self.player.camera.shake(config.BOSS_DEATH_SHAKE_TIME, config.BOSS_DEATH_SHAKE_AMP)
 
     def on_slash(self):
         if self.state != 'guard':
@@ -260,7 +315,8 @@ class Warden(Boss):
             draw_rectangle(left - camera.x, bottom, self.x - config.BOSS_W / 2 - camera.x, bottom + 8,
                            *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
         name = WARDEN_STATE_SPRITE[self.state]
-        sprite = (self.flash_sprites if self.flash > 0 else self.sprites)[name]
+        body = self.rage_sprites if self.raging else self.sprites
+        sprite = (self.flash_sprites if self.flash > 0 else body)[name]
         frame = int(self.time * WARDEN_FPS[name]) % sprite.count
         sprite.draw(frame, self.x - camera.x, self.y + WARDEN_CENTER_Y - camera.y)
 

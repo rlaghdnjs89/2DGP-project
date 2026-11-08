@@ -866,6 +866,8 @@ def save_boss_strip(name, frames):
     save(strip(frames), f'monster/boss_{name}.png')
     # 맞은 순간 같은 프레임을 흰색으로 바꿔 그린다.
     save(strip([tint_all(frame, (255, 255, 255)) for frame in frames]), f'monster/boss_{name}_flash.png')
+    # 분노 상태는 온몸이 붉게 달아오른다.
+    save(strip([tinted(frame, (255, 40, 30), 0.38) for frame in frames]), f'monster/boss_{name}_rage.png')
 
 
 def make_boss_wave():
