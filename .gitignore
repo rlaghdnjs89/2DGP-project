@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 best_score.json
 best_score.json.tmp
+save.json
+save.json.tmp

@@ -27,15 +27,15 @@ HELP = 'W 점프 (공중에서 2단)   S 슬라이딩   SPACE 일섬   좌클릭
 
 camera = None
 time = 0
-best = 0
+best_stage = 0
 run_sprite = None
 
 
 def init():
-    global camera, time, best, run_sprite
+    global camera, time, best_stage, run_sprite
     camera = Camera()
     time = 0
-    best = record.load_best()
+    best_stage = record.load_best_stage()
     run_sprite = Strip('assets/player/run.png', 64)
     sound.play_music(0)
 
@@ -67,7 +67,7 @@ def draw():
     get_image('assets/ui/white.png').rotate_draw(0.05, center_x, logo_y, 860, 3)
     draw_text(SUBTITLE_SIZE, center_x, logo_y - 80, '차원 베기 러너', ACCENT_COLOR, align=0.5)
 
-    draw_text(INFO_SIZE, center_x, config.SCREEN_H * 0.4, f'BEST {best:,}', align=0.5)
+    draw_text(INFO_SIZE, center_x, config.SCREEN_H * 0.4, f'최고 도달 스테이지 {best_stage}', align=0.5)
     if math.sin(time * BLINK_SPEED) > -0.4:
         draw_text(INFO_SIZE, center_x, config.SCREEN_H * 0.32, '클릭 또는 SPACE로 시작', align=0.5)
     draw_text(HELP_SIZE * 2, center_x, 40, HELP, align=0.5)

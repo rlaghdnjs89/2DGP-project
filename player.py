@@ -251,8 +251,6 @@ class Player:
         self.hang_timer = 0
         self.hp = config.HP_MAX
         self.invincible_timer = 0
-        self.score = 0
-        self.distance_score = 0
         self.kills = 0
         self.combo = 0
         self.stage = 0
@@ -390,7 +388,6 @@ class Player:
         sound.play('cut')
         sound.play('cut_boom')
         wall.cut()
-        self.add_score(config.CUT_SCORE)
         self.cut_after_timer = config.CUT_AFTER_TIME
         self.camera.shake(config.CUT_SHAKE_TIME, config.CUT_SHAKE_AMP)
         self.freeze(config.CUT_HIT_STOP)
@@ -451,13 +448,6 @@ class Player:
         self.dash_buffer = max(0, self.dash_buffer - dt)
         self.tick_dash_recharge(dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
-
-        if not self.boss:
-            self.distance_score += config.DISTANCE_SCORE_RATE * config.STAGES[self.stage]['speed'] * dt
-        # 소수점이 쌓이도록 따로 누적하고 정수 부분만 점수로 옮긴다.
-        gained = int(self.distance_score)
-        self.distance_score -= gained
-        self.add_score(gained)
 
         # 돌진 중에는 Dash가 위치를 직접 정하고, 절단 중에는 그 자리에 떠서 힘을 모은다.
         if self.state is self.dash_state or self.state is self.cut_state:
@@ -540,10 +530,6 @@ class Player:
             return sum(MOVE_KEYS[key] for key in self.held_move) * config.BOSS_FIGHT_MOVE_SPEED
         return config.SCROLL_SPEED * config.STAGES[self.stage]['speed']
 
-    def add_score(self, points):
-        # 진입 순간 총점이 뛰지 않도록 얻는 시점에 배율을 곱한다 (Q1).
-        self.score += points * config.STAGES[self.stage]['score_rate']
-
     def play_hit_feedback(self, monster, by_dash):
         y = monster.dash_y() + config.PLAYER_H / 2
         if by_dash:
@@ -559,10 +545,8 @@ class Player:
 
     def on_parry(self):
         sound.play('parry')
-        self.add_score(config.PARRY_SCORE)
 
-    def on_kill(self, monster, by_dash=False, bonus=0):
-        self.add_score(monster.SCORE + bonus + (monster.DASH_BONUS if by_dash else 0))
+    def on_kill(self, monster, by_dash=False):
         sound.play('kill')
         self.play_hit_feedback(monster, by_dash)
         self.kills += 1

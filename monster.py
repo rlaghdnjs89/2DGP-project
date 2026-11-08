@@ -58,8 +58,6 @@ class Monster:
 
 
 class Grunt(Monster):
-    SCORE = config.GRUNT_SCORE
-    DASH_BONUS = 0
     AIRBORNE = False
 
     def __init__(self, x, y, player):
@@ -108,8 +106,6 @@ class Grunt(Monster):
 
 
 class Goblin(Monster):
-    SCORE = config.GOBLIN_SCORE
-    DASH_BONUS = 0
     AIRBORNE = False
 
     def __init__(self, x, y, player):
@@ -156,8 +152,6 @@ class Goblin(Monster):
 
 
 class Familiar(Monster):
-    SCORE = config.FAMILIAR_SCORE
-    DASH_BONUS = config.FAMILIAR_DASH_BONUS
     AIRBORNE = True
 
     def __init__(self, x, y, player):
@@ -187,8 +181,6 @@ class Familiar(Monster):
 
 
 class Mage(Monster):
-    SCORE = config.MAGE_SCORE
-    DASH_BONUS = 0
     AIRBORNE = False
 
     def __init__(self, x, y, player):
@@ -244,7 +236,7 @@ class Mage(Monster):
 
     def handle_collision(self, group, other):
         if group == 'reflected:mage':
-            self.player.on_kill(self, bonus=config.MAGE_REFLECT_BONUS)
+            self.player.on_kill(self)
             self.die()
         else:
             super().handle_collision(group, other)
@@ -275,8 +267,6 @@ class BossStrike:
 
 class Boss(Monster):
     NAME = '봉인의 수문장'
-    SCORE = config.BOSS_SCORE
-    DASH_BONUS = 0
     AIRBORNE = False
 
     def __init__(self, x, y, player, wall):

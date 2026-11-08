@@ -31,19 +31,19 @@ SLIDE_MAX_TIME = 1.0
 SLIDE_H = PLAYER_H * 0.5
 
 STAGES = (
-    {'name': '무너지는 고성', 'gravity': 1.0, 'speed': 1.0, 'score_rate': 1,
+    {'name': '무너지는 고성', 'gravity': 1.0, 'speed': 1.0,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase1',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png'},
-    {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.0, 'score_rate': 1,
+    {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.0,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase2',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
      'ground': 'assets/map/ground_phase2.png',
      'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png'},
-    {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.5, 'score_rate': 2,
+    {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.5,
      'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
      'gate': 'assets/map/gate_phase3.png', 'music': 'bgm_phase3',
      'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
@@ -67,7 +67,6 @@ IMPLOSION_POP_TIME = 1.0
 # 터진 뒤 이 시간 동안 0.15배속에서 원래 속도로 서서히 돌아온다.
 CUT_AFTER_TIME = 0.9
 CUT_AFTER_SCALE = 0.15
-CUT_SCORE = 500
 CUT_SHAKE_TIME = 0.8
 CUT_SHAKE_AMP = 20
 # impact-frame 시트 한 칸(320×180)을 화면보다 크게 그려 크게 흔들려도 가장자리가 드러나지 않게 한다.
@@ -85,7 +84,6 @@ ARENA_WALL_OFFSET = 1900
 # 내려찍기를 피하지 않고 베기와 일섬만 쓰면 HP 3칸으로는 이길 수 없는 값이다.
 BOSS_HP = 36
 BOSS_DASH_DAMAGE = 3
-BOSS_SCORE = 500
 BOSS_W = 110
 BOSS_H = 210
 # 일섬 사거리(400)보다 멀리서 보스전을 시작해 카메라가 멈추기 전에는 일섬이 닿지 않게 한다.
@@ -211,7 +209,6 @@ GRUNT_ATTACK_REACH = 50
 GRUNT_GAP_MIN = 350
 GRUNT_GAP_MAX = 450
 GRUNT_3RD_CHANCE = 0.5
-GRUNT_SCORE = 100
 
 GOBLIN_W = 50
 # 1단 점프(150)로 여유 있게 넘도록 낮다.
@@ -220,13 +217,10 @@ GOBLIN_H = 60
 GOBLIN_SIGHT = 700
 GOBLIN_WINDUP_TIME = 0.5
 GOBLIN_CHARGE_SPEED = 650
-GOBLIN_SCORE = 150
 
 FAMILIAR_SIZE = 56
 FAMILIAR_FLOAT = 12
 FAMILIAR_FLOAT_SPEED = 2.5
-FAMILIAR_SCORE = 150
-FAMILIAR_DASH_BONUS = 50
 
 MAGE_W = 60
 MAGE_H = 100
@@ -235,12 +229,9 @@ MAGE_FIRE_INTERVAL = 2.0
 MAGE_CAST_TIME = 0.4
 # 탄 높이를 슬라이딩 높이(50)보다 위에 두어 슬라이딩으로도 피할 수 있게 한다.
 MAGE_MUZZLE_Y = 80
-MAGE_SCORE = 200
-MAGE_REFLECT_BONUS = 100
 BULLET_SPEED = 300
 REFLECTED_SPEED = 900
 BULLET_SIZE = 28
-PARRY_SCORE = 50
 
 # 베기 처치의 멈춤과 흔들림은 pixelfx sword-slash의 수치를 쓴다. 그 값은 서 있는 캐릭터 기준이라
 # 계속 달리는 게임에서 그대로 쓰면 흐름이 끊겨 줄여 쓴다.
@@ -259,4 +250,3 @@ TRAIL_TIME = 0.14
 TRAIL_OPACITY = 0.45
 
 COMBO_HEAL = 10
-DISTANCE_SCORE_RATE = 10
