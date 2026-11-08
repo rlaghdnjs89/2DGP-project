@@ -15,7 +15,7 @@ def direction_to(x0, y0, x1, y1):
 
 
 class Bullet:
-    def __init__(self, x, y, target_x, target_y, owner, image='assets/monster/bullet.png', speed=config.BULLET_SPEED):
+    def __init__(self, x, y, target_x, target_y, owner, image='assets/monster/bullet.png', speed=config.BULLET_SPEED, frame_w=FRAME_W):
         self.x = x
         self.y = y
         self.owner = owner
@@ -25,7 +25,7 @@ class Bullet:
         self.vy = dy * speed
         self.reflected = False
         self.time = 0
-        self.strip = Strip(image, FRAME_W)
+        self.strip = Strip(image, frame_w)
 
     def update(self, dt):
         # 불릿 타임에는 탄막이 멈춘다 (CT-3).

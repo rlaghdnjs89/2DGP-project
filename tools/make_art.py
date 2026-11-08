@@ -940,6 +940,73 @@ def make_boss():
     save(strip(death), 'monster/boss_death.png')
 
 
+# 심연의 집행자: 수문장과 같은 뼈대에 핏빛 갑옷과 검은 망토, 불타는 대검 --------------------
+
+EXECUTOR_COLORS = {
+    'armor': hex_color('5a1f2a'),
+    'armor_light': hex_color('a8323e'),
+    'armor_dark': hex_color('2e0f18'),
+    'trim': hex_color('ff9a3d'),
+    'cape': hex_color('1c0b14'),
+    'cape_dark': hex_color('0c0508'),
+    'horn': hex_color('3a2028'),
+    'visor': hex_color('0a0408'),
+    'eye': hex_color('ffdf5a'),
+    'core': hex_color('ff5a1f'),
+    'core_light': hex_color('fff3c4'),
+    'grip': hex_color('1a0f18'),
+    'blade': hex_color('e8384f'),
+    'blade_dark': hex_color('7a1420'),
+    'ember': hex_color('ffb347'),
+}
+
+
+def save_executor_strip(name, frames):
+    save(strip(frames), f'monster/exec_{name}.png')
+    save(strip([tint_all(frame, (255, 255, 255)) for frame in frames]), f'monster/exec_{name}_flash.png')
+
+
+def make_executor():
+    warden_colors = dict(B)
+    B.update(EXECUTOR_COLORS)
+    stance = {'front_leg': (34, -34), 'back_leg': (-28, -24)}
+    save_executor_strip('idle', [draw_boss(Pose(lean=14, tilt=-6, front_arm=(50, 20), back_arm=(14, 30), weapon=66 + i, scarf=i * 1.5, **stance)) for i in range(4)])
+    walk = []
+    for i in range(6):
+        t = i / 6 * math.pi * 2
+
+        def leg(phase):
+            return 4 + 34 * math.cos(phase), -(12 + 64 * max(0, -math.sin(phase)))
+
+        walk.append(draw_boss(Pose(lean=22, tilt=-10, front_leg=leg(t), back_leg=leg(t + math.pi), front_arm=(60, 16),
+                                   back_arm=(-10 - 22 * math.cos(t), 30), weapon=60, scarf=t)))
+    save_executor_strip('walk', walk)
+    save_executor_strip('windup', [draw_boss(Pose(lean=-12, tilt=6, front_arm=(170, -28), back_arm=(140, -20), weapon=-160, scarf=i, **stance)) for i in (0, 1)])
+    save_executor_strip('low', [draw_boss(Pose(lean=34, tilt=-14, front_arm=(50, -2), back_arm=(30, 4), weapon=72 - i * 10, scarf=i, **stance)) for i in (0, 1)])
+    save_executor_strip('high', [draw_boss(Pose(lean=4, tilt=-4, front_arm=(112, -4), back_arm=(70, 8), weapon=106 + i * 8, scarf=i, **stance)) for i in (0, 1)])
+    save_executor_strip('throw', [draw_boss(Pose(lean=26, tilt=-10, front_arm=(120, 10), back_arm=(-20, 30), weapon=150, scarf=i, **stance)) for i in (0, 1)])
+    save_executor_strip('recover', [draw_boss(Pose(lean=36, tilt=-18, front_arm=(50, 4), back_arm=(32, 6), weapon=36, scarf=i, **stance)) for i in (3, 4)])
+    kneel = {'front_leg': (66, -90), 'back_leg': (-8, -100)}
+    save_executor_strip('groggy', [draw_boss(Pose(lean=40 + i * 3, tilt=-24, front_arm=(20, 6), back_arm=(10, 8), weapon=16, scarf=i, **kneel)) for i in (0, 1)])
+    body = draw_boss(Pose(lean=-24, tilt=12, front_leg=(40, -44), back_leg=(10, -50), front_arm=(-120, 20), back_arm=(110, 20), weapon=-150))
+    death = [tint_all(body, (255, 245, 230))]
+    for i, (amount, tint) in enumerate(((0.15, (255, 170, 120)), (0.3, (255, 110, 70)), (0.5, (220, 70, 50)), (0.7, (150, 40, 40)), (0.88, (80, 20, 30)))):
+        death.append(dissolve(body, amount, 81 + i, tint, 6 + i * 8))
+    save(strip(death), 'monster/exec_death.png')
+    B.update(warden_colors)
+
+    frames = []
+    for i in range(2):
+        img = new_frame(64, 24)
+        polygon(img, [(2, 12), (46, 6), (54, 8), (54, 16), (46, 18)], hex_color('ffb347' if i else 'ff5a1f'))
+        polygon(img, [(6, 12), (46, 9), (52, 10), (52, 14), (46, 15)], hex_color('e8384f'))
+        polygon(img, [(10, 12), (44, 11), (44, 13)], hex_color('fff3c4'))
+        rect(img, 52, 3, 56, 21, hex_color('e9b949'))
+        rect(img, 56, 10, 63, 14, hex_color('1a0f18'))
+        frames.append(img)
+    save(strip(frames), 'monster/exec_sword.png')
+
+
 # 균열의 마녀: 뾰족한 관을 쓴 채 떠다니는 보라 로브, 두 손으로 탄을 모은다 ----------------
 
 W = {
@@ -1616,6 +1683,9 @@ def make_ui():
     black = new_frame(1, 1)
     black.putpixel((0, 0), (0, 0, 0, 255))
     save(black, 'ui/black.png')
+    warning = new_frame(1, 1)
+    warning.putpixel((0, 0), (255, 70, 70, 90))
+    save(warning, 'ui/warning.png')
 
 
 if __name__ == '__main__':
@@ -1627,6 +1697,7 @@ if __name__ == '__main__':
     make_boss()
     make_boss_wave()
     make_witch()
+    make_executor()
     make_backgrounds()
     make_map()
     make_obstacles()

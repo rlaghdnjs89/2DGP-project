@@ -9,7 +9,7 @@ import record
 import sound
 from bullet import Bullet
 from monster import Familiar, Monster
-from sprite import Effect, OneShot, Strip, load_fx_sheet
+from sprite import Effect, OneShot, Strip, get_image, load_fx_sheet
 
 
 WAVE_FRAME_W = 48
@@ -92,6 +92,29 @@ class GroundHazard:
     def draw(self, camera):
         bottom = config.GROUND_TOP - 8 - camera.y
         draw_rectangle(self.left - camera.x, bottom, self.right - camera.x, bottom + 8, *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
+
+
+class StrikeWarning:
+    """곧 판정이 나올 범위를 보여 준다."""
+
+    def __init__(self, left, bottom, right, top, time):
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+        self.top = top
+        self.timer = time
+
+    def update(self, dt):
+        self.timer -= dt
+        if self.timer <= 0:
+            game_world.remove_object(self)
+
+    def draw(self, camera):
+        left, right = self.left - camera.x, self.right - camera.x
+        bottom, top = self.bottom - camera.y, self.top - camera.y
+        # draw_rectangle은 반투명으로 칠하지 못해 플레이어를 가리므로 반투명 이미지를 늘려 그린다.
+        get_image('assets/ui/warning.png').draw_to_origin(left, bottom, right - left, top - bottom)
+        draw_rectangle(left, bottom, right, top, *config.BOSS_STRIKE_WARNING_COLOR, 255, False)
 
 
 class Boss(Monster):
@@ -418,6 +441,131 @@ WITCH_RAGE_PATTERN = ('fan', 'teleport', 'hole', 'summon', 'fan', 'teleport')
 # 가운데가 조준 방향이다. 검은 탄은 패링할 수 없다.
 WITCH_FAN = ('black', 'purple', 'black', 'purple', 'black')
 WITCH_COLLISION_GROUPS = ('player:monster', 'sword:monster', 'reflected:mage', 'shard:monster')
+
+
+EXEC_FRAME_W = 172
+EXEC_CENTER_Y = 164
+EXEC_FPS = {'idle': 5, 'walk': 12, 'windup': 8, 'low': 8, 'high': 8, 'throw': 8, 'recover': 5, 'groggy': 3}
+EXEC_DEATH_FPS = 8
+EXEC_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'combo_windup': 'windup', 'recover': 'recover', 'groggy': 'groggy',
+                     'throw_windup': 'windup', 'throw_after': 'throw'}
+EXEC_COMBO = ('low', 'high', 'low')
+EXEC_PATTERN = ('combo', 'throw')
+EXEC_SWORD_FRAME_W = 64
+
+
+class Executor(Boss):
+    NAME = '심연의 집행자'
+    MAX_HP = config.EXEC_HP
+    W = config.EXEC_W
+    H = config.EXEC_H
+
+    def __init__(self, x, y, player, wall):
+        super().__init__(x, y, player, wall)
+        self.pattern = 0
+        self.combo_index = 0
+        self.sprites = {name: Strip(f'assets/monster/exec_{name}.png', EXEC_FRAME_W) for name in EXEC_FPS}
+        self.flash_sprites = {name: Strip(f'assets/monster/exec_{name}_flash.png', EXEC_FRAME_W) for name in EXEC_FPS}
+        game_world.add_collision_pair('reflected:mage', None, self)
+
+    def muzzle_y(self):
+        return self.y + config.EXEC_MUZZLE_Y
+
+    def time_rate(self):
+        return super().time_rate()
+
+    def damage_rate(self):
+        if self.state == 'groggy':
+            return config.EXEC_GROGGY_DAMAGE_RATE
+        return 1 if self.state == 'recover' else config.EXEC_ARMOR_DAMAGE_RATE
+
+    def think(self, dt):
+        if self.state == 'walk':
+            self.walk(dt)
+        else:
+            self.timer -= dt
+            if self.timer <= 0:
+                self.next_state()
+
+    def walk(self, dt):
+        attack = EXEC_PATTERN[self.pattern]
+        if attack == 'combo' and self.x - self.player.x > config.EXEC_ATTACK_RANGE:
+            self.x -= config.EXEC_WALK_SPEED * dt
+            return
+        self.pattern = (self.pattern + 1) % len(EXEC_PATTERN)
+        if attack == 'combo':
+            self.combo_index = 0
+            self.begin_strike()
+        else:
+            self.enter('throw_windup', config.EXEC_THROW_WINDUP)
+
+    def strike_range(self, kind):
+        if kind == 'low':
+            return self.y, self.y + config.EXEC_LOW_H
+        return self.y + config.EXEC_HIGH_BOTTOM, self.y + config.EXEC_HIGH_TOP
+
+    def begin_strike(self):
+        bottom, top = self.strike_range(EXEC_COMBO[self.combo_index])
+        left = self.x - config.EXEC_STRIKE_REACH
+        self.add_hazard(StrikeWarning(left, bottom, self.x - self.W / 2, top, config.EXEC_STRIKE_WINDUP))
+        self.enter('combo_windup', config.EXEC_STRIKE_WINDUP)
+
+    def strike(self):
+        kind = EXEC_COMBO[self.combo_index]
+        bottom, top = self.strike_range(kind)
+        sound.play('slash')
+        self.add_attack(AttackBox(self.x - config.EXEC_STRIKE_REACH, bottom, self.x - self.W / 2, top))
+        effect = Effect('sword-slash-fire', self.x - self.W / 2, (bottom + top) / 2, speed=config.EXEC_STRIKE_FX_SPEED,
+                        scale=config.EXEC_STRIKE_FX_SCALE, flip=True)
+        game_world.add_object(effect, game_world.LAYER_EFFECT)
+        self.enter('combo_swing', config.EXEC_SWING_TIME)
+
+    def next_state(self):
+        if self.state == 'combo_windup':
+            self.strike()
+        elif self.state == 'combo_swing':
+            self.combo_index += 1
+            if self.combo_index < len(EXEC_COMBO):
+                self.begin_strike()
+            else:
+                self.enter('recover', config.EXEC_RECOVER_TIME)
+        elif self.state == 'throw_windup':
+            self.throw_sword()
+            self.enter('throw_after', config.EXEC_THROW_AFTER)
+        else:
+            self.enter('walk')
+
+    def throw_sword(self):
+        sound.play('fire')
+        x, y = self.x - self.W / 2, self.muzzle_y()
+        sword = Bullet(x, y, self.player.x, self.player.y + config.PLAYER_H / 2, self, 'assets/monster/exec_sword.png', config.EXEC_SWORD_SPEED, EXEC_SWORD_FRAME_W)
+        self.attacks.append(sword)
+        game_world.add_object(sword, game_world.LAYER_EFFECT)
+        game_world.add_collision_pair('player:bullet', None, sword)
+        game_world.add_collision_pair('sword:bullet', None, sword)
+
+    def handle_collision(self, group, other):
+        if group == 'reflected:mage':
+            sound.play('shield_block')
+            self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
+            self.enter('groggy', config.EXEC_GROGGY_TIME)
+        else:
+            super().handle_collision(group, other)
+
+    def sprite_name(self):
+        if self.state == 'combo_swing':
+            return EXEC_COMBO[self.combo_index]
+        return EXEC_STATE_SPRITE[self.state]
+
+    def draw(self, camera):
+        name = self.sprite_name()
+        sprite = (self.flash_sprites if self.flash > 0 else self.sprites)[name]
+        frame = int(self.time * EXEC_FPS[name]) % sprite.count
+        sprite.draw(frame, self.x - camera.x, self.y + EXEC_CENTER_Y - camera.y)
+
+    def make_death(self):
+        strip = Strip('assets/monster/exec_death.png', EXEC_FRAME_W)
+        return OneShot(strip, EXEC_DEATH_FPS, self.x, self.y + EXEC_CENTER_Y)
 
 
 class SummonedFamiliar(Familiar):

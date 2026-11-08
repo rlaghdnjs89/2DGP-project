@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import config
 import game_world
-from boss import Warden, Witch
+from boss import Executor, Warden, Witch
 from monster import Familiar, Goblin, Grunt, Mage
 from obstacle import EvolutionAltar, Ground, Platform, StageGate, Wall, make_high_obstacle, make_low_obstacle
 
@@ -73,7 +73,7 @@ def build_island(name):
 
 
 # 스테이지 순서다.
-BOSSES = (Warden, Witch, Warden)
+BOSSES = (Warden, Witch, Executor)
 
 CHUNK_BUILDERS = {
     'A': build_chunk_a,
