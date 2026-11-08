@@ -1664,6 +1664,19 @@ def make_coin():
     save(strip(frames), 'ui/coin.png')
 
 
+def make_darkness():
+    """가운데만 뚫린 어둠. 게임에서 8배로 늘려 화면 어디서든 덮게 그린다."""
+    img = new_frame(320, 180)
+    px = img.load()
+    for y in range(180):
+        for x in range(320):
+            d = math.hypot(x + 0.5 - 160, y + 0.5 - 90)
+            # 경계를 세 단으로 끊어 도트 그림 느낌을 살린다.
+            alpha = 0 if d < 22 else 90 if d < 28 else 170 if d < 34 else 240
+            px[x, y] = (6, 2, 12, alpha)
+    save(img, 'ui/darkness.png')
+
+
 def make_lock():
     img = new_frame(10, 10)
     rect(img, 1, 4, 9, 10, hex_color('c8c0d8'))
@@ -1705,4 +1718,5 @@ if __name__ == '__main__':
     make_altar()
     make_coin()
     make_lock()
+    make_darkness()
     make_ui()

@@ -453,6 +453,40 @@ EXEC_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'combo_win
 EXEC_COMBO = ('low', 'high', 'low')
 EXEC_PATTERN = ('combo', 'throw', 'combo', 'pillar')
 EXEC_SWORD_FRAME_W = 64
+DARKNESS_W = 2560
+DARKNESS_H = 1440
+
+
+class Darkness:
+    """플레이어 주변만 보이게 화면을 어둡게 한다. 경고는 위 레이어라 어두워도 보인다."""
+
+    def __init__(self, player):
+        self.player = player
+        self.image = get_image('assets/ui/darkness.png')
+
+    def update(self, dt):
+        pass
+
+    def draw(self, camera):
+        self.image.draw(self.player.x - camera.x, self.player.y + config.PLAYER_H / 2 - camera.y, DARKNESS_W, DARKNESS_H)
+
+
+class EclipseClone:
+    """화면 왼쪽 끝에서 집행자의 동작을 그대로 따라 하는 분신. 맞지 않는다."""
+
+    def __init__(self, boss):
+        self.boss = boss
+        self.x = boss.player.camera.base_x + config.EXEC_CLONE_X
+
+    def update(self, dt):
+        pass
+
+    def draw(self, camera):
+        boss = self.boss
+        name = boss.sprite_name()
+        sprite = boss.sprites[name]
+        frame = int(boss.time * EXEC_FPS[name]) % sprite.count
+        sprite.draw(frame, self.x - camera.x, boss.y + EXEC_CENTER_Y - camera.y, config.EXEC_CLONE_OPACITY, flip=True)
 
 
 class Executor(Boss):
@@ -465,6 +499,7 @@ class Executor(Boss):
         super().__init__(x, y, player, wall)
         self.pattern = 0
         self.combo_index = 0
+        self.clone = None
         self.sprites = {name: Strip(f'assets/monster/exec_{name}.png', EXEC_FRAME_W) for name in EXEC_FPS}
         self.flash_sprites = {name: Strip(f'assets/monster/exec_{name}_flash.png', EXEC_FRAME_W) for name in EXEC_FPS}
         game_world.add_collision_pair('reflected:mage', None, self)
@@ -472,8 +507,17 @@ class Executor(Boss):
     def muzzle_y(self):
         return self.y + config.EXEC_MUZZLE_Y
 
-    def time_rate(self):
-        return super().time_rate()
+    def on_damaged(self):
+        if not self.clone and self.hp <= self.MAX_HP * config.EXEC_ECLIPSE_HP_RATIO:
+            self.start_eclipse()
+
+    def start_eclipse(self):
+        sound.play('blackhole')
+        self.clone = EclipseClone(self)
+        for layer, obj in ((game_world.LAYER_EFFECT, self.clone), (game_world.LAYER_EFFECT, Darkness(self.player)),
+                           (game_world.LAYER_WARNING, Effect('eclipse', self.player.camera.base_x + config.SCREEN_W / 2, config.SCREEN_H * 0.62, loop=True))):
+            self.attacks.append(obj)
+            game_world.add_object(obj, layer)
 
     def damage_rate(self):
         if self.state == 'groggy':
@@ -511,6 +555,8 @@ class Executor(Boss):
         bottom, top = self.strike_range(EXEC_COMBO[self.combo_index])
         left = self.x - config.EXEC_STRIKE_REACH
         self.add_hazard(StrikeWarning(left, bottom, self.x - self.W / 2, top, config.EXEC_STRIKE_WINDUP))
+        if self.clone:
+            self.add_hazard(StrikeWarning(self.clone.x + self.W / 2, bottom, self.clone.x + config.EXEC_STRIKE_REACH, top, config.EXEC_STRIKE_WINDUP))
         self.enter('combo_windup', config.EXEC_STRIKE_WINDUP)
 
     def strike(self):
@@ -518,6 +564,8 @@ class Executor(Boss):
         bottom, top = self.strike_range(kind)
         sound.play('slash')
         self.add_attack(AttackBox(self.x - config.EXEC_STRIKE_REACH, bottom, self.x - self.W / 2, top))
+        if self.clone:
+            self.add_attack(AttackBox(self.clone.x + self.W / 2, bottom, self.clone.x + config.EXEC_STRIKE_REACH, top))
         effect = Effect('sword-slash-fire', self.x - self.W / 2, (bottom + top) / 2, speed=config.EXEC_STRIKE_FX_SPEED,
                         scale=config.EXEC_STRIKE_FX_SCALE, flip=True)
         game_world.add_object(effect, game_world.LAYER_EFFECT)

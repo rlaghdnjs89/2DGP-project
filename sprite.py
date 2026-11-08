@@ -23,11 +23,14 @@ class Strip:
         self.frame_w = frame_w
         self.count = self.image.w // frame_w
 
-    def draw(self, frame, x, y, opacity=1):
+    def draw(self, frame, x, y, opacity=1, flip=False):
         w, h = self.frame_w, self.image.h
         scale = config.SPRITE_SCALE
         self.image.opacify(opacity)
-        self.image.clip_draw(frame * w, 0, w, h, x, y, w * scale, h * scale)
+        if flip:
+            self.image.clip_composite_draw(frame * w, 0, w, h, 0, 'h', x, y, w * scale, h * scale)
+        else:
+            self.image.clip_draw(frame * w, 0, w, h, x, y, w * scale, h * scale)
         # opacify는 텍스처 자체를 바꾸므로 같은 이미지를 쓰는 다른 객체에 남지 않게 되돌린다.
         self.image.opacify(1)
 
