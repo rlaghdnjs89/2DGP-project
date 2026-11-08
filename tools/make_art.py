@@ -147,6 +147,7 @@ class Pose:
         self.scarf_lift = 0
         self.hip_y = None
         self.dx = 0
+        self.shield = False
         self.__dict__.update(kw)
 
 
@@ -784,6 +785,17 @@ def draw_greatsword(img, hand, angle):
     capsule(img, along(base, normal, 7), along(base, normal, -7), 1.6, 1.6, B['trim'])
 
 
+def draw_shield(img, center):
+    x, y = center
+    points = [(x - 12, y - 26), (x + 12, y - 26), (x + 16, y - 6), (x + 10, y + 16), (x, y + 30), (x - 10, y + 16), (x - 16, y - 6)]
+    polygon(img, points, B['trim'])
+    inner = [(x - 9, y - 22), (x + 9, y - 22), (x + 12, y - 6), (x + 7, y + 14), (x, y + 25), (x - 7, y + 14), (x - 12, y - 6)]
+    polygon(img, inner, B['armor'])
+    polygon(img, [(x - 9, y - 22), (x, y - 22), (x, y + 25), (x - 7, y + 14), (x - 12, y - 6)], B['armor_light'])
+    disc(img, x, y - 2, 5, B['core'])
+    disc(img, x, y - 2, 2.5, B['core_light'])
+
+
 def draw_boss_leg(img, hip, leg, thigh_color, shin_color):
     b = BOSS_BODY
     knee, ankle, _ = leg_points(hip, leg[0], leg[1], b['thigh'], b['shin'])
@@ -843,6 +855,8 @@ def draw_boss(pose):
     front_hand = along(along(shoulder_front, pose.front_arm[0], b['upper_arm']), pose.front_arm[0] + pose.front_arm[1], b['lower_arm'])
     draw_greatsword(img, front_hand, pose.weapon)
     draw_arm(img, shoulder_front, pose.front_arm, b, B['armor'], B['armor_light'], B['armor_dark'])
+    if pose.shield:
+        draw_shield(img, (front_hand[0] + 6, front_hand[1]))
     disc(img, shoulder_front[0], shoulder_front[1], 10, B['armor'])
     capsule(img, (shoulder_front[0] - 7, shoulder_front[1] - 4), (shoulder_front[0] + 7, shoulder_front[1] - 4), 2, 2, B['armor_light'])
     return flipped(outlined(img, B['outline']))
@@ -887,6 +901,13 @@ def make_boss():
         for i in (3, 4)
     ]
     save_boss_strip('recover', recover)
+
+    guard = [draw_boss(Pose(lean=6, tilt=-2, front_arm=(82, 14), back_arm=(30, 30), weapon=170, scarf=i, shield=True, **stance)) for i in (0, 1)]
+    save_boss_strip('guard', guard)
+
+    kneel = {'front_leg': (66, -90), 'back_leg': (-8, -100)}
+    groggy = [draw_boss(Pose(lean=38 + i * 3, tilt=-22, front_arm=(24, 6), back_arm=(14, 8), weapon=20, scarf=i, **kneel)) for i in (0, 1)]
+    save_boss_strip('groggy', groggy)
 
     body = draw_boss(Pose(lean=-24, tilt=12, front_leg=(40, -44), back_leg=(10, -50), front_arm=(-120, 20), back_arm=(110, 20), weapon=-150))
     death = [tint_all(body, (255, 245, 255))]

@@ -24,6 +24,7 @@ SFX = {
     'boss_roar': ('boss_roar',),
     'boss_hit': ('boss_hit',),
     'boss_slam': ('boss_slam',),
+    'shield_block': ('shield_block',),
     'heal': ('heal',),
     'ui_start': ('ui_start',),
     'game_over': ('game_over',),

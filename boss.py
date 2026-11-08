@@ -71,8 +71,11 @@ class Boss(Monster):
         stage = self.player.stage
         return config.BOSS_REPEAT_GOLD[stage] if stage in record.data['bosses'] else config.BOSS_FIRST_GOLD[stage]
 
+    def damage_rate(self):
+        return 1
+
     def take_hit(self, damage, by_dash=False):
-        self.hp -= damage
+        self.hp -= damage * self.damage_rate()
         self.flash = config.BOSS_FLASH_TIME
         sound.play('boss_hit')
         if self.hp > 0:
@@ -101,7 +104,10 @@ class Boss(Monster):
         # 칼 판정이 여러 프레임 살아 있어도 한 번 휘두르면 한 번만 맞는다.
         if group == 'sword:monster' and other is not self.last_sword:
             self.last_sword = other
-            self.take_hit(record.stat('attack'))
+            self.on_slash()
+
+    def on_slash(self):
+        self.take_hit(record.stat('attack'))
 
     def on_dash_hit(self):
         self.take_hit(record.stat('attack') * config.DASH_DAMAGE_RATIO, by_dash=True)
@@ -120,10 +126,13 @@ class Boss(Monster):
 WARDEN_FRAME_W = 172
 # 172칸 스프라이트의 발바닥은 아래에서 4칸 위에 있다. 발 위치에서 그림 중심까지의 높이다.
 WARDEN_CENTER_Y = 164
-WARDEN_FPS = {'idle': 5, 'walk': 9, 'windup': 6, 'attack': 6, 'recover': 5}
+WARDEN_FPS = {'idle': 5, 'walk': 9, 'windup': 6, 'attack': 6, 'recover': 5, 'guard': 4, 'groggy': 3}
 WARDEN_DEATH_FPS = 8
 WARDEN_ATTACK_FX = 'heavy-cleave'
-WARDEN_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'windup': 'windup', 'strike': 'attack', 'recover': 'recover'}
+WARDEN_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'windup': 'windup', 'strike': 'attack', 'recover': 'recover',
+                       'guard': 'guard', 'groggy': 'groggy'}
+# 이 순서대로 공격을 돌린다. 내려찍기는 플레이어가 사거리에 들어올 때까지 걸어간다.
+WARDEN_PATTERN = ('slam', 'guard')
 
 
 class Warden(Boss):
@@ -132,20 +141,29 @@ class Warden(Boss):
 
     def __init__(self, x, y, player, wall):
         super().__init__(x, y, player, wall)
+        self.pattern = 0
         self.cleave = load_fx_sheet(WARDEN_ATTACK_FX)[1]['meta']['pixelfx']['act']
         self.sprites = {name: Strip(f'assets/monster/boss_{name}.png', WARDEN_FRAME_W) for name in WARDEN_FPS}
         self.flash_sprites = {name: Strip(f'assets/monster/boss_{name}_flash.png', WARDEN_FRAME_W) for name in WARDEN_FPS}
 
     def think(self, dt):
         if self.state == 'walk':
-            if self.x - self.player.x <= config.BOSS_ATTACK_RANGE:
-                self.enter('windup', self.cleave['windup'])
-            else:
-                self.x -= config.BOSS_WALK_SPEED * dt
+            self.walk(dt)
         else:
             self.timer -= dt
             if self.timer <= 0:
                 self.next_state()
+
+    def walk(self, dt):
+        attack = WARDEN_PATTERN[self.pattern]
+        if attack == 'slam' and self.x - self.player.x > config.BOSS_ATTACK_RANGE:
+            self.x -= config.BOSS_WALK_SPEED * dt
+            return
+        self.pattern = (self.pattern + 1) % len(WARDEN_PATTERN)
+        if attack == 'slam':
+            self.enter('windup', self.cleave['windup'])
+        else:
+            self.enter('guard', config.BOSS_GUARD_TIME)
 
     def next_state(self):
         if self.state == 'windup':
@@ -164,6 +182,26 @@ class Warden(Boss):
         self.player.freeze(hit['freeze'] * config.BOSS_HIT_STOP_RATIO)
         self.player.camera.shake(hit['shake'], hit['amp'] * config.SPRITE_SCALE)
         self.add_attack(AttackBox(self.x - config.BOSS_STRIKE_REACH, self.y, self.x - config.BOSS_W / 2, self.y + config.BOSS_STRIKE_H))
+
+    def damage_rate(self):
+        return config.BOSS_GROGGY_DAMAGE_RATE if self.state == 'groggy' else 1
+
+    def on_slash(self):
+        if self.state != 'guard':
+            super().on_slash()
+            return
+        # 방패는 베기를 튕겨낸다. 일섬만 깰 수 있다.
+        sound.play('shield_block')
+        self.player.freeze(config.BOSS_BLOCK_HIT_STOP)
+        self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
+        effect = Effect('shield-block', self.x - config.BOSS_W / 2, self.y + config.BOSS_H / 2, scale=config.BOSS_BLOCK_FX_SCALE, flip=True)
+        game_world.add_object(effect, game_world.LAYER_EFFECT)
+
+    def on_dash_hit(self):
+        if self.state == 'guard':
+            sound.play('wall_break')
+            self.enter('groggy', config.BOSS_GROGGY_TIME)
+        super().on_dash_hit()
 
     def draw(self, camera):
         if self.state in ('windup', 'strike'):
