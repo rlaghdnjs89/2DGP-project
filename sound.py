@@ -12,6 +12,7 @@ SFX = {
     'hurt': ('hurt',),
     'parry': ('parry',),
     'coin': ('coin',),
+    'deny': ('deny',),
     'fire': ('fire',),
     'gate': ('gate',),
     'cut': ('cut',),

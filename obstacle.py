@@ -1,13 +1,14 @@
 import math
 import random
 
-from pico2d import SDL_BUTTON_LEFT, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION
+from pico2d import SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION, SDLK_f
 
 import config
 import game_world
 import sound
 from sprite import Effect, OneShot, Strip, get_image
 from ui import Button, draw_text, mouse_pos
+from upgrade_window import UpgradeWindow
 
 GATE_FRAME_W = 64
 GATE_FPS = 14
@@ -29,6 +30,7 @@ ALTAR_FRAME_W = 80
 ALTAR_FPS = 8
 CHALLENGE_BUTTON = (config.SCREEN_W / 2, 150, 200, 56)
 COUNTDOWN_SIZE = 96
+PROMPT_SIZE = 24
 WARNING_SIZE = 24
 WARNING_COLOR = (255, 90, 90)
 READY_COLOR = (255, 214, 90)
@@ -225,7 +227,10 @@ class EvolutionAltar:
     def handle_event(self, event):
         if self.state != 'ready':
             return
-        if event.type == SDL_MOUSEMOTION:
+        if event.type == SDL_KEYDOWN and event.key == SDLK_f:
+            self.button.hover = False
+            self.player.window = UpgradeWindow(self.player, self)
+        elif event.type == SDL_MOUSEMOTION:
             self.button.hover = self.button.contains(*mouse_pos(event))
         elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT and self.button.contains(*mouse_pos(event)):
             self.start_challenge()
@@ -240,6 +245,8 @@ class EvolutionAltar:
         center_y = config.GROUND_TOP + self.strip.image.h * config.SPRITE_SCALE / 2
         self.strip.draw(frame, self.x - camera.x, center_y - camera.y)
         if self.state == 'ready':
+            top = config.GROUND_TOP + self.strip.image.h * config.SPRITE_SCALE
+            draw_text(PROMPT_SIZE, self.x - camera.x, top + 24 - camera.y, 'F 강화', align=0.5)
             self.button.draw()
         elif self.state == 'countdown':
             draw_text(COUNTDOWN_SIZE, config.SCREEN_W / 2, config.SCREEN_H * 0.6, str(math.ceil(self.timer)), align=0.5)

@@ -51,7 +51,12 @@ def init():
 
 def handle_event(event):
     global paused
-    if event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE and game_over_timer is None:
+    if player.window:
+        player.window.handle_event(event)
+        # 창을 연 동안 뗀 키가 눌린 채로 남지 않게 한다.
+        if event.type == SDL_KEYUP:
+            player.handle_event(event)
+    elif event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE and game_over_timer is None:
         paused = not paused
         if paused:
             sound.pause_music()
@@ -73,6 +78,9 @@ def handle_event(event):
 def update(dt):
     global game_over_timer
     if paused:
+        return
+    if player.window:
+        game_world.update_layer(game_world.LAYER_EFFECT, dt)
         return
     camera.update_shake(dt)
     # 멈춤 동안 로직만 쉬고 입력은 handle_event로 계속 받아 버퍼에 남는다.

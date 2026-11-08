@@ -45,6 +45,11 @@ def update(dt):
             obj.update(dt)
 
 
+def update_layer(layer, dt):
+    for obj in layers[layer][:]:
+        obj.update(dt)
+
+
 def render(camera):
     for layer in layers:
         for obj in layer:

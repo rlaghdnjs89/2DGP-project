@@ -262,6 +262,7 @@ class Player:
         record.data['best_stage'] = max(record.data['best_stage'], self.stage + 1)
         self.boss = None
         self.altar = None
+        self.window = None
         self.cleared = False
         self.held_move = set()
         self.bullet_wall = None

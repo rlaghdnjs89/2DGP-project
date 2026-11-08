@@ -224,6 +224,11 @@ def make_gold_sfx():
     add(coin, tone(note_freq('E6'), 0.12, pulse, release=0.08), 0.04, 0.4)
     save(coin, 'coin', 0.45)
 
+    deny = silence(0.18)
+    add(deny, tone(150, 0.08, pulse, release=0.02), gain=0.5)
+    add(deny, tone(120, 0.1, pulse, release=0.04), 0.08, 0.5)
+    save(deny, 'deny', 0.5)
+
 
 # 배경음 --------------------------------------------------------------------
 
