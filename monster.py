@@ -4,6 +4,7 @@ from pico2d import draw_rectangle
 
 import config
 import game_world
+import record
 import sound
 from bullet import Bullet
 from sprite import Effect, OneShot, Strip, load_fx_sheet
@@ -45,6 +46,10 @@ class Monster:
             other.player.on_kill(self)
             self.die()
 
+    def gold(self, by_dash, bonus):
+        base = self.GOLD + bonus + (self.DASH_BONUS if by_dash else 0)
+        return base * config.STAGES[self.player.stage]['gold_rate']
+
     def dash_x(self):
         return self.x
 
@@ -58,6 +63,8 @@ class Monster:
 
 
 class Grunt(Monster):
+    GOLD = config.GRUNT_GOLD
+    DASH_BONUS = 0
     AIRBORNE = False
 
     def __init__(self, x, y, player):
@@ -106,6 +113,8 @@ class Grunt(Monster):
 
 
 class Goblin(Monster):
+    GOLD = config.GOBLIN_GOLD
+    DASH_BONUS = 0
     AIRBORNE = False
 
     def __init__(self, x, y, player):
@@ -152,6 +161,8 @@ class Goblin(Monster):
 
 
 class Familiar(Monster):
+    GOLD = config.FAMILIAR_GOLD
+    DASH_BONUS = config.FAMILIAR_DASH_BONUS
     AIRBORNE = True
 
     def __init__(self, x, y, player):
@@ -181,6 +192,8 @@ class Familiar(Monster):
 
 
 class Mage(Monster):
+    GOLD = config.MAGE_GOLD
+    DASH_BONUS = 0
     AIRBORNE = False
 
     def __init__(self, x, y, player):
@@ -236,7 +249,7 @@ class Mage(Monster):
 
     def handle_collision(self, group, other):
         if group == 'reflected:mage':
-            self.player.on_kill(self)
+            self.player.on_kill(self, bonus=config.MAGE_REFLECT_BONUS)
             self.die()
         else:
             super().handle_collision(group, other)
@@ -334,8 +347,14 @@ class Boss(Monster):
         else:
             self.defeat(by_dash)
 
+    def gold(self, by_dash, bonus):
+        stage = self.player.stage
+        return config.BOSS_REPEAT_GOLD[stage] if stage in record.data['bosses'] else config.BOSS_FIRST_GOLD[stage]
+
     def defeat(self, by_dash):
         self.player.on_kill(self, by_dash)
+        if self.player.stage not in record.data['bosses']:
+            record.data['bosses'].append(self.player.stage)
         self.die()
         self.player.end_boss_fight()
         if self.wall:

@@ -54,7 +54,7 @@ class Bullet:
         dx, dy = direction_to(self.x, self.y, self.owner.x, self.owner.muzzle_y())
         self.vx = dx * config.REFLECTED_SPEED
         self.vy = dy * config.REFLECTED_SPEED
-        self.player.on_parry()
+        self.player.on_parry(self.x, self.y)
         game_world.add_object(Effect('parry', self.x, self.y, scale=PARRY_FX_SCALE), game_world.LAYER_EFFECT)
 
     def handle_collision(self, group, other):

@@ -166,6 +166,7 @@ def make_sfx():
     save(record, 'new_record')
 
     make_boss_sfx()
+    make_gold_sfx()
 
 
 def make_boss_sfx():
@@ -215,6 +216,13 @@ def make_boss_sfx():
     add(seal, noise(0.7, rng, 2.4, 0.3), 0.18, 0.7)
     add(seal, tone(110, 0.7, triangle, slide=-50, release=0.4), 0.18, 0.7)
     save(seal, 'seal_break', 0.8)
+
+
+def make_gold_sfx():
+    coin = silence(0.16)
+    add(coin, tone(note_freq('B5'), 0.05, pulse, release=0.02), gain=0.4)
+    add(coin, tone(note_freq('E6'), 0.12, pulse, release=0.08), 0.04, 0.4)
+    save(coin, 'coin', 0.45)
 
 
 # 배경음 --------------------------------------------------------------------

@@ -1464,6 +1464,21 @@ def make_heart(fill, shade, shine):
     return outlined(img, hex_color('140c1e'))
 
 
+def make_coin():
+    frames = []
+    # 옆에서 본 폭이 바뀌어 동전이 도는 것처럼 보인다.
+    for half_w in (5.5, 3.5, 1.2, 3.5):
+        img = new_frame(14, 14)
+        px = img.load()
+        for y in range(14):
+            for x in range(14):
+                d = ((x + 0.5 - 7) / half_w) ** 2 + ((y + 0.5 - 7) / 5.5) ** 2
+                if d <= 1:
+                    px[x, y] = hex_color('ffe58a') if d < 0.4 else hex_color('f5b82e')
+        frames.append(outlined(img, hex_color('5a3a10')))
+    save(strip(frames), 'ui/coin.png')
+
+
 def make_ui():
     save(make_heart('ef3b52', 'b0213f', 'ffc2c8'), 'ui/heart_full.png')
     save(make_heart('3a3348', '2a2536', '4a4358'), 'ui/heart_empty.png')
@@ -1487,4 +1502,5 @@ if __name__ == '__main__':
     make_obstacles()
     make_gate()
     make_altar()
+    make_coin()
     make_ui()

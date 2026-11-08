@@ -4,6 +4,7 @@ import random
 from pico2d import TTF_SizeUTF8, draw_rectangle, get_canvas_height, load_font
 
 import config
+import record
 from sprite import get_image
 
 HP_SIZE = 32
@@ -11,6 +12,8 @@ HP_GAP = 10
 MARGIN = 20
 FONT_PATH = 'assets/fonts/Galmuri11.ttf'
 TEXT_COLOR = (250, 250, 250)
+GOLD_SIZE = 24
+GOLD_COLOR = (255, 214, 90)
 COMBO_SIZE = 24
 DASH_SIZE = 24
 DASH_EMPTY_COLOR = (130, 130, 130)
@@ -201,6 +204,9 @@ class HUD:
         self.draw_stage()
 
         right = config.SCREEN_W - MARGIN
+        top = config.SCREEN_H - MARGIN - GOLD_SIZE / 2
+        draw_text(GOLD_SIZE, right, top, f'골드 {record.data["gold"]:,}', GOLD_COLOR, align=1)
+        draw_text(GOLD_SIZE, right, top - GOLD_SIZE - 6, f'이번 런 +{self.player.run_gold:,}', align=1)
         if self.player.combo > 0:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2, f'COMBO {self.player.combo}', align=1)
         if self.heal_notice > 0:

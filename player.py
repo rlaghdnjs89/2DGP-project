@@ -5,6 +5,7 @@ import config
 import game_world
 import record
 import sound
+from coin import Coin
 from sprite import Effect, Strip, load_fx_sheet
 from ui import draw_overlay
 
@@ -254,6 +255,8 @@ class Player:
         self.hp = self.max_hp
         self.invincible_timer = 0
         self.kills = 0
+        self.run_gold = 0
+        self.gold_fraction = 0
         self.combo = 0
         self.stage = 0
         record.data['best_stage'] = max(record.data['best_stage'], self.stage + 1)
@@ -565,10 +568,22 @@ class Player:
             effect = Effect('hit-spark', monster.dash_x(), y, speed=KILL_FX_SPEED, scale=KILL_FX_SCALE)
         game_world.add_object(effect, game_world.LAYER_EFFECT)
 
-    def on_parry(self):
-        sound.play('parry')
+    def gain_gold(self, amount, x, y):
+        # 배율로 생기는 소수점이 쌓이도록 따로 누적하고 정수 부분만 골드로 옮긴다.
+        self.gold_fraction += amount
+        gained = int(self.gold_fraction)
+        self.gold_fraction -= gained
+        record.data['gold'] += gained
+        self.run_gold += gained
+        for i in range(min(gained, config.COIN_MAX)):
+            game_world.add_object(Coin(x, y, self, i == 0), game_world.LAYER_EFFECT)
 
-    def on_kill(self, monster, by_dash=False):
+    def on_parry(self, x, y):
+        sound.play('parry')
+        self.gain_gold(config.PARRY_GOLD, x, y)
+
+    def on_kill(self, monster, by_dash=False, bonus=0):
+        self.gain_gold(monster.gold(by_dash, bonus), monster.dash_x(), monster.dash_y() + config.PLAYER_H / 2)
         sound.play('kill')
         self.play_hit_feedback(monster, by_dash)
         self.kills += 1

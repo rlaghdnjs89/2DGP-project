@@ -11,6 +11,7 @@ SFX = {
     'jump': ('jump',),
     'hurt': ('hurt',),
     'parry': ('parry',),
+    'coin': ('coin',),
     'fire': ('fire',),
     'gate': ('gate',),
     'cut': ('cut',),

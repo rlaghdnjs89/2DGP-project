@@ -31,19 +31,19 @@ SLIDE_MAX_TIME = 1.0
 SLIDE_H = PLAYER_H * 0.5
 
 STAGES = (
-    {'name': '무너지는 고성', 'gravity': 1.0, 'speed': 1.0,
+    {'name': '무너지는 고성', 'gravity': 1.0, 'speed': 1.0, 'gold_rate': 1,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase1',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png'},
-    {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.0,
+    {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.0, 'gold_rate': 1.5,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png', 'music': 'bgm_phase2',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
      'ground': 'assets/map/ground_phase2.png',
      'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png'},
-    {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.5,
+    {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.5, 'gold_rate': 2,
      'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
      'gate': 'assets/map/gate_phase3.png', 'music': 'bgm_phase3',
      'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
@@ -91,6 +91,9 @@ ALTAR_COUNTDOWN = 3
 
 # 내려찍기를 피하지 않고 베기와 일섬만 쓰면 HP 3칸으로는 이길 수 없는 값이다.
 BOSS_HP = 36
+# 스테이지 순서다. 처음 쓰러뜨릴 때와 다시 쓰러뜨릴 때의 골드.
+BOSS_FIRST_GOLD = (200, 400, 800)
+BOSS_REPEAT_GOLD = (100, 200, 400)
 BOSS_DASH_DAMAGE = 3
 BOSS_W = 110
 BOSS_H = 210
@@ -217,6 +220,7 @@ GRUNT_ATTACK_REACH = 50
 GRUNT_GAP_MIN = 350
 GRUNT_GAP_MAX = 450
 GRUNT_3RD_CHANCE = 0.5
+GRUNT_GOLD = 5
 
 GOBLIN_W = 50
 # 1단 점프(150)로 여유 있게 넘도록 낮다.
@@ -225,10 +229,13 @@ GOBLIN_H = 60
 GOBLIN_SIGHT = 700
 GOBLIN_WINDUP_TIME = 0.5
 GOBLIN_CHARGE_SPEED = 650
+GOBLIN_GOLD = 7
 
 FAMILIAR_SIZE = 56
 FAMILIAR_FLOAT = 12
 FAMILIAR_FLOAT_SPEED = 2.5
+FAMILIAR_GOLD = 6
+FAMILIAR_DASH_BONUS = 2
 
 MAGE_W = 60
 MAGE_H = 100
@@ -237,9 +244,12 @@ MAGE_FIRE_INTERVAL = 2.0
 MAGE_CAST_TIME = 0.4
 # 탄 높이를 슬라이딩 높이(50)보다 위에 두어 슬라이딩으로도 피할 수 있게 한다.
 MAGE_MUZZLE_Y = 80
+MAGE_GOLD = 10
+MAGE_REFLECT_BONUS = 5
 BULLET_SPEED = 300
 REFLECTED_SPEED = 900
 BULLET_SIZE = 28
+PARRY_GOLD = 1
 
 # 베기 처치의 멈춤과 흔들림은 pixelfx sword-slash의 수치를 쓴다. 그 값은 서 있는 캐릭터 기준이라
 # 계속 달리는 게임에서 그대로 쓰면 흐름이 끊겨 줄여 쓴다.
@@ -258,3 +268,12 @@ TRAIL_TIME = 0.14
 TRAIL_OPACITY = 0.45
 
 COMBO_HEAL = 10
+
+# 처치 한 번에 튀어나오는 동전의 최대 개수. 골드 액수와 상관없이 화면이 동전으로 덮이지 않게 한다.
+COIN_MAX = 12
+COIN_POP_TIME = 0.4
+COIN_POP_SPEED_X = 220
+COIN_POP_SPEED_Y = 460
+COIN_GRAVITY = 1400
+COIN_ABSORB_SPEED = 900
+COIN_ABSORB_ACCEL = 4000
