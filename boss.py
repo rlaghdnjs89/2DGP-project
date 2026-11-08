@@ -147,6 +147,9 @@ class Boss(Monster):
     def update(self, dt):
         self.time += dt
         self.flash = max(0, self.flash - dt)
+        # 불릿 타임에는 적의 공격이 멈춘다 (CT-3).
+        if self.player.bullet_target:
+            return
         self.tick_status(dt)
         if self.hp <= 0:
             return
@@ -448,7 +451,7 @@ EXEC_FRAME_W = 172
 EXEC_CENTER_Y = 164
 EXEC_FPS = {'idle': 5, 'walk': 12, 'windup': 8, 'low': 8, 'high': 8, 'throw': 8, 'recover': 5, 'groggy': 3}
 EXEC_DEATH_FPS = 8
-EXEC_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'combo_windup': 'windup', 'recover': 'recover', 'groggy': 'groggy',
+EXEC_STATE_SPRITE = {'wait': 'idle', 'intro': 'idle', 'walk': 'walk', 'duel': 'windup', 'combo_windup': 'windup', 'recover': 'recover', 'groggy': 'groggy',
                      'throw_windup': 'windup', 'throw_after': 'throw', 'pillar_windup': 'windup', 'pillar_after': 'recover'}
 EXEC_COMBO = ('low', 'high', 'low')
 EXEC_PATTERN = ('combo', 'throw', 'combo', 'pillar')
@@ -500,6 +503,7 @@ class Executor(Boss):
         self.pattern = 0
         self.combo_index = 0
         self.clone = None
+        self.duel_done = False
         self.sprites = {name: Strip(f'assets/monster/exec_{name}.png', EXEC_FRAME_W) for name in EXEC_FPS}
         self.flash_sprites = {name: Strip(f'assets/monster/exec_{name}_flash.png', EXEC_FRAME_W) for name in EXEC_FPS}
         game_world.add_collision_pair('reflected:mage', None, self)
@@ -527,12 +531,33 @@ class Executor(Boss):
     def think(self, dt):
         if self.state == 'walk':
             self.walk(dt)
-        else:
+        elif self.state != 'duel':
             self.timer -= dt
             if self.timer <= 0:
                 self.next_state()
 
+    def start_duel(self):
+        """마지막 패턴. 불릿 타임에서 좌+우 동시 클릭으로 승부한다."""
+        self.duel_done = True
+        sound.play('boss_roar')
+        self.enter('duel')
+        self.player.enter_bullet_time(self)
+
+    def on_cut(self):
+        self.enter('groggy', config.EXEC_GROGGY_TIME)
+        self.lose_hp(self.MAX_HP * config.EXEC_DUEL_DAMAGE_RATIO)
+
+    def cut_center(self):
+        return self.x, self.y + self.H / 2
+
+    def on_bullet_timeout(self):
+        self.player.take_damage()
+        self.enter('walk')
+
     def walk(self, dt):
+        if not self.duel_done and self.hp <= self.MAX_HP * config.EXEC_DUEL_HP_RATIO:
+            self.start_duel()
+            return
         attack = EXEC_PATTERN[self.pattern]
         if attack == 'combo' and self.x - self.player.x > config.EXEC_ATTACK_RANGE:
             self.x -= config.EXEC_WALK_SPEED * dt
