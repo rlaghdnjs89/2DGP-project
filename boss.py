@@ -1,3 +1,5 @@
+import random
+
 from pico2d import draw_rectangle
 
 import config
@@ -104,6 +106,10 @@ class Boss(Monster):
         self.flash = 0
         self.last_sword = None
         self.attacks = []
+        self.burn_timer = 0
+        self.slow_timer = 0
+        self.frost_hits = 0
+        self.status_fx = {}
 
     def enter(self, state, timer=0):
         self.state = state
@@ -113,6 +119,9 @@ class Boss(Monster):
     def update(self, dt):
         self.time += dt
         self.flash = max(0, self.flash - dt)
+        self.tick_status(dt)
+        if self.hp <= 0:
+            return
         if self.state != 'wait':
             self.think(dt * self.time_rate())
         elif self.x - self.player.x <= config.BOSS_ENGAGE_GAP:
@@ -132,8 +141,28 @@ class Boss(Monster):
         stage = self.player.stage
         return config.BOSS_REPEAT_GOLD[stage] if stage in record.data['bosses'] else config.BOSS_FIRST_GOLD[stage]
 
+    def tick_status(self, dt):
+        if self.burn_timer > 0:
+            self.burn_timer -= dt
+            self.lose_hp(record.stat('attack') * config.BURN_DAMAGE_RATIO * dt)
+            if self.burn_timer <= 0:
+                self.hide_status('burning')
+        if self.slow_timer > 0:
+            self.slow_timer -= dt
+            if self.slow_timer <= 0:
+                self.hide_status('slowed')
+
+    def show_status(self, name):
+        if name not in self.status_fx:
+            info = config.STATUS_FX[name]
+            self.status_fx[name] = Effect(name, 0, info['y'], self, scale=info['scale'], loop=True)
+            game_world.add_object(self.status_fx[name], game_world.LAYER_EFFECT)
+
+    def hide_status(self, name):
+        game_world.remove_object(self.status_fx.pop(name))
+
     def time_rate(self):
-        return 1
+        return config.FROST_SLOW_RATE if self.slow_timer > 0 else 1
 
     def damage_rate(self):
         return 1
@@ -151,8 +180,38 @@ class Boss(Monster):
         else:
             self.defeat(by_dash)
 
+    def lose_hp(self, amount):
+        """화상과 감전처럼 방패와 갑옷을 무시하는 피해."""
+        self.hp -= amount
+        if self.hp > 0:
+            self.on_damaged()
+        else:
+            self.defeat(False)
+
+    def ignite(self):
+        self.burn_timer = config.BURN_TIME
+        self.show_status('burning')
+
+    def apply_element(self):
+        """베기가 들어갔을 때 각인의 효과를 준다."""
+        if record.has_skill('fire1'):
+            self.ignite()
+        elif record.has_skill('ice1'):
+            self.frost_hits += 1
+            if self.frost_hits >= config.FROST_HITS:
+                self.frost_hits = 0
+                self.slow_timer = config.FROST_SLOW_TIME
+                self.show_status('slowed')
+        elif record.has_skill('bolt1') and random.random() < config.ZAP_CHANCE:
+            sound.play('zap')
+            effect = Effect('zap-hit', self.x, self.y + config.BOSS_H / 2)
+            game_world.add_object(effect, game_world.LAYER_EFFECT)
+            self.lose_hp(record.stat('attack') * config.ZAP_DAMAGE_RATIO)
+
     def defeat(self, by_dash):
         self.player.on_kill(self, by_dash)
+        for name in list(self.status_fx):
+            self.hide_status(name)
         if self.player.stage not in record.data['bosses']:
             record.data['bosses'].append(self.player.stage)
         self.die()
@@ -176,6 +235,8 @@ class Boss(Monster):
 
     def on_slash(self):
         self.take_hit(record.stat('attack'))
+        if self.hp > 0:
+            self.apply_element()
 
     def on_dash_hit(self):
         self.take_hit(record.stat('attack') * config.DASH_DAMAGE_RATIO, by_dash=True)
@@ -282,7 +343,7 @@ class Warden(Boss):
         self.add_attack(AttackBox(self.x - config.BOSS_STRIKE_REACH, self.y, self.x - config.BOSS_W / 2, self.y + config.BOSS_STRIKE_H))
 
     def time_rate(self):
-        return config.BOSS_RAGE_SPEED if self.raging else 1
+        return super().time_rate() * (config.BOSS_RAGE_SPEED if self.raging else 1)
 
     def damage_rate(self):
         if self.state == 'groggy':
@@ -299,7 +360,9 @@ class Warden(Boss):
         if self.state != 'guard':
             super().on_slash()
             return
-        # 방패는 베기를 튕겨낸다. 일섬만 깰 수 있다.
+        # 방패는 베기를 튕겨낸다. 일섬만 깰 수 있다. 화상은 방패를 무시한다.
+        if record.has_skill('fire1'):
+            self.ignite()
         sound.play('shield_block')
         self.player.freeze(config.BOSS_BLOCK_HIT_STOP)
         self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)

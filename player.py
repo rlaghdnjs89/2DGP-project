@@ -350,7 +350,9 @@ class Player:
         if spin:
             game_world.add_object(Effect('spin-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
             return
-        game_world.add_object(Effect('sword-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
+        # 각인이 있으면 검기가 그 원소의 색으로 바뀐다.
+        slash = 'sword-slash-' + record.data['element'] if record.data['element'] else 'sword-slash'
+        game_world.add_object(Effect(slash, 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
         if record.has_skill('thrust'):
             game_world.add_object(Effect('thrust', 0, 0, self, THRUST_FX_SPEED, THRUST_FX_SCALE), game_world.LAYER_EFFECT)
 

@@ -10,5 +10,7 @@
 | `fx/level-up`, `fx/shield-block` | pixelfx, `ui/level-up`, `impacts/shield-block`을 같은 방법으로 렌더링 | MIT, Patch, Hugo Duprez |
 | `fx/spin-slash`, `fx/thrust` | pixelfx, `melee/`의 같은 이름 효과를 같은 방법으로 렌더링 | MIT, Patch, Hugo Duprez |
 | `fx/heavy-landing` | pixelfx, `impacts/heavy-landing`을 같은 방법으로 렌더링 | MIT, Patch, Hugo Duprez |
+| `fx/sword-slash-fire`, `-ice`, `-bolt` | pixelfx, `melee/sword-slash`를 같은 방법에 `--opts`의 `palette`로 색만 바꿔 렌더링 | MIT, Patch, Hugo Duprez |
+| `fx/burning`, `fx/slowed`, `fx/zap-hit` | pixelfx, `status/burning`, `status/slowed`, `lightning/zap-hit`을 같은 방법으로 렌더링 | MIT, Patch, Hugo Duprez |
 | `fx/ground-slam`, `fx/boulder` | pixelfx, `impacts/ground-slam`, `nature/boulder`를 같은 방법에 `--fps 15`를 더해 렌더링 | MIT, Patch, Hugo Duprez |
 | `fx/heavy-cleave`, `fx/charge-up`, `fx/implosion`, `fx/plasma-explosion` | pixelfx, `melee/heavy-cleave`, `lightning/charge-up`, `explosions/implosion`, `explosions/plasma-explosion`을 같은 방법으로 렌더링 | MIT, Patch, Hugo Duprez |

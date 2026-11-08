@@ -59,11 +59,12 @@ def load_fx_sheet(name):
 
 
 class Effect:
-    """pixelfx 시트를 재생한다. anchor를 주면 anchor를 따라다니고, flip이면 왼쪽을 향한다."""
+    """pixelfx 시트를 재생한다. anchor를 주면 anchor를 따라다니고, flip이면 왼쪽을 향하며, loop면 지울 때까지 되풀이한다."""
 
-    def __init__(self, name, x, y, anchor=None, speed=1, scale=config.SPRITE_SCALE, flip=False):
+    def __init__(self, name, x, y, anchor=None, speed=1, scale=config.SPRITE_SCALE, flip=False, loop=False):
         self.image, data = load_fx_sheet(name)
         self.flip = flip
+        self.loop = loop
         self.frames = data['frames']
         self.pivot = data['meta']['pixelfx']['pivot']
         self.x = x
@@ -79,7 +80,9 @@ class Effect:
         while self.elapsed >= self.frames[self.index]['duration']:
             self.elapsed -= self.frames[self.index]['duration']
             self.index += 1
-            if self.index == len(self.frames):
+            if self.index == len(self.frames) and self.loop:
+                self.index = 0
+            elif self.index == len(self.frames):
                 game_world.remove_object(self)
                 self.index -= 1
                 return

@@ -233,6 +233,11 @@ def make_boss_sfx():
     add(rock, noise(0.35, rng, 2.4, 0.6), gain=1.0)
     save(rock, 'rock', 0.6)
 
+    zap = silence(0.25)
+    add(zap, noise(0.2, rng, 1.5, 0.0), gain=0.7)
+    add(zap, tone(1800, 0.18, pulse, slide=-3000, release=0.05), gain=0.4)
+    save(zap, 'zap', 0.5)
+
 
 def make_gold_sfx():
     coin = silence(0.16)

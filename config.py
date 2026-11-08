@@ -172,6 +172,15 @@ SKILLS = {
 BRANCH_NAMES = {'sword': '검술', 'move': '기동', 'fire': '화염', 'ice': '빙결', 'bolt': '번개'}
 ELEMENTS = ('fire', 'ice', 'bolt')
 ELEMENT_CHANGE_COST = 300
+BURN_TIME = 3
+BURN_DAMAGE_RATIO = 0.3
+FROST_HITS = 5
+FROST_SLOW_TIME = 2
+FROST_SLOW_RATE = 0.7
+ZAP_CHANCE = 0.25
+ZAP_DAMAGE_RATIO = 0.5
+# status 시트는 기본 캐릭터(24×38) 기준이다. 화상은 보스 몸집에 맞춰 키우고, 둔화 시계는 몸을 가리지 않게 머리 위에 작게 띄운다.
+STATUS_FX = {'burning': {'scale': 5, 'y': 0}, 'slowed': {'scale': 3, 'y': 120}}
 
 INVINCIBLE_TIME = 1.5
 HIT_STUN_TIME = 0.3

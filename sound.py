@@ -27,6 +27,7 @@ SFX = {
     'shield_block': ('shield_block',),
     'boss_wave': ('boss_wave',),
     'rock': ('rock',),
+    'zap': ('zap',),
     'heal': ('heal',),
     'ui_start': ('ui_start',),
     'game_over': ('game_over',),
