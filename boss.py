@@ -133,7 +133,6 @@ class Boss(Monster):
         self.timer = 0
         self.time = 0
         self.flash = 0
-        self.last_sword = None
         self.attacks = []
         self.burn_timer = 0
         self.slow_timer = 0
@@ -275,9 +274,9 @@ class Boss(Monster):
         game_world.add_object(Effect('plasma-explosion', self.x, center_y, scale=config.BOSS_DEATH_FX_SCALE), game_world.LAYER_EFFECT)
 
     def handle_collision(self, group, other):
-        # 칼 판정이 여러 프레임 살아 있어도 한 번 휘두르면 한 번만 맞는다.
-        if group == 'sword:monster' and other is not self.last_sword:
-            self.last_sword = other
+        # 칼 판정은 여러 프레임 살아 있고 점프나 착지로 후딜레이가 끊기면 두 칼이 겹치므로, 맞았는지를 칼마다 기억한다.
+        if group == 'sword:monster' and not other.hit_boss:
+            other.hit_boss = True
             self.on_slash(other)
 
     def on_slash(self, sword):

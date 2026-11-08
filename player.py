@@ -295,6 +295,7 @@ class Sword:
         self.spin = spin
         self.finisher = finisher
         self.timer = config.SWORD_TIME
+        self.hit_boss = False
 
     def update(self, dt):
         self.timer -= dt
