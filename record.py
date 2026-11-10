@@ -12,6 +12,10 @@ def default_data():
 
 
 data = default_data()
+# 개발자 테스트 중에는 진짜 기록을 여기 맡겨 두고, 테스트 기록은 저장하지 않는다.
+real_data = None
+# 테스트에서 고른 강화는 게임을 끄기 전까지 다음 테스트에도 남는다.
+dev_data = None
 
 
 def load():
@@ -27,7 +31,37 @@ def load():
         pass
 
 
+def start_dev():
+    """골드가 무제한이고 모든 보스를 잡아 스킬트리 3단계까지 열린 테스트 기록으로 바꾼다."""
+    global data, real_data, dev_data
+    if real_data is None:
+        real_data = data
+    if dev_data is None:
+        dev_data = default_data()
+        dev_data['bosses'] = list(range(len(config.STAGES)))
+    dev_data['gold'] = config.DEV_GOLD
+    data = dev_data
+
+
+def end_dev():
+    global data, real_data
+    if real_data is not None:
+        data = real_data
+        real_data = None
+
+
+def reset_dev():
+    global dev_data
+    dev_data = None
+
+
+def is_dev():
+    return real_data is not None
+
+
 def save():
+    if is_dev():
+        return
     # 쓰는 도중에 꺼져도 이전 기록이 남도록 임시 파일에 쓰고 바꿔치기한다.
     temp = PATH + '.tmp'
     with open(temp, 'w', encoding='utf-8') as f:
@@ -104,6 +138,13 @@ def buy_skill(skill_id):
     data['skills'].append(skill_id)
     save()
     return True
+
+
+def forget_skill(skill_id):
+    """개발자 테스트에서 배운 스킬을 지워 다른 조합을 시험한다."""
+    data['skills'].remove(skill_id)
+    if not any(config.SKILLS[skill]['branch'] == data['element'] for skill in data['skills']):
+        data['element'] = None
 
 
 def reset():

@@ -22,6 +22,8 @@ camera = None
 chunks = None
 game_over_timer = None
 paused = False
+# 개발자 테스트로 시작할 (스테이지 번호, 보스로 바로 갈지). 보통 시작이면 None이고, 결과 화면에서 재도전해도 그대로 쓴다.
+dev_start = None
 
 
 def init():
@@ -29,10 +31,11 @@ def init():
     paused = False
     game_world.clear()
     camera = Camera()
-    player = Player(camera)
-    chunks = ChunkManager(player)
+    stage, to_boss = dev_start or (0, None)
+    player = Player(camera, stage)
+    chunks = ChunkManager(player, to_boss)
     game_over_timer = None
-    sound.play_music(0)
+    sound.play_music(stage)
     game_world.add_object(Background(player), game_world.LAYER_BACKGROUND)
     game_world.add_object(player, game_world.LAYER_PLAYER)
     game_world.add_object(HUD(player, chunks), game_world.LAYER_UI)

@@ -64,17 +64,27 @@ BOSSES = (Warden, Witch, Executor)
 
 
 class ChunkManager:
-    def __init__(self, player):
+    def __init__(self, player, dev_to_boss=None):
+        """dev_to_boss가 None이 아니면 개발자 테스트다. 원석에서 시작해 강화를 고르고, True면 원석 다음이 바로 보스 아레나다."""
         self.player = player
         self.objects = []
         self.last_chunk = None
-        self.stage = 0
+        self.stage = player.stage
         self.run_time = 0
         self.altar_placed = False
         self.patterns_until_cliff = random.randint(config.CLIFF_EVERY_MIN, config.CLIFF_EVERY_MAX)
-        # 시작 지점에서 반응할 시간을 주도록 첫 화면은 평지로 둔다.
-        self.add_ground(0, config.SCREEN_W)
-        self.end_x = config.SCREEN_W
+        self.end_x = 0
+        if dev_to_boss is None:
+            # 시작 지점에서 반응할 시간을 주도록 첫 화면은 평지로 둔다.
+            self.add_ground(0, config.SCREEN_W)
+            self.end_x = config.SCREEN_W
+            return
+        self.spawn_altar()
+        if dev_to_boss:
+            self.run_time = config.STAGE_RUN_TIME
+        else:
+            # 스테이지 끝의 원석은 따로 나와야 한다.
+            self.altar_placed = False
 
     def add_ground(self, left, right):
         ground = Ground(left, right, self.stage)
@@ -173,7 +183,8 @@ class ChunkManager:
 
     def update(self, camera, dt):
         # 아레나를 붙인 뒤 다음 스테이지의 관문을 지나기 전까지는 달린 시간을 세지 않는다.
-        if not self.player.boss and self.player.stage == self.stage:
+        # 개발자 테스트에서 시작 원석에 멈춰 있는 동안도 세지 않는다.
+        if not self.player.boss and not self.player.altar and self.player.stage == self.stage:
             self.run_time += dt
         if self.end_x <= camera.x + config.SCREEN_W:
             if self.run_time < config.STAGE_RUN_TIME:

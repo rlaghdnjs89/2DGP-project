@@ -157,7 +157,8 @@ class SkillNode:
         y = draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, self.info['desc'], width, (250, 250, 250)) - 12
         reason = record.skill_lock_reason(self.id)
         if record.has_skill(self.id):
-            draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, '이미 배웠습니다.', width, GOLD_COLOR)
+            text = '이미 배웠습니다. 다시 누르면 취소합니다 (개발자 테스트).' if record.is_dev() else '이미 배웠습니다.'
+            draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, text, width, GOLD_COLOR)
             return
         if reason:
             draw_wrapped(SMALL_SIZE, DETAIL_LEFT, y, reason, width, DENY_COLOR)
@@ -171,6 +172,11 @@ class SkillNode:
         draw_wrapped(BIG_SIZE, DETAIL_LEFT, y, f'{record.skill_price(self.id)}G', width, GOLD_COLOR)
 
     def buy(self, player):
+        if record.is_dev() and record.has_skill(self.id):
+            record.forget_skill(self.id)
+            # 충전 +1을 지우면 남은 충전이 최대를 넘어 충전이 멈추지 않으므로 맞춘다.
+            player.dash_charges = min(player.dash_charges, player.max_dash_charges())
+            return True
         return record.buy_skill(self.id)
 
 

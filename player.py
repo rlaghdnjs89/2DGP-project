@@ -355,7 +355,7 @@ class Hit:
 
 
 class Player:
-    def __init__(self, camera):
+    def __init__(self, camera, stage=0):
         self.camera = camera
         self.x = config.PLAYER_SCREEN_X
         self.y = config.GROUND_TOP
@@ -382,7 +382,7 @@ class Player:
         self.run_gold = 0
         self.gold_fraction = 0
         self.combo = 0
-        self.stage = 0
+        self.stage = stage
         record.data['best_stage'] = max(record.data['best_stage'], self.stage + 1)
         self.boss = None
         self.altar = None
