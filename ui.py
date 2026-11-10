@@ -41,6 +41,14 @@ PROGRESS_BAR_W = 420
 PROGRESS_BAR_H = 8
 PROGRESS_BAR_TOP = 56
 PROGRESS_COLOR = (255, 214, 90)
+GAUGE_W = 120
+GAUGE_H = 12
+# 근접병이 칼을 치켜드는 준비 동작에도 가려지지 않는 높이다.
+GAUGE_GAP = 48
+GAUGE_ZONE_COLOR = (60, 120, 70)
+GAUGE_READY_COLOR = (120, 240, 140)
+GAUGE_CURSOR_W = 4
+GAUGE_CURSOR_OVER = 5
 HEART_SHAKE_TIME = 0.3
 HEART_SHAKE = 4
 HEAL_NOTICE_TIME = 1.2
@@ -196,6 +204,29 @@ class HUD:
             draw_text(BOSS_INTRO_SIZE, x, config.SCREEN_H * 0.66, f'{boss.NAME} 등장', BOSS_INTRO_COLOR, align=0.5)
             draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, 'A, D로 움직여 베어라', align=0.5)
 
+    def draw_slash_gauge(self, camera):
+        """노리는 몬스터 머리 위의 베기 게이지. 다가갈수록 커서가 오른쪽으로 가고, 초록 칸 안에서 베면 맞는다."""
+        aim = self.player.gauge_target()
+        if aim is None:
+            return
+        monster, gap, reach = aim
+        left = monster.x - camera.x - GAUGE_W / 2
+        right = left + GAUGE_W
+        bottom = monster.get_bb()[3] - camera.y + GAUGE_GAP
+        top = bottom + GAUGE_H
+        span = reach + config.SLASH_GAUGE_LEAD
+        # 커서는 플레이어가 다가가는 쪽으로 움직인다. 왼쪽을 보면 게이지를 뒤집는다.
+        facing = self.player.facing
+        near = right if facing > 0 else left
+        zone_edge = near - facing * GAUGE_W * reach / span
+        cursor = near - facing * GAUGE_W * gap / span
+        ready = gap <= reach
+        draw_rectangle(left, bottom, right, top, *BOSS_BAR_BG, 255, True)
+        draw_rectangle(min(zone_edge, near), bottom, max(zone_edge, near), top, *(GAUGE_READY_COLOR if ready else GAUGE_ZONE_COLOR), 255, True)
+        draw_rectangle(left, bottom, right, top, *(GOLD_COLOR if ready else BUTTON_BORDER), 255, False)
+        draw_rectangle(cursor - GAUGE_CURSOR_W / 2, bottom - GAUGE_CURSOR_OVER, cursor + GAUGE_CURSOR_W / 2, top + GAUGE_CURSOR_OVER,
+                       *TEXT_COLOR, 255, True)
+
     def draw_bullet_time(self):
         draw_overlay('assets/ui/black.png', BULLET_DIM)
         x = config.SCREEN_W / 2
@@ -208,6 +239,7 @@ class HUD:
     def draw(self, camera):
         if self.player.bullet_target:
             self.draw_bullet_time()
+        self.draw_slash_gauge(camera)
 
         full = get_image('assets/ui/heart_full.png')
         empty = get_image('assets/ui/heart_empty.png')

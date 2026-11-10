@@ -242,8 +242,8 @@ STATS = {
 # 갈래마다 1단계는 처음부터, 2단계는 보스 1 처치 후, 3단계는 보스 2 처치 후에 열린다.
 # slot은 같은 단계에 노드가 둘일 때 위아래 자리다.
 SKILLS = {
-    'spin': {'name': '회전 베기', 'branch': 'sword', 'tier': 1, 'slot': 0, 'cost': 150, 'desc': '공중에서 베면 몸 둘레 전체에 판정이 생겨 위아래 사역마도 벤다.'},
-    'thrust': {'name': '찌르기', 'branch': 'sword', 'tier': 1, 'slot': 1, 'cost': 200, 'desc': '베기 사거리가 140px에서 220px로 늘어난다.'},
+    'spin': {'name': '회전 베기', 'branch': 'sword', 'tier': 1, 'slot': 0, 'cost': 150, 'desc': '공중에서 베면 몸 둘레에 판정이 생기고 위아래로 200px까지 닿아 공중의 사역마를 벤다.'},
+    'thrust': {'name': '찌르기', 'branch': 'sword', 'tier': 1, 'slot': 1, 'cost': 200, 'desc': '베기 사거리가 100px에서 150px로 늘어난다.'},
     'charge': {'name': '일섬 충전 +1', 'branch': 'move', 'tier': 1, 'slot': 0, 'cost': 250, 'desc': '일섬 최대 충전이 2회에서 3회로 늘어난다.'},
     'dive': {'name': '급강하', 'branch': 'move', 'tier': 1, 'slot': 1, 'cost': 200, 'desc': '공중에서 S로 수직 낙하한다. 착지 충격파(좌우 150px)로 지상 적을 처치하고, 보스에게는 베기 2배 피해를 준다.'},
     'triple': {'name': '3연격', 'branch': 'sword', 'tier': 2, 'slot': 0, 'cost': 400, 'desc': '0.6초 안에 세 번 베면 세 번째가 피해 3배와 넉백을 준다.'},
@@ -309,9 +309,18 @@ CLEAR_TIME = 1.5
 
 # 판정이 살아 있는 시간. 이후 공격 속도 능력치의 시간까지는 다음 베기를 막는 후딜레이다.
 SWORD_TIME = 0.1
-SWORD_REACH = 140
-SWORD_H = 140
-THRUST_REACH = 220
+SWORD_REACH = 100
+SWORD_H = 120
+THRUST_REACH = 150
+# 베기 게이지는 노리는 몬스터가 베기 사거리보다 이만큼 더 멀 때부터 그 몬스터 위에 나타난다. 달리기 속도로 약 0.5초다.
+SLASH_GAUGE_LEAD = 220
+# 게이지가 허용 범위에 들었을 때 베어 처치하면 보통 베기보다 오래 멈추고 크게 흔들리며 화면이 하얗게 번쩍인다.
+PERFECT_HIT_STOP = 0.1
+PERFECT_SHAKE_TIME = 0.22
+PERFECT_SHAKE_AMP = 10
+PERFECT_FLASH_OPACITY = 0.4
+PERFECT_FLASH_TIME = 0.12
+PERFECT_FX_SCALE = 3
 TRIPLE_WINDOW = 0.6
 TRIPLE_DAMAGE_RATIO = 3
 TRIPLE_KNOCKBACK = 70
@@ -326,7 +335,9 @@ PIERCE_COOLDOWN = 20
 PIERCE_DAMAGE_RATIO = 3
 # 화면 오른쪽 끝에서 이만큼 안쪽에서 멈춘다.
 PIERCE_END_MARGIN = 60
-SPIN_RADIUS = 130
+# 회전 베기는 공중의 적을 노리는 기술이라 좌우보다 위아래로 길다. 몸 중심에서 잰 거리다.
+SPIN_REACH_X = 130
+SPIN_REACH_Y = 200
 
 DASH_RANGE = 400
 DASH_TIME = 0.15

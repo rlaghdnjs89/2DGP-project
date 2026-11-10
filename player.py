@@ -24,7 +24,8 @@ BURST_FX = 'plasma-explosion'
 SLASH_FX_SPEED = 1.6
 SLASH_FX_Y = 8
 THRUST_FX_SPEED = 2.5
-THRUST_FX_SCALE = 1.5
+# 찌르기 검기 끝이 찌르기 사거리 끝에 닿는 크기다.
+THRUST_FX_SCALE = 1.3
 KILL_FX_SPEED = 1.5
 KILL_FX_SCALE = 2
 DASH_KILL_FX_SPEED = 2
@@ -244,6 +245,23 @@ class Layer:
         pass
 
 
+class Flash:
+    """화면 전체가 하얗게 번쩍였다가 사라진다."""
+
+    def __init__(self, opacity, time):
+        self.opacity = opacity
+        self.time = time
+        self.timer = time
+
+    def update(self, dt):
+        self.timer -= dt
+        if self.timer <= 0:
+            game_world.remove_object(self)
+
+    def draw(self, camera):
+        draw_overlay('assets/ui/white.png', self.opacity * self.timer / self.time)
+
+
 class Cut:
     """차원 절단. 힘을 모은 뒤 터뜨리고, 터진 뒤의 느린 시간은 Player.tick_cut_after가 맡는다."""
 
@@ -293,10 +311,12 @@ class Cut:
 
 
 class Sword:
-    def __init__(self, player, spin, finisher):
+    def __init__(self, player, spin, finisher, perfect_target):
         self.player = player
         self.spin = spin
         self.finisher = finisher
+        # 게이지가 허용 범위에 있을 때 벤 몬스터. 이 칼로 처치하면 더 강한 타격 연출을 낸다.
+        self.perfect_target = perfect_target
         self.timer = config.SWORD_TIME
         self.hit_boss = False
 
@@ -309,14 +329,7 @@ class Sword:
         pass
 
     def get_bb(self):
-        if self.spin:
-            center_y = self.player.y + config.PLAYER_H / 2
-            return (self.player.x - config.SPIN_RADIUS, center_y - config.SPIN_RADIUS,
-                    self.player.x + config.SPIN_RADIUS, center_y + config.SPIN_RADIUS)
-        left = self.player.x + config.PLAYER_W / 2
-        bottom = self.player.y + (config.PLAYER_H - config.SWORD_H) / 2
-        reach = config.THRUST_REACH if record.has_skill('thrust') else config.SWORD_REACH
-        return left, bottom, left + reach, bottom + config.SWORD_H
+        return self.player.slash_bb(self.spin)
 
     def handle_collision(self, group, other):
         pass
@@ -438,15 +451,52 @@ class Player:
     def start_slash(self):
         sound.play('slash')
         self.slash_buffer = 0
-        spin = self.state is self.jump_state and record.has_skill('spin')
+        spin = self.spin_ready()
+        aim = self.gauge_target()
+        perfect_target = aim[0] if aim and aim[1] <= aim[2] else None
         self.slash_state.prev_state = self.state
         self.change_state(self.slash_state)
         finisher = self.count_triple()
-        self.sword = Sword(self, spin, finisher)
+        self.sword = Sword(self, spin, finisher, perfect_target)
         game_world.add_object(self.sword, game_world.LAYER_EFFECT)
         self.play_slash_effect(spin, finisher)
         game_world.add_collision_pair('sword:monster', self.sword, None)
         game_world.add_collision_pair('sword:bullet', self.sword, None)
+
+    def spin_ready(self):
+        """지금 베면 회전 베기가 나가는지."""
+        return not self.on_ground and record.has_skill('spin')
+
+    def slash_bb(self, spin):
+        if spin:
+            center_y = self.y + config.PLAYER_H / 2
+            return (self.x - config.SPIN_REACH_X, center_y - config.SPIN_REACH_Y,
+                    self.x + config.SPIN_REACH_X, center_y + config.SPIN_REACH_Y)
+        bottom = self.y + (config.PLAYER_H - config.SWORD_H) / 2
+        reach = config.THRUST_REACH if record.has_skill('thrust') else config.SWORD_REACH
+        front = self.x + self.facing * config.PLAYER_W / 2
+        left, right = (front, front + reach) if self.facing > 0 else (front - reach, front)
+        return left, bottom, right, bottom + config.SWORD_H
+
+    def gauge_target(self):
+        """베기 게이지를 띄울 (몬스터, 몬스터까지 남은 거리, 베기 사거리)를 돌려준다.
+        앞에 있고 베기 높이에 걸치는 몬스터 중 가장 가까운 것이다. 남은 거리가 사거리 이하면 지금 베어 맞힐 수 있다."""
+        if self.bullet_target or not self.can_use_skill_key():
+            return None
+        sword_left, sword_bottom, sword_right, sword_top = self.slash_bb(self.spin_ready())
+        front = self.x + self.facing * config.PLAYER_W / 2
+        reach = sword_right - front if self.facing > 0 else front - sword_left
+        aims = []
+        for monster in skills.nearby_monsters(self):
+            left, bottom, right, top = monster.get_bb()
+            gap = left - front if self.facing > 0 else front - right
+            # 이미 몸에 닿은 몬스터는 피해를 준 뒤라 노릴 대상이 아니다.
+            if 0 <= gap <= reach + config.SLASH_GAUGE_LEAD and bottom <= sword_top and top >= sword_bottom:
+                aims.append((gap, monster))
+        if not aims:
+            return None
+        gap, monster = min(aims, key=lambda aim: aim[0])
+        return monster, gap, reach
 
     def count_triple(self):
         """이번 베기가 3연격의 마지막이면 True를 돌려준다."""
@@ -877,10 +927,10 @@ class Player:
         sound.play('parry')
         self.gain_gold(config.PARRY_GOLD, x, y)
 
-    def on_kill(self, monster, by_dash=False, bonus=0):
+    def on_kill(self, monster, by_dash=False, bonus=0, perfect=False):
         self.gain_gold(monster.gold(by_dash, bonus), monster.dash_x(), monster.dash_y() + config.PLAYER_H / 2)
         sound.play('kill')
-        self.play_hit_feedback(monster, by_dash)
+        self.play_hit_feedback(monster, by_dash, perfect)
         self.kills += 1
         self.combo += 1
         if self.combo % config.COMBO_HEAL == 0 and self.hp < self.max_hp:

@@ -35,16 +35,18 @@ class Monster:
         self.dead = False
 
     def handle_collision(self, group, other):
-        if group in ('sword:monster', 'shard:monster'):
+        if group == 'sword:monster':
+            self.kill(perfect=other.perfect_target is self)
+        elif group == 'shard:monster':
             self.kill()
 
-    def kill(self, by_dash=False, bonus=0):
+    def kill(self, by_dash=False, bonus=0, perfect=False):
         # 한 프레임에 칼과 스킬이 함께 닿아도 한 번만 처치한다.
         if self.dead:
             return
         self.dead = True
         self.die()
-        self.player.on_kill(self, by_dash, bonus)
+        self.player.on_kill(self, by_dash, bonus, perfect)
         skills.on_monster_killed(self.player, self)
 
     def gold(self, by_dash, bonus):
