@@ -301,12 +301,26 @@ class Boss(Monster):
             self.on_slash(other)
 
     def on_slash(self, sword):
+        # 머리 위에서는 보스의 공격이 거의 닿지 않아 그 자리에서 베기만 되풀이할 수 있으므로 막는다. 그로기 중에는 막지 못한다.
+        if self.player.on_boss_head and self.state != 'groggy':
+            self.block_slash(self.x, self.y + self.H)
+            return
         ratio = config.TRIPLE_DAMAGE_RATIO if sword.finisher else 1
         self.take_hit(record.stat('attack') * ratio)
         if self.hp > 0:
             self.apply_element()
             if sword.finisher:
                 self.knock_back()
+
+    def block_slash(self, x, y):
+        """베기를 튕겨내고 (x, y)에 방패를 띄운다. 화상은 방패를 무시한다."""
+        if record.has_skill('fire1'):
+            self.ignite()
+        sound.play('shield_block')
+        self.player.freeze(config.BOSS_BLOCK_HIT_STOP)
+        self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
+        effect = Effect('shield-block', x, y, scale=config.BOSS_BLOCK_FX_SCALE, flip=self.player.x < self.x)
+        game_world.add_object(effect, game_world.LAYER_EFFECT)
 
     def knock_back(self):
         # 플레이어 반대쪽으로 민다. 오른쪽으로는 시작 자리 뒤로, 왼쪽으로는 화면 밖으로 밀리지 않는다.
@@ -467,15 +481,8 @@ class Warden(Boss):
         if self.state != 'guard':
             super().on_slash(sword)
             return
-        # 방패는 베기를 튕겨낸다. 일섬만 깰 수 있다. 화상은 방패를 무시한다.
-        if record.has_skill('fire1'):
-            self.ignite()
-        sound.play('shield_block')
-        self.player.freeze(config.BOSS_BLOCK_HIT_STOP)
-        self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
-        effect = Effect('shield-block', self.x + self.facing * config.BOSS_W / 2, self.y + config.BOSS_H / 2, scale=config.BOSS_BLOCK_FX_SCALE,
-                        flip=self.facing < 0)
-        game_world.add_object(effect, game_world.LAYER_EFFECT)
+        # 방패는 일섬만 깰 수 있다.
+        self.block_slash(self.x + self.facing * config.BOSS_W / 2, self.y + config.BOSS_H / 2)
 
     def on_dash_hit(self):
         if self.state == 'guard':
