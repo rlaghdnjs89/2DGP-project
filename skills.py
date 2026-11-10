@@ -51,7 +51,8 @@ def shatter(player, monster):
     effect = Effect('ice-shatter', x, monster.dash_y(), speed=config.SHATTER_FX_SPEED, scale=config.SHATTER_FX_SCALE)
     game_world.add_object(effect, game_world.LAYER_EFFECT)
     for angle in config.SHARD_ANGLES:
-        shard = IceShard(x, y, math.radians(angle))
+        # 플레이어가 보는 쪽으로 날아간다.
+        shard = IceShard(x, y, math.radians(angle if player.facing > 0 else 180 - angle))
         game_world.add_object(shard, game_world.LAYER_EFFECT)
         game_world.add_collision_pair('shard:monster', shard, None)
 

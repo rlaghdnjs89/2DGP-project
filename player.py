@@ -175,7 +175,7 @@ class Flurry:
         self.next_hit = 0
         player.flurry_cooldown = config.FLURRY_COOLDOWN
         player.vy = 0
-        self.effect = Effect('dagger-flurry', 0, 0, player, config.FLURRY_FX_SPEED, loop=True)
+        self.effect = Effect('dagger-flurry', 0, 0, player, config.FLURRY_FX_SPEED, flip=player.facing < 0, loop=True)
         game_world.add_object(self.effect, game_world.LAYER_EFFECT)
 
     def update(self, dt):
@@ -214,7 +214,10 @@ class Pierce:
         player = self.player
         self.timer = 0
         self.start_x = player.x
-        self.end_x = max(player.x, min(player.camera.base_x + config.SCREEN_W - config.PIERCE_END_MARGIN, player.forward_limit()))
+        if player.facing > 0:
+            self.end_x = max(player.x, min(player.camera.base_x + config.SCREEN_W - config.PIERCE_END_MARGIN, player.forward_limit()))
+        else:
+            self.end_x = min(player.x, max(player.camera.base_x + config.PIERCE_END_MARGIN, player.forward_limit()))
         player.pierce_cooldown = config.PIERCE_COOLDOWN
         player.vy = 0
         player.hang_timer = 0
@@ -333,7 +336,7 @@ class Hit:
         player = self.player
         self.timer += dt
         # 맞은 순간 뒤로 밀렸다가 경직이 풀릴 때쯤 다시 달리는 속도를 되찾는다.
-        player.x -= config.KNOCKBACK_SPEED * max(0, 1 - self.timer / config.HIT_STUN_TIME) * dt
+        player.x -= player.facing * config.KNOCKBACK_SPEED * max(0, 1 - self.timer / config.HIT_STUN_TIME) * dt
         if self.timer >= config.HIT_STUN_TIME:
             player.change_state(player.run_state if player.on_ground else player.jump_state)
 
@@ -345,6 +348,8 @@ class Player:
         self.y = config.GROUND_TOP
         self.prev_y = self.y
         self.vy = 0
+        # 1이면 오른쪽, -1이면 왼쪽을 본다. 달리기 구간에서는 늘 오른쪽이고 보스전에서는 보스 쪽을 본다.
+        self.facing = 1
         self.on_ground = True
         self.air_jumps = config.AIR_JUMPS
         self.jump_buffer = 0
@@ -457,24 +462,25 @@ class Player:
         return True
 
     def play_slash_effect(self, spin, finisher):
+        flip = self.facing < 0
         if finisher:
-            game_world.add_object(Effect('double-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
+            game_world.add_object(Effect('double-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED, flip=flip), game_world.LAYER_EFFECT)
             return
         if spin:
-            game_world.add_object(Effect('spin-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
+            game_world.add_object(Effect('spin-slash', 0, SLASH_FX_Y, self, SLASH_FX_SPEED, flip=flip), game_world.LAYER_EFFECT)
             return
         # 각인이 있으면 검기가 그 원소의 색으로 바뀐다.
         slash = 'sword-slash-' + record.data['element'] if record.data['element'] else 'sword-slash'
-        game_world.add_object(Effect(slash, 0, SLASH_FX_Y, self, SLASH_FX_SPEED), game_world.LAYER_EFFECT)
+        game_world.add_object(Effect(slash, 0, SLASH_FX_Y, self, SLASH_FX_SPEED, flip=flip), game_world.LAYER_EFFECT)
         if record.has_skill('thrust'):
-            game_world.add_object(Effect('thrust', 0, 0, self, THRUST_FX_SPEED, THRUST_FX_SCALE), game_world.LAYER_EFFECT)
+            game_world.add_object(Effect('thrust', 0, 0, self, THRUST_FX_SPEED, THRUST_FX_SCALE, flip), game_world.LAYER_EFFECT)
 
     def find_dash_target(self):
         def dist2(monster):
             return (monster.x - self.x) ** 2 + (monster.dash_y() - self.y) ** 2
 
         monsters = game_world.collision_pairs['player:monster'][1]
-        in_range = [m for m in monsters if m.x > self.x and dist2(m) <= config.DASH_RANGE ** 2]
+        in_range = [m for m in monsters if (m.x - self.x) * self.facing > 0 and dist2(m) <= config.DASH_RANGE ** 2]
         return min(in_range, key=dist2, default=None)
 
     def start_dash(self, target):
@@ -494,7 +500,8 @@ class Player:
         self.dash_buffer = 0
         self.dash_charges -= 1
         game_world.add_object(Effect('blink-out', self.x, self.y, speed=config.BLINK_FX_SPEED), game_world.LAYER_EFFECT)
-        self.x = min(self.x + config.BLINK_DISTANCE, self.forward_limit())
+        x = self.x + self.facing * config.BLINK_DISTANCE
+        self.x = min(x, self.forward_limit()) if self.facing > 0 else max(x, self.forward_limit())
         if not self.on_ground:
             self.vy = 0
             self.hang_timer = config.DASH_HANG_TIME
@@ -571,6 +578,7 @@ class Player:
 
     def end_boss_fight(self):
         self.boss = None
+        self.facing = 1
 
     def at_altar(self):
         return self.altar is not None and self.altar.is_stopped()
@@ -706,6 +714,7 @@ class Player:
         self.trail = [(x, y, age + dt) for x, y, age in self.trail if age + dt < config.TRAIL_TIME]
         if self.state is self.dash_state or self.state is self.pierce_state:
             self.trail.append((self.x, self.y, 0))
+        self.face_boss()
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
         self.slide_buffer = max(0, self.slide_buffer - dt)
@@ -724,10 +733,6 @@ class Player:
             return
 
         self.x += self.speed() * dt
-        if self.boss:
-            # 스프라이트가 오른쪽만 보므로 보스를 넘어가지 못하게 한다.
-            half_w = config.PLAYER_W / 2
-            self.x = max(self.camera.base_x + half_w, min(self.x, self.boss.dash_x()))
         self.prev_y = self.y
         if self.hang_timer > 0:
             self.hang_timer -= dt
@@ -742,8 +747,45 @@ class Player:
             if self.y + config.PLAYER_H > config.SCREEN_H:
                 self.y = config.SCREEN_H - config.PLAYER_H
                 self.vy = min(self.vy, 0)
+        if self.boss:
+            self.stay_in_arena(dt)
+        elif self.bullet_target:
+            # 보스 뒤에서 쓰러뜨려 장벽 코앞에서 불릿 타임이 시작돼도 입력할 시간이 다 남도록 불릿 타임 동안에는 장벽에 닿지 않는다 (CT-6).
+            self.x = min(self.x, self.bullet_target.x - config.PLAYER_W / 2 - config.BOSS_CONTACT_GAP)
         # 다음 충돌 처리에서 지면에 닿으면 다시 True가 된다.
         self.on_ground = False
+
+    def face_boss(self):
+        # 돌진 중에는 처음 노린 쪽을 그대로 본다.
+        if self.boss and self.state not in (self.dash_state, self.pierce_state) and self.x != self.boss.x:
+            self.facing = 1 if self.boss.x > self.x else -1
+
+    def stay_in_arena(self, dt):
+        """보스전에서 화면과 장벽 안에 머물고 보스 몸통을 뚫지 못한다. 보스 머리보다 높이 뛰면 위로 넘어갈 수 있다."""
+        boss = self.boss
+        half_w = config.PLAYER_W / 2
+        gap = config.BOSS_CONTACT_GAP
+        self.x = max(self.camera.base_x + half_w, min(self.x, boss.arena_right() - half_w - gap))
+        # 순간이동 중인 마녀는 몸통이 없다.
+        if boss.hidden:
+            return
+        left, bottom, right, top = boss.get_bb()
+        reach = half_w + gap
+        if self.x + reach <= left or self.x - reach >= right or self.y >= top + gap or self.y + config.PLAYER_H <= bottom - gap:
+            return
+        side = 1 if self.x > boss.x else -1
+        if self.prev_y >= top + gap:
+            # 머리 위에 내려앉으면 누르는 쪽으로 걸어가고, 누르지 않으면 가까운 쪽으로 미끄러져 내려온다.
+            self.y = top + gap
+            self.vy = 0
+            if self.speed() == 0:
+                self.x += side * config.BOSS_SLIDE_SPEED * dt
+        elif self.prev_y + config.PLAYER_H <= bottom - gap:
+            # 공중의 마녀 아래에서 뛰어오르면 머리를 부딪힌다.
+            self.y = bottom - gap - config.PLAYER_H
+            self.vy = min(self.vy, 0)
+        else:
+            self.x = right + reach if side > 0 else left - reach
 
     def animation_name(self):
         if self.state is self.jump_state:
@@ -756,14 +798,14 @@ class Player:
         dash_sprite = self.sprites['dash']
         for x, y, age in self.trail:
             opacity = config.TRAIL_OPACITY * (1 - age / config.TRAIL_TIME)
-            dash_sprite.draw(0, x - camera.x, y + config.SPRITE_CENTER_Y - camera.y, opacity)
+            dash_sprite.draw(0, x - camera.x, y + config.SPRITE_CENTER_Y - camera.y, opacity, self.facing < 0)
 
         name = self.animation_name()
         sprite = self.sprites[name]
         frame = int(self.animation_time * ANIMATION_FPS[name]) % sprite.count
         blink = self.invincible_timer > 0 and int(self.invincible_timer * config.BLINK_HZ) % 2 == 0
         opacity = config.BLINK_OPACITY if blink else 1
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y, opacity)
+        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y, opacity, self.facing < 0)
 
     def get_bb(self):
         half_w = config.PLAYER_W / 2
@@ -801,17 +843,24 @@ class Player:
         run_speed = config.SCROLL_SPEED * config.STAGES[self.stage]['speed']
         return run_speed * self.altar.speed_ratio() if self.altar else run_speed
 
-    def play_hit_feedback(self, monster, by_dash):
+    def play_hit_feedback(self, monster, by_dash, perfect=False):
         y = monster.dash_y() + config.PLAYER_H / 2
-        if by_dash:
+        flip = self.facing < 0
+        if perfect:
+            self.freeze(config.PERFECT_HIT_STOP)
+            self.camera.shake(config.PERFECT_SHAKE_TIME, config.PERFECT_SHAKE_AMP)
+            # 멈춤 동안에는 효과 레이어도 멈추므로 번쩍임이 멈춘 화면 위에 그대로 남았다가 사라진다.
+            game_world.add_object(Flash(config.PERFECT_FLASH_OPACITY, config.PERFECT_FLASH_TIME), game_world.LAYER_EFFECT)
+            effect = Effect('crit-hit', monster.dash_x(), y, speed=DASH_KILL_FX_SPEED, scale=config.PERFECT_FX_SCALE, flip=flip)
+        elif by_dash:
             self.freeze(config.DASH_HIT_STOP)
             self.camera.shake(config.DASH_SHAKE_TIME, config.DASH_SHAKE_AMP)
-            effect = Effect('crit-hit', monster.dash_x(), y, speed=DASH_KILL_FX_SPEED)
+            effect = Effect('crit-hit', monster.dash_x(), y, speed=DASH_KILL_FX_SPEED, flip=flip)
         else:
             hit = load_fx_sheet('sword-slash')[1]['meta']['pixelfx']['act']['hits'][0]
             self.freeze(hit['freeze'] * config.SLASH_HIT_STOP_RATIO)
             self.camera.shake(hit['shake'], hit['amp'] * config.SPRITE_SCALE)
-            effect = Effect('hit-spark', monster.dash_x(), y, speed=KILL_FX_SPEED, scale=KILL_FX_SCALE)
+            effect = Effect('hit-spark', monster.dash_x(), y, speed=KILL_FX_SPEED, scale=KILL_FX_SCALE, flip=flip)
         game_world.add_object(effect, game_world.LAYER_EFFECT)
 
     def gain_gold(self, amount, x, y):

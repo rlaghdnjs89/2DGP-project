@@ -156,6 +156,8 @@ BOSS_DEATH_SHAKE_AMP = 14
 BOSS_FIGHT_MOVE_SPEED = 360
 # 충돌 판정이 경계를 포함하므로 맞닿지 않게 띄운다.
 BOSS_CONTACT_GAP = 2
+# 보스 몸통은 뚫지 못하고, 2단 점프로 머리보다 높이 뛰면 넘어갈 수 있다. 머리 위에 떨어지면 A, D를 누르지 않는 동안 가까운 쪽으로 미끄러져 내려온다.
+BOSS_SLIDE_SPEED = 400
 
 EXEC_HP = 1600
 EXEC_W = 100
@@ -203,7 +205,7 @@ WITCH_ANCHOR_X = (0, 130, 240)
 # 지면 위 높이. 땅에서 베면 닿지 않고, 저중력 점프(300px)나 발판에서는 닿는다.
 WITCH_ANCHOR_Y = (170, 300, 430)
 WITCH_MUZZLE_Y = 110
-# 플레이어가 코앞에 있으면 그 자리로는 순간이동하지 않는다. 플레이어가 마녀를 넘어가지 못하는 규칙 때문이다.
+# 플레이어와 가로로 이만큼 떨어진 자리로만 순간이동한다. 플레이어 바로 위나 옆에 나타나 몸통이 겹치지 않게 한다.
 WITCH_TELEPORT_GAP = 150
 WITCH_TELEPORT_TIME = 0.5
 WITCH_FAN_WINDUP = 0.6

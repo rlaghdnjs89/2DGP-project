@@ -16,6 +16,13 @@ WAVE_FRAME_W = 48
 WAVE_FPS = 14
 
 
+def front_span(x, facing, half_w, reach):
+    """x에 선 몸이 facing(-1 왼쪽, 1 오른쪽)을 볼 때 몸 앞에서 reach까지의 가로 범위 (왼쪽, 오른쪽)."""
+    if facing < 0:
+        return x - reach, x - half_w
+    return x + half_w, x + reach
+
+
 class AttackBox:
     """보스의 몸통과 따로 두는 공격 판정. 점프나 후퇴로 피할 수 있게 한다."""
 
@@ -42,25 +49,27 @@ class AttackBox:
 
 
 class FloorWave:
-    """바닥을 따라 왼쪽으로 달리는 충격파. 화면 왼쪽 밖으로 나가면 사라진다."""
+    """바닥을 따라 direction(-1 왼쪽, 1 오른쪽)으로 달리는 충격파. 화면 밖으로 나가면 사라진다."""
 
-    def __init__(self, x, y, speed, camera):
+    def __init__(self, x, y, speed, direction, camera):
         self.x = x
         self.y = y
         self.speed = speed
+        self.direction = direction
         self.camera = camera
         self.time = 0
         self.strip = Strip('assets/monster/boss_wave.png', WAVE_FRAME_W)
 
     def update(self, dt):
         self.time += dt
-        self.x -= self.speed * dt
-        if self.x < self.camera.base_x - config.BOSS_WAVE_W:
+        self.x += self.direction * self.speed * dt
+        left = self.camera.base_x - config.BOSS_WAVE_W
+        if not left <= self.x <= left + config.SCREEN_W + 2 * config.BOSS_WAVE_W:
             game_world.remove_object(self)
 
     def draw(self, camera):
         frame = int(self.time * WAVE_FPS) % self.strip.count
-        self.strip.draw(frame, self.x - camera.x, self.y + self.strip.image.h - camera.y)
+        self.strip.draw(frame, self.x - camera.x, self.y + self.strip.image.h - camera.y, flip=self.direction > 0)
 
     def get_bb(self):
         half_w = config.BOSS_WAVE_W / 2
@@ -128,6 +137,8 @@ class Boss(Monster):
         super().__init__(x, y, player)
         self.wall = wall
         self.start_x = x
+        # 스프라이트는 왼쪽을 본다. 플레이어가 뒤로 넘어가면 돌아선다.
+        self.facing = -1
         self.hp = self.MAX_HP
         self.state = 'wait'
         self.timer = 0
@@ -159,6 +170,16 @@ class Boss(Monster):
         elif self.x - self.player.x <= config.BOSS_ENGAGE_GAP:
             self.player.enter_boss_fight(self)
             self.enter('intro', config.BOSS_INTRO_TIME)
+
+    def face_player(self):
+        self.facing = 1 if self.player.x > self.x else -1
+
+    def front_span(self, reach):
+        return front_span(self.x, self.facing, self.W / 2, reach)
+
+    def arena_right(self):
+        """아레나 오른쪽 끝. 봉인된 장벽이 있으면 장벽 앞, 없으면 화면 오른쪽 끝이다."""
+        return self.wall.x if self.wall else self.player.camera.base_x + config.SCREEN_W
 
     def add_hazard(self, hazard):
         self.attacks.append(hazard)
@@ -288,8 +309,11 @@ class Boss(Monster):
                 self.knock_back()
 
     def knock_back(self):
-        # 시작 자리 뒤로는 밀리지 않는다.
-        self.x = min(self.x + config.TRIPLE_KNOCKBACK, self.start_x)
+        # 플레이어 반대쪽으로 민다. 오른쪽으로는 시작 자리 뒤로, 왼쪽으로는 화면 밖으로 밀리지 않는다.
+        if self.player.x < self.x:
+            self.x = max(self.x, min(self.x + config.TRIPLE_KNOCKBACK, self.start_x))
+        else:
+            self.x = max(self.x - config.TRIPLE_KNOCKBACK, self.player.camera.base_x + self.W / 2)
 
     def on_dash_hit(self):
         self.take_hit(record.stat('attack') * config.DASH_DAMAGE_RATIO, by_dash=True)
@@ -307,18 +331,25 @@ class Boss(Monster):
         sprite = (self.flash_sprites if self.flash > 0 else body_sprites)[name]
         frame = int(self.time * fps) % sprite.count
         x, y = self.x - camera.x, self.y + center_y - camera.y
-        sprite.draw(frame, x, y)
+        flip = self.facing > 0
+        sprite.draw(frame, x, y, flip=flip)
         # 공격이 나가기 전에 몸이 빛나 다음에 피할 수 있다고 느끼게 한다.
         if self.state in self.TELEGRAPH_STATES:
             glow = config.BOSS_GLOW_OPACITY * (0.5 + 0.5 * math.sin(self.time * config.BOSS_GLOW_SPEED))
-            self.flash_sprites[name].draw(frame, x, y, glow)
+            self.flash_sprites[name].draw(frame, x, y, glow, flip)
+
+    def make_death_shot(self, path, frame_w, fps, center_y):
+        return OneShot(Strip(path, frame_w), fps, self.x, self.y + center_y, flip=self.facing > 0)
 
     def get_bb(self):
         half_w = self.W / 2
         return self.x - half_w, self.y, self.x + half_w, self.y + self.H
 
     def dash_x(self):
-        return self.get_bb()[0] - config.PLAYER_W / 2 - config.BOSS_CONTACT_GAP
+        """플레이어가 있는 쪽 몸통 바로 옆. 일섬과 스킬로 다가가도 몸통에 닿지 않는 자리다."""
+        left, _, right, _ = self.get_bb()
+        gap = config.PLAYER_W / 2 + config.BOSS_CONTACT_GAP
+        return right + gap if self.player.x > self.x else left - gap
 
     def dash_y(self):
         return self.y
@@ -353,6 +384,9 @@ class Warden(Boss):
         self.rage_sprites = {name: Strip(f'assets/monster/boss_{name}_rage.png', WARDEN_FRAME_W) for name in WARDEN_FPS}
 
     def think(self, dt):
+        # 공격을 준비하거나 휘두르는 중에는 방향을 바꾸지 않아 넘어가면 피할 수 있다. 방패는 플레이어 쪽으로 돌려 든다.
+        if self.state in ('walk', 'guard'):
+            self.face_player()
         if self.state == 'walk':
             self.walk(dt)
         else:
@@ -362,8 +396,8 @@ class Warden(Boss):
 
     def walk(self, dt):
         attack = WARDEN_PATTERN[self.pattern]
-        if attack == 'slam' and self.x - self.player.x > config.BOSS_ATTACK_RANGE:
-            self.x -= config.BOSS_WALK_SPEED * dt
+        if attack == 'slam' and abs(self.x - self.player.x) > config.BOSS_ATTACK_RANGE:
+            self.x += self.facing * config.BOSS_WALK_SPEED * dt
             return
         self.pattern = (self.pattern + 1) % len(WARDEN_PATTERN)
         if attack == 'slam':
@@ -375,7 +409,7 @@ class Warden(Boss):
 
     def next_state(self):
         if self.state == 'windup':
-            effect = Effect(WARDEN_ATTACK_FX, self.x, self.y, scale=config.BOSS_FX_SCALE, flip=True)
+            effect = Effect(WARDEN_ATTACK_FX, self.x, self.y, scale=config.BOSS_FX_SCALE, flip=self.facing < 0)
             game_world.add_object(effect, game_world.LAYER_EFFECT)
             self.enter('strike', self.cleave['hits'][0]['t'])
         elif self.state == 'strike':
@@ -402,17 +436,18 @@ class Warden(Boss):
     def send_wave(self):
         sound.play('boss_wave')
         self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
-        left = self.x - config.BOSS_W / 2
-        effect = Effect('ground-slam', left, self.y, speed=config.BOSS_WAVE_FX_SPEED)
+        front = self.x + self.facing * config.BOSS_W / 2
+        effect = Effect('ground-slam', front, self.y, speed=config.BOSS_WAVE_FX_SPEED)
         game_world.add_object(effect, game_world.LAYER_EFFECT)
-        self.add_attack(FloorWave(left, self.y, config.BOSS_WAVE_SPEED * self.time_rate(), self.player.camera))
+        self.add_attack(FloorWave(front, self.y, config.BOSS_WAVE_SPEED * self.time_rate(), self.facing, self.player.camera))
 
     def slam(self):
         sound.play('boss_slam')
         hit = self.cleave['hits'][0]
         self.player.freeze(hit['freeze'] * config.BOSS_HIT_STOP_RATIO)
         self.player.camera.shake(hit['shake'], hit['amp'] * config.SPRITE_SCALE)
-        self.add_attack(AttackBox(self.x - config.BOSS_STRIKE_REACH, self.y, self.x - config.BOSS_W / 2, self.y + config.BOSS_STRIKE_H))
+        left, right = self.front_span(config.BOSS_STRIKE_REACH)
+        self.add_attack(AttackBox(left, self.y, right, self.y + config.BOSS_STRIKE_H))
 
     def time_rate(self):
         return super().time_rate() * (config.BOSS_RAGE_SPEED if self.raging else 1)
@@ -438,7 +473,8 @@ class Warden(Boss):
         sound.play('shield_block')
         self.player.freeze(config.BOSS_BLOCK_HIT_STOP)
         self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
-        effect = Effect('shield-block', self.x - config.BOSS_W / 2, self.y + config.BOSS_H / 2, scale=config.BOSS_BLOCK_FX_SCALE, flip=True)
+        effect = Effect('shield-block', self.x + self.facing * config.BOSS_W / 2, self.y + config.BOSS_H / 2, scale=config.BOSS_BLOCK_FX_SCALE,
+                        flip=self.facing < 0)
         game_world.add_object(effect, game_world.LAYER_EFFECT)
 
     def on_dash_hit(self):
@@ -450,16 +486,20 @@ class Warden(Boss):
     def draw(self, camera):
         # 공격이 나가기 전에 맞을 범위를 바닥에 보여 준다.
         if self.state in ('windup', 'strike', 'wave_windup'):
-            left = self.x - config.BOSS_STRIKE_REACH if self.state != 'wave_windup' else camera.x
+            if self.state == 'wave_windup':
+                # 충격파는 보는 쪽 화면 끝까지 간다.
+                edge = camera.x + config.SCREEN_W if self.facing > 0 else camera.x
+                reach = abs(edge - self.x)
+            else:
+                reach = config.BOSS_STRIKE_REACH
+            left, right = self.front_span(reach)
             bottom = config.GROUND_TOP - 8 - camera.y
-            draw_rectangle(left - camera.x, bottom, self.x - config.BOSS_W / 2 - camera.x, bottom + 8,
-                           *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
+            draw_rectangle(left - camera.x, bottom, right - camera.x, bottom + 8, *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
         name = WARDEN_STATE_SPRITE[self.state]
         self.draw_body(camera, self.rage_sprites if self.raging else self.sprites, name, WARDEN_FPS[name], WARDEN_CENTER_Y)
 
     def make_death(self):
-        strip = Strip('assets/monster/boss_death.png', WARDEN_FRAME_W)
-        return OneShot(strip, WARDEN_DEATH_FPS, self.x, self.y + WARDEN_CENTER_Y)
+        return self.make_death_shot('assets/monster/boss_death.png', WARDEN_FRAME_W, WARDEN_DEATH_FPS, WARDEN_CENTER_Y)
 
 
 WITCH_FRAME_W = 96
@@ -504,11 +544,22 @@ class Darkness:
 
 
 class EclipseClone:
-    """화면 왼쪽 끝에서 집행자의 동작을 그대로 따라 하는 분신. 맞지 않는다."""
+    """플레이어 쪽 화면 끝에서 집행자와 마주 보고 동작을 그대로 따라 하는 분신. 맞지 않는다."""
 
     def __init__(self, boss):
         self.boss = boss
-        self.x = boss.player.camera.base_x + config.EXEC_CLONE_X
+        self.facing = 1
+        self.x = 0
+        self.follow()
+
+    def follow(self):
+        """플레이어가 집행자를 넘어가면 반대쪽 화면 끝으로 옮겨 다시 사이에 둔다."""
+        self.facing = -self.boss.facing
+        base_x = self.boss.player.camera.base_x
+        self.x = base_x + config.EXEC_CLONE_X if self.facing > 0 else base_x + config.SCREEN_W - config.EXEC_CLONE_X
+
+    def front_span(self, reach):
+        return front_span(self.x, self.facing, self.boss.W / 2, reach)
 
     def update(self, dt):
         pass
@@ -518,7 +569,7 @@ class EclipseClone:
         name = boss.sprite_name()
         sprite = boss.sprites[name]
         frame = int(boss.time * EXEC_FPS[name]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, boss.y + EXEC_CENTER_Y - camera.y, config.EXEC_CLONE_OPACITY, flip=True)
+        sprite.draw(frame, self.x - camera.x, boss.y + EXEC_CENTER_Y - camera.y, config.EXEC_CLONE_OPACITY, flip=self.facing > 0)
 
 
 class Executor(Boss):
@@ -586,9 +637,10 @@ class Executor(Boss):
         if not self.duel_done and self.hp <= self.MAX_HP * config.EXEC_DUEL_HP_RATIO:
             self.start_duel()
             return
+        self.face_player()
         attack = EXEC_PATTERN[self.pattern]
-        if attack == 'combo' and self.x - self.player.x > config.EXEC_ATTACK_RANGE:
-            self.x -= config.EXEC_WALK_SPEED * dt
+        if attack == 'combo' and abs(self.x - self.player.x) > config.EXEC_ATTACK_RANGE:
+            self.x += self.facing * config.EXEC_WALK_SPEED * dt
             return
         self.pattern = (self.pattern + 1) % len(EXEC_PATTERN)
         if attack == 'combo':
@@ -605,22 +657,26 @@ class Executor(Boss):
         return self.y + config.EXEC_HIGH_BOTTOM, self.y + config.EXEC_HIGH_TOP
 
     def begin_strike(self):
+        # 3연격은 한 번 벨 때마다 플레이어 쪽으로 돌아서므로 넘어가도 같은 순서로 피해야 한다.
+        self.face_player()
         bottom, top = self.strike_range(EXEC_COMBO[self.combo_index])
-        left = self.x - config.EXEC_STRIKE_REACH
-        self.add_hazard(StrikeWarning(left, bottom, self.x - self.W / 2, top, config.EXEC_STRIKE_WINDUP))
+        left, right = self.front_span(config.EXEC_STRIKE_REACH)
+        self.add_hazard(StrikeWarning(left, bottom, right, top, config.EXEC_STRIKE_WINDUP))
         if self.clone:
-            self.add_hazard(StrikeWarning(self.clone.x + self.W / 2, bottom, self.clone.x + config.EXEC_STRIKE_REACH, top, config.EXEC_STRIKE_WINDUP))
+            self.clone.follow()
+            left, right = self.clone.front_span(config.EXEC_STRIKE_REACH)
+            self.add_hazard(StrikeWarning(left, bottom, right, top, config.EXEC_STRIKE_WINDUP))
         self.enter('combo_windup', config.EXEC_STRIKE_WINDUP)
 
     def strike(self):
         kind = EXEC_COMBO[self.combo_index]
         bottom, top = self.strike_range(kind)
         sound.play('slash')
-        self.add_attack(AttackBox(self.x - config.EXEC_STRIKE_REACH, bottom, self.x - self.W / 2, top))
-        if self.clone:
-            self.add_attack(AttackBox(self.clone.x + self.W / 2, bottom, self.clone.x + config.EXEC_STRIKE_REACH, top))
-        effect = Effect('sword-slash-fire', self.x - self.W / 2, (bottom + top) / 2, speed=config.EXEC_STRIKE_FX_SPEED,
-                        scale=config.EXEC_STRIKE_FX_SCALE, flip=True)
+        for body in (self, self.clone) if self.clone else (self,):
+            left, right = body.front_span(config.EXEC_STRIKE_REACH)
+            self.add_attack(AttackBox(left, bottom, right, top))
+        effect = Effect('sword-slash-fire', self.x + self.facing * self.W / 2, (bottom + top) / 2, speed=config.EXEC_STRIKE_FX_SPEED,
+                        scale=config.EXEC_STRIKE_FX_SCALE, flip=self.facing < 0)
         game_world.add_object(effect, game_world.LAYER_EFFECT)
         self.enter('combo_swing', config.EXEC_SWING_TIME)
 
@@ -644,16 +700,20 @@ class Executor(Boss):
 
     def raise_pillars(self):
         # 플레이어가 선 자리와 한쪽 옆, 그리고 더 먼 자리에 솟아 경고 없는 쪽으로 움직여야 한다.
+        # 기둥은 집행자를 사이에 두지 않고 플레이어가 있는 쪽에만 솟는다.
         side = random.choice((-1, 1))
-        left_limit = self.player.camera.base_x + config.EXEC_PILLAR_W / 2
+        if self.player.x < self.x:
+            low, high = self.player.camera.base_x + config.EXEC_PILLAR_W / 2, self.x - self.W
+        else:
+            low, high = self.x + self.W, self.arena_right() - config.EXEC_PILLAR_W / 2
         for offset in (0, side * config.EXEC_PILLAR_SPREAD, -side * config.EXEC_PILLAR_SPREAD * 2):
-            x = max(left_limit, min(self.player.x + offset, self.x - self.W))
+            x = max(low, min(self.player.x + offset, high))
             self.add_hazard(GroundHazard(self, x, config.EXEC_PILLAR_W, config.EXEC_PILLAR_H, config.EXEC_PILLAR_WARNING, 'flame', config.EXEC_PILLAR_HIT_TIME))
             game_world.add_object(Effect('flame-pillar', x, self.y), game_world.LAYER_EFFECT)
 
     def throw_sword(self):
         sound.play('fire')
-        x, y = self.x - self.W / 2, self.muzzle_y()
+        x, y = self.x + self.facing * self.W / 2, self.muzzle_y()
         sword = Bullet(x, y, self.player.x, self.player.y + config.PLAYER_H / 2, self, 'assets/monster/exec_sword.png', config.EXEC_SWORD_SPEED, EXEC_SWORD_FRAME_W)
         self.attacks.append(sword)
         game_world.add_object(sword, game_world.LAYER_EFFECT)
@@ -678,8 +738,7 @@ class Executor(Boss):
         self.draw_body(camera, self.sprites, name, EXEC_FPS[name], EXEC_CENTER_Y)
 
     def make_death(self):
-        strip = Strip('assets/monster/exec_death.png', EXEC_FRAME_W)
-        return OneShot(strip, EXEC_DEATH_FPS, self.x, self.y + EXEC_CENTER_Y)
+        return self.make_death_shot('assets/monster/exec_death.png', EXEC_FRAME_W, EXEC_DEATH_FPS, EXEC_CENTER_Y)
 
 
 class SummonedFamiliar(Familiar):
@@ -743,6 +802,7 @@ class Witch(Boss):
         return self.y + config.WITCH_MUZZLE_Y
 
     def think(self, dt):
+        self.face_player()
         self.timer -= dt
         if self.timer <= 0:
             self.next_state()
@@ -802,8 +862,11 @@ class Witch(Boss):
         group = game_world.collision_pairs['player:monster'][1]
         self.familiars = [familiar for familiar in self.familiars if familiar in group]
         # 이미 떠 있는 사역마가 있으면 그만큼 덜 불러 3마리를 넘지 않게 한다.
+        # 계단은 플레이어가 있는 쪽으로 놓고, 장벽이나 화면 밖으로 나가지 않게 한다.
+        half = config.FAMILIAR_SIZE / 2
         for dx, height in config.WITCH_SUMMON_SPOTS[len(self.familiars):]:
-            familiar = SummonedFamiliar(self.x + dx, config.GROUND_TOP + height, self.player)
+            x = max(self.player.camera.base_x + half, min(self.x - self.facing * dx, self.arena_right() - half))
+            familiar = SummonedFamiliar(x, config.GROUND_TOP + height, self.player)
             self.familiars.append(familiar)
             self.attacks.append(familiar)
             game_world.add_object(familiar, game_world.LAYER_MONSTER)
@@ -826,10 +889,12 @@ class Witch(Boss):
     def pick_destination(self):
         spots = [(self.start_x + dx, config.GROUND_TOP + height) for dx in config.WITCH_ANCHOR_X for height in config.WITCH_ANCHOR_Y
                  if not (self.start_x + dx == self.x and config.GROUND_TOP + height == self.y)]
-        far = [spot for spot in spots if spot[0] - self.player.x >= config.WITCH_TELEPORT_GAP]
-        # 플레이어가 맨 오른쪽까지 와 있으면 가장 먼 자리의 다른 높이로 간다.
-        rightmost = self.start_x + config.WITCH_ANCHOR_X[-1]
-        return random.choice(far or [spot for spot in spots if spot[0] == rightmost])
+        far = [spot for spot in spots if abs(spot[0] - self.player.x) >= config.WITCH_TELEPORT_GAP]
+        if not far:
+            # 플레이어가 순간이동 자리 한가운데 있으면 가로로 가장 먼 자리 중 하나로 간다.
+            farthest = max(abs(x - self.player.x) for x, _ in spots)
+            far = [spot for spot in spots if abs(spot[0] - self.player.x) == farthest]
+        return random.choice(far)
 
     def vanish(self):
         sound.play('teleport')
@@ -878,5 +943,4 @@ class Witch(Boss):
         self.draw_body(camera, self.sprites, name, WITCH_FPS[name], WITCH_CENTER_Y)
 
     def make_death(self):
-        strip = Strip('assets/monster/witch_death.png', WITCH_FRAME_W)
-        return OneShot(strip, WITCH_DEATH_FPS, self.x, self.y + WITCH_CENTER_Y)
+        return self.make_death_shot('assets/monster/witch_death.png', WITCH_FRAME_W, WITCH_DEATH_FPS, WITCH_CENTER_Y)

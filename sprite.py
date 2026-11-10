@@ -38,11 +38,12 @@ class Strip:
 class OneShot:
     """한 번 재생하고 사라지는 애니메이션. 몬스터 사망에 쓴다."""
 
-    def __init__(self, strip, fps, x, y):
+    def __init__(self, strip, fps, x, y, flip=False):
         self.strip = strip
         self.fps = fps
         self.x = x
         self.y = y
+        self.flip = flip
         self.time = 0
 
     def update(self, dt):
@@ -51,7 +52,7 @@ class OneShot:
             game_world.remove_object(self)
 
     def draw(self, camera):
-        self.strip.draw(int(self.time * self.fps), self.x - camera.x, self.y - camera.y)
+        self.strip.draw(int(self.time * self.fps), self.x - camera.x, self.y - camera.y, flip=self.flip)
 
 
 def load_fx_sheet(name):
