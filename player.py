@@ -361,9 +361,10 @@ class Player:
         self.y = config.GROUND_TOP
         self.prev_y = self.y
         self.vy = 0
-        # 1이면 오른쪽, -1이면 왼쪽을 본다. 달리기 구간에서는 늘 오른쪽이고 보스전에서는 보스 쪽을 본다.
+        # 1이면 오른쪽, -1이면 왼쪽을 본다. 달리기 구간에서는 늘 오른쪽이고 보스전에서는 가는 쪽, 멈추면 보스 쪽을 본다.
         self.facing = 1
         self.on_ground = True
+        self.on_boss_head = False
         self.air_jumps = config.AIR_JUMPS
         self.jump_buffer = 0
         self.slide_buffer = 0
@@ -764,7 +765,7 @@ class Player:
         self.trail = [(x, y, age + dt) for x, y, age in self.trail if age + dt < config.TRAIL_TIME]
         if self.state is self.dash_state or self.state is self.pierce_state:
             self.trail.append((self.x, self.y, 0))
-        self.face_boss()
+        self.update_facing()
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
         self.slide_buffer = max(0, self.slide_buffer - dt)
@@ -777,6 +778,8 @@ class Player:
         self.ultimate_cooldown = max(0, self.ultimate_cooldown - dt)
         self.cast_timer = max(0, self.cast_timer - dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
+        # 머리 위에 서 있으면 아래 stay_in_arena가 다시 True로 바꾼다.
+        self.on_boss_head = False
 
         # 돌진 중에는 상태가 위치를 직접 정하고, 절단 중에는 그 자리에 떠서 힘을 모은다.
         if self.state in (self.dash_state, self.pierce_state, self.cut_state):
@@ -805,9 +808,17 @@ class Player:
         # 다음 충돌 처리에서 지면에 닿으면 다시 True가 된다.
         self.on_ground = False
 
-    def face_boss(self):
-        # 돌진 중에는 처음 노린 쪽을 그대로 본다.
-        if self.boss and self.state not in (self.dash_state, self.pierce_state) and self.x != self.boss.x:
+    def update_facing(self):
+        """보스전에서 움직이는 동안에는 가는 쪽을, 멈추면 보스 쪽을 본다. 돌진 중에는 처음 노린 쪽을 그대로 본다."""
+        if not self.boss or self.state in (self.dash_state, self.pierce_state):
+            return
+        move = self.speed()
+        if move == 0 and self.on_boss_head:
+            # 머리 위에서 키를 떼면 보스 중심에서 먼 쪽으로 미끄러져 내려온다.
+            move = self.x - self.boss.x
+        if move:
+            self.facing = 1 if move > 0 else -1
+        elif self.x != self.boss.x:
             self.facing = 1 if self.boss.x > self.x else -1
 
     def stay_in_arena(self, dt):
@@ -828,6 +839,7 @@ class Player:
             # 머리 위에 내려앉으면 누르는 쪽으로 걸어가고, 누르지 않으면 가까운 쪽으로 미끄러져 내려온다.
             self.y = top + gap
             self.vy = 0
+            self.on_boss_head = True
             if self.speed() == 0:
                 self.x += side * config.BOSS_SLIDE_SPEED * dt
         elif self.prev_y + config.PLAYER_H <= bottom - gap:
@@ -839,6 +851,9 @@ class Player:
 
     def animation_name(self):
         if self.state is self.jump_state:
+            # 머리 위에서는 걷거나 미끄러져 내려오므로 늘 움직인다.
+            if self.on_boss_head:
+                return 'run'
             return 'rise' if self.vy > 0 else 'fall'
         if self.state is self.run_state and self.speed() == 0:
             return 'idle'
