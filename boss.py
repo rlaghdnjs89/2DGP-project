@@ -198,6 +198,9 @@ class Boss(Monster):
         if self.burn_timer > 0:
             self.burn_timer -= dt
             self.lose_hp(record.stat('attack') * config.BURN_DAMAGE_RATIO * dt)
+            # 화상으로 쓰러지면 defeat가 상태 이펙트를 이미 모두 지웠다.
+            if self.dead:
+                return
             if self.burn_timer <= 0:
                 self.hide_status('burning')
         if self.slow_timer > 0:
