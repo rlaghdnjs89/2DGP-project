@@ -576,8 +576,8 @@ class Player:
         sound.play('kill')
         game_world.add_object(Effect('crit-hit', self.x, self.y + config.PLAYER_H / 2, speed=DASH_KILL_FX_SPEED), game_world.LAYER_EFFECT)
         boss = self.boss
-        # 공중의 마녀처럼 높이가 다르면 닿지 않는다.
-        if boss and self.y <= boss.y + boss.H and self.y + config.PLAYER_H >= boss.y:
+        # 등진 보스나 공중의 마녀처럼 높이가 다른 보스에게는 닿지 않는다.
+        if boss and self.faces_boss() and self.y <= boss.y + boss.H and self.y + config.PLAYER_H >= boss.y:
             boss.on_pierce_hit()
         self.hang_timer = config.DASH_HANG_TIME
         self.change_state(self.jump_state)
