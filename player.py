@@ -585,12 +585,21 @@ class Player:
     def forward_limit(self):
         """스킬로 앞으로 튀어 나갈 때 넘으면 안 되는 위치."""
         if self.boss:
-            return self.boss.dash_x()
+            if self.faces_boss():
+                return self.boss.dash_x()
+            # 보스를 등지면 아레나 끝까지 갈 수 있다.
+            half_w = config.PLAYER_W / 2
+            if self.facing > 0:
+                return self.boss.arena_right() - half_w - config.BOSS_CONTACT_GAP
+            return self.camera.base_x + half_w
         if self.altar:
             return self.altar.stop_x()
         if self.next_wall:
             return self.next_wall.x - config.PLAYER_W / 2 - config.BOSS_CONTACT_GAP
         return math.inf
+
+    def faces_boss(self):
+        return (self.boss.x - self.x) * self.facing > 0
 
     def finish_dash(self, target):
         target.on_dash_hit()
