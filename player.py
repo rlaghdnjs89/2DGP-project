@@ -742,6 +742,9 @@ class Player:
             # 불릿 타임 중 마우스는 동시 클릭 판정에만 쓰고 다른 입력은 받지 않는다 (CT-2, Q3).
             if event.type == SDL_MOUSEBUTTONDOWN:
                 if self.is_simultaneous_click(event.button):
+                    # 천검난무는 끝날 때 이펙트를 지우는데, 절단으로 넘어가면 끝나지 않으므로 여기서 지운다.
+                    if self.state is self.flurry_state:
+                        game_world.remove_object(self.flurry_state.effect)
                     self.change_state(self.cut_state)
             elif event.type == SDL_KEYUP and event.key == SDLK_s:
                 self.s_held = False
