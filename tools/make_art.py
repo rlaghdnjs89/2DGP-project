@@ -1080,11 +1080,10 @@ def make_witch():
     save(strip(frames), 'monster/witch_circle.png')
 
 
-# 배경 --------------------------------------------------------------------
+# 지면과 발판 ----------------------------------------------------------------
 
-BG_W = 640
-BG_H = 360
-BAYER = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
+GROUND_W = 640
+GROUND_H = 60
 
 
 def periodic_noise(w, h, cell_x, cell_y, rng):
@@ -1111,236 +1110,8 @@ def periodic_noise(w, h, cell_x, cell_y, rng):
     return out
 
 
-def fbm(w, h, cell, octaves, rng):
-    layers = [periodic_noise(w, h, max(4, cell >> i), max(4, cell >> i), rng) for i in range(octaves)]
-    weights = [0.5 ** i for i in range(octaves)]
-    total = sum(weights)
-    return [[sum(layers[i][y][x] * weights[i] for i in range(octaves)) / total for x in range(w)] for y in range(h)]
-
-
-def streaks(rng):
-    """가로로 길게 늘어진 구름 잡음."""
-    wide = periodic_noise(BG_W, BG_H, 128, 18, rng)
-    thin = periodic_noise(BG_W, BG_H, 40, 8, rng)
-    return [[wide[y][x] * 0.7 + thin[y][x] * 0.3 for x in range(BG_W)] for y in range(BG_H)]
-
-
-def gradient(colors, dither=0.6):
-    """위에서 아래로 팔레트를 내려가며 격자 점묘로 띠 사이를 섞는다."""
-    img = new_frame(BG_W, BG_H)
-    px = img.load()
-    palette = [hex_color(c) for c in colors]
-    last = len(palette) - 1
-    for y in range(BG_H):
-        t = y / (BG_H - 1) * last
-        for x in range(BG_W):
-            threshold = (BAYER[y % 4][x % 4] / 16 - 0.5) * dither
-            px[x, y] = palette[max(0, min(last, int(t + threshold + 0.5)))]
-    return img
-
-
 def mix(a, b, t):
     return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3)) + (255,)
-
-
-def add_noise_tone(img, noise, low, color, strength):
-    """잡음이 low를 넘는 곳을 color 쪽으로 물들인다. 구름과 성운에 쓴다."""
-    px = img.load()
-    tone = hex_color(color)
-    for y in range(BG_H):
-        for x in range(BG_W):
-            n = noise[y][x]
-            if n > low:
-                amount = min(1, (n - low) / (1 - low) * 2.4)
-                level = amount * 4 + BAYER[y % 4][x % 4] / 16
-                px[x, y] = mix(px[x, y], tone, int(level) / 4 * strength)
-    return img
-
-
-def wrap_x(x):
-    return x % BG_W
-
-
-def stars(img, rng, count, colors, top=0, bottom=BG_H):
-    px = img.load()
-    for _ in range(count):
-        x, y = rng.randrange(BG_W), rng.randrange(top, bottom)
-        color = hex_color(rng.choice(colors))
-        px[x, y] = color
-        if rng.random() < 0.12:
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                px[wrap_x(x + dx), min(BG_H - 1, max(0, y + dy))] = mix(color, (0, 0, 0), 0.4)
-
-
-def skyline(img, rng, base, height_min, height_max, block_min, block_max, color, rim=None, crenel=True, spire_chance=0.4):
-    """가로로 이어지는 성곽 실루엣. base는 그림 아래에서 잰 높이다."""
-    px = img.load()
-    tone = hex_color(color)
-    rim_tone = hex_color(rim) if rim else None
-    x = 0
-    while x < BG_W:
-        width = rng.randint(block_min, block_max)
-        height = rng.randint(height_min, height_max)
-        top = BG_H - base - height
-        spire = rng.random() < spire_chance
-        for i in range(width):
-            column = wrap_x(x + i)
-            column_top = top
-            if crenel and (i // 3) % 2 == 0:
-                column_top += 3
-            if spire:
-                center = abs(i - width / 2)
-                column_top = top - int(max(0, width / 2 - center) * 1.6)
-            for y in range(column_top, BG_H):
-                px[column, y] = tone
-            if rim_tone:
-                px[column, column_top] = rim_tone
-        # 창문
-        for wy in range(top + 6, BG_H - base, 14):
-            if width > 8 and rng.random() < 0.5:
-                wx = wrap_x(x + rng.randint(2, width - 3))
-                for dy in range(3):
-                    px[wx, min(BG_H - 1, wy + dy)] = mix(tone, (255, 170, 90), 0.5)
-        x += width + rng.randint(0, 6)
-    return img
-
-
-def ruined_wall(rng, color, brick, rim, glow):
-    """무너진 성벽 층. 윗면이 부서져 있고 아치 창이 뚫려 뒤가 비친다."""
-    img = new_frame(BG_W, BG_H)
-    px = img.load()
-    edge = periodic_noise(BG_W, 1, 80, 1, rng)[0]
-    tone, brick_tone, rim_tone = hex_color(color), hex_color(brick), hex_color(rim)
-    # 벽돌 단위로 끊어 산이 아니라 무너진 석벽으로 보이게 한다.
-    block_tops = {}
-    for block in range(BG_W // 16):
-        height = 90 + edge[block * 16] * 120 + rng.randint(-16, 16)
-        block_tops[block] = BG_H - int(height // 8) * 8
-    tops = [block_tops[x // 16] for x in range(BG_W)]
-    for x in range(BG_W):
-        for y in range(tops[x], BG_H):
-            row = y // 8
-            offset = 0 if row % 2 == 0 else 8
-            on_line = y % 8 == 0 or (x + offset) % 16 == 0
-            px[x, y] = brick_tone if on_line else tone
-        px[x, tops[x]] = rim_tone
-        px[x, min(BG_H - 1, tops[x] + 1)] = rim_tone
-    # 아치 창
-    for ax in range(40, BG_W, 96):
-        arch_w = 13
-        arch_bottom = BG_H - 66
-        arch_top = arch_bottom - 44
-        if tops[ax] > arch_top - 10:
-            continue
-        for x in range(ax - arch_w, ax + arch_w + 1):
-            dx = abs(x - ax)
-            curve = arch_top + int(arch_w - math.sqrt(max(0, arch_w * arch_w - dx * dx)))
-            for y in range(curve, arch_bottom):
-                px[x, y] = (0, 0, 0, 0)
-            px[x, arch_bottom] = rim_tone
-        # 횃불로 눈길을 줄 점을 만든다.
-        torch_x = ax + 34
-        disc(img, torch_x, arch_top + 8, 4, mix(hex_color(glow), tone, 0.55))
-        disc(img, torch_x, arch_top + 8, 2, hex_color(glow))
-        rect(img, torch_x - 1, arch_top + 10, torch_x + 1, arch_top + 16, brick_tone)
-    return img
-
-
-def floating_rocks(rng, tone):
-    """발판으로 착각하지 않도록 윗면이 둥글고 강조 없이 배경에 묻히는 색으로 그린다."""
-    img = new_frame(BG_W, BG_H)
-    tone_c = hex_color(tone)
-    for x0 in range(30, BG_W, 150):
-        cx = x0 + rng.randint(-20, 20)
-        cy = rng.randint(70, 180)
-        half = rng.randint(16, 34)
-        depth = rng.randint(16, 34)
-        for i in range(-half, half + 1, 2):
-            bump = int(math.sqrt(max(0, half * half - i * i)) * 0.5)
-            rect(img, cx + i, cy - bump, cx + i + 2, cy + 1, tone_c)
-        points = [(cx - half, cy)]
-        steps = 6
-        for i in range(1, steps):
-            t = i / steps
-            points.append((cx - half + 2 * half * t, cy + depth * math.sin(t * math.pi) * rng.uniform(0.6, 1.1)))
-        points.append((cx + half, cy))
-        polygon(img, points, tone_c)
-    return img
-
-
-def jagged_spires(rng, tone, rim):
-    """심연에 솟은 바위 기둥. 아래에서 올라오는 빛을 옆면 가장자리로 표현한다."""
-    img = new_frame(BG_W, BG_H)
-    px = img.load()
-    tone_c, rim_c = hex_color(tone), hex_color(rim)
-    tops = [BG_H] * BG_W
-    for x0 in range(0, BG_W, 44):
-        cx = x0 + rng.randint(-10, 10)
-        half = rng.randint(10, 26)
-        height = rng.randint(70, 210)
-        for i in range(-half, half + 1):
-            column = (cx + i) % BG_W
-            top = BG_H - 40 - int(height * (1 - abs(i) / half) ** 0.7) + rng.randint(-2, 2)
-            tops[column] = min(tops[column], top)
-    for x in range(BG_W):
-        for y in range(tops[x], BG_H):
-            px[x, y] = tone_c
-    for x in range(BG_W):
-        if tops[x] < tops[(x + 1) % BG_W] - 2 or tops[x] < tops[x - 1] - 2:
-            for y in range(tops[x], min(BG_H, tops[x] + 3)):
-                px[x, y] = mix(rim_c, tone_c, 0.35)
-    return img
-
-
-def rift(img, rng, x, color, core, width=3):
-    y = 0
-    points = []
-    while y < BG_H:
-        points.append((x, y))
-        x += rng.randint(-9, 9)
-        y += rng.randint(10, 28)
-    points.append((x, BG_H))
-    glow = hex_color(color)
-    for a, b in zip(points, points[1:]):
-        capsule(img, a, b, width + 2, width + 1, mix(glow, (10, 5, 30), 0.72))
-    for a, b in zip(points, points[1:]):
-        capsule(img, a, b, width, max(1, width - 1), glow)
-    for a, b in zip(points, points[1:]):
-        capsule(img, a, b, 1, 1, hex_color(core))
-
-
-def make_backgrounds():
-    rng = random.Random(7)
-    sky = gradient(['191733', '241f47', '35275f', '522c6c', '7a3370', 'a8425f', 'd2634b', 'e88a4d'])
-    add_noise_tone(sky, streaks(rng), 0.6, 'f0a070', 0.3)
-    disc(sky, 460, 190, 34, hex_color('f6c58a'))
-    disc(sky, 460, 190, 30, hex_color('fbdca8'))
-    skyline(sky, rng, 40, 50, 120, 14, 40, '40285c', crenel=True, spire_chance=0.35)
-    skyline(sky, rng, 30, 20, 70, 18, 46, '2c2048', crenel=True, spire_chance=0.2)
-    save(sky, 'bg/phase1_far.png')
-    save(ruined_wall(rng, '2c2340', '372c50', '5a4876', 'ff9a3d'), 'bg/phase1_near.png')
-
-    void = gradient(['05041a', '0a0728', '120a3a', '1b0e4e', '280f5e', '35106e'])
-    noise = fbm(BG_W, BG_H, 80, 4, rng)
-    add_noise_tone(void, noise, 0.5, '6a2bb0', 0.55)
-    add_noise_tone(void, noise, 0.62, 'b050d8', 0.45)
-    stars(void, rng, 260, ['ffffff', 'cdb8ff', '8fd8ff'])
-    rift(void, rng, 180, 'a860ff', 'f3e6ff', 3)
-    rift(void, rng, 500, '7f45e0', 'd8c2ff', 2)
-    save(void, 'bg/phase2_far.png')
-    save(floating_rocks(rng, '1a1040'), 'bg/phase2_near.png')
-
-    abyss = gradient(['0f0308', '1c060e', '300913', '4a0d14', '6e1413', '9c2410', 'c84412'])
-    add_noise_tone(abyss, streaks(rng), 0.58, 'e0601f', 0.28)
-    stars(abyss, rng, 200, ['ffb347', 'ff7a2f', 'ffe9a8'], top=60)
-    save(abyss, 'bg/phase3_far.png')
-    save(jagged_spires(rng, '1a070c', 'ff5a1f'), 'bg/phase3_near.png')
-
-
-# 지면과 발판 ----------------------------------------------------------------
-
-GROUND_W = 640
-GROUND_H = 60
 
 
 def brick_ground(rng, base, dark, light, mortar, top, top_light, accent=None):
@@ -1711,7 +1482,6 @@ if __name__ == '__main__':
     make_boss_wave()
     make_witch()
     make_executor()
-    make_backgrounds()
     make_map()
     make_obstacles()
     make_gate()
