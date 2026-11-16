@@ -1,4 +1,4 @@
-"""게임 효과음과 배경음을 코드로 합성해 assets/sound 아래에 저장한다.
+"""게임 효과음을 코드로 합성해 assets/sound 아래에 저장한다.
 
 실행: python tools/make_audio.py  (표준 라이브러리만 쓴다, 게임 실행에는 필요 없다)
 """
@@ -272,97 +272,5 @@ def make_gold_sfx():
     save(upgrade, 'upgrade', 0.7)
 
 
-# 배경음 --------------------------------------------------------------------
-
-def make_track(name, bpm, chords, melody, seed, bass_steps=(0, 2, 4, 6), arp_gain=0.14, lead_wave=None, half_time=False, lead_vibrato=0.0):
-    """chords는 마디별 코드 음 이름, melody는 8분음표 단위 음 이름(None은 쉼표)이다. 8마디를 두 번 돌아 이어 붙인다."""
-    rng = random.Random(seed)
-    beat = 60 / bpm
-    eighth = beat / 2
-    sixteenth = beat / 4
-    bar = beat * 4
-    loops = 2
-    bars = len(chords) * loops
-    out = silence(bars * bar)
-    lead_wave = lead_wave or (lambda p: pulse(p, 0.25))
-
-    kick = tone(120, 0.12, triangle, slide=-700, release=0.06)
-    snare = noise(0.14, rng, 2.2, 0.15)
-    hat = noise(0.03, rng, 2, 0.0)
-
-    for b in range(bars):
-        start = b * bar
-        chord = chords[b % len(chords)]
-        root = note_freq(chord[0])
-        for step in range(8):
-            t = start + step * eighth
-            if half_time:
-                if step == 0:
-                    add(out, kick, t, 0.6)
-                if step == 4:
-                    add(out, snare, t, 0.3)
-            else:
-                if step % 4 == 0:
-                    add(out, kick, t, 0.65)
-                if step % 4 == 2:
-                    add(out, snare, t, 0.35)
-            add(out, hat, t, 0.12)
-        for step in bass_steps:
-            octave = 2 if step % 4 == 2 else 1
-            add(out, tone(root / 2 * octave, eighth * 0.9, triangle, release=0.02), start + step * eighth, 0.5)
-        for step in range(16):
-            n = chord[step % len(chord)]
-            add(out, tone(note_freq(n) * 2, sixteenth * 0.85, lambda p: pulse(p, 0.125), release=0.02), start + step * sixteenth, arp_gain)
-
-    # 두 번째 바퀴에서는 한 옥타브 위 소리를 겹쳐 변화를 준다.
-    for loop in range(loops):
-        loop_start = loop * len(chords) * bar
-        i = 0
-        while i < len(melody):
-            n = melody[i]
-            if n is None:
-                i += 1
-                continue
-            length = 1
-            while i + length < len(melody) and melody[i + length] == '-':
-                length += 1
-            t = loop_start + i * eighth
-            add(out, tone(note_freq(n), eighth * length * 0.95, lead_wave, release=0.04, vibrato=lead_vibrato), t, 0.3)
-            if loop == 1:
-                add(out, tone(note_freq(n) * 2, eighth * length * 0.95, triangle, release=0.04), t, 0.12)
-            i += length
-    save(out, name, 0.7)
-
-
-def parse(text):
-    """'A4 - C5 .'처럼 쓴 멜로디를 목록으로 바꾼다. '-'는 앞 음을 잇고 '.'은 쉼표다."""
-    return [None if token == '.' else token for token in text.split()]
-
-
-def make_music():
-    make_track(
-        'bgm_phase1', 150,
-        [('A3', 'C4', 'E4'), ('F3', 'A3', 'C4'), ('C4', 'E4', 'G4'), ('G3', 'B3', 'D4'),
-         ('A3', 'C4', 'E4'), ('F3', 'A3', 'C4'), ('D3', 'F3', 'A3'), ('E3', 'G#3', 'B3')],
-        parse('A4 - C5 - E5 D5 C5 B4  A4 - F4 - C5 - A4 -  G4 - C5 - E5 G5 E5 C5  D5 - B4 - G4 A4 B4 D5 '
-              'E5 - A5 - G5 E5 D5 C5  F5 - E5 C5 D5 - C5 A4  D5 - F5 - A5 G5 F5 E5  E5 - G#4 B4 E5 - - .'),
-        1)
-    make_track(
-        'bgm_phase2', 120,
-        [('D3', 'F3', 'A3'), ('A#2', 'D3', 'F3'), ('G2', 'A#2', 'D3'), ('A2', 'C#3', 'E3'),
-         ('D3', 'F3', 'A3'), ('F3', 'A3', 'C4'), ('G2', 'A#2', 'D3'), ('A2', 'C#3', 'E3')],
-        parse('A4 - - - F4 - D4 -  A#4 - - - F4 - D4 -  G4 - A#4 - D5 - - -  C#5 - - - A4 - - - '
-              'A4 - D5 - F5 - - -  E5 - C5 - A4 - - -  A#4 - G4 - A#4 - D5 -  C#5 - - - - - . .'),
-        2, bass_steps=(0, 4), arp_gain=0.2, lead_wave=triangle, half_time=True, lead_vibrato=0.006)
-    make_track(
-        'bgm_phase3', 176,
-        [('E3', 'G3', 'B3'), ('F3', 'A3', 'C4'), ('E3', 'G3', 'B3'), ('D3', 'F#3', 'A3'),
-         ('E3', 'G3', 'B3'), ('F3', 'A3', 'C4'), ('G3', 'B3', 'D4'), ('F3', 'A3', 'C4')],
-        parse('E5 E5 . E5 F5 - E5 D5  C5 C5 . C5 D5 - E5 C5  B4 E5 G5 - F5 E5 D5 E5  F#5 - D5 - A4 - D5 F#5 '
-              'E5 G5 B5 - A5 G5 F5 E5  F5 A5 C6 - B5 A5 G5 F5  G5 - B5 - D6 - B5 G5  A5 - F5 - C5 - E5 -'),
-        3, bass_steps=(0, 1, 2, 3, 4, 5, 6, 7), arp_gain=0.1)
-
-
 if __name__ == '__main__':
     make_sfx()
-    make_music()

@@ -647,7 +647,6 @@ class Player:
         self.dash_buffer = 0
 
     def enter_bullet_time(self, wall):
-        sound.set_music_volume(config.MUSIC_VOLUME_DUCK)
         self.bullet_target = wall
         self.bullet_timer = config.BULLET_TIME_MAX
         self.press_times.clear()
@@ -660,7 +659,6 @@ class Player:
             self.change_state(self.run_state)
 
     def end_bullet_time(self):
-        sound.set_music_volume(config.MUSIC_VOLUME)
         self.bullet_target = None
 
     def tick_bullet_time(self, real_dt):
@@ -708,7 +706,6 @@ class Player:
         """터진 뒤의 느린 시간을 실제 시간으로 재고, 이번 프레임의 시간 배율을 돌려준다."""
         self.cut_after_timer -= real_dt
         if self.cut_after_timer <= 0:
-            sound.set_music_volume(config.MUSIC_VOLUME)
             self.change_state(self.run_state if self.on_ground else self.jump_state)
             return 1
         t = 1 - self.cut_after_timer / config.CUT_AFTER_TIME
@@ -939,7 +936,6 @@ class Player:
 
     def enter_stage(self, stage):
         sound.play('gate')
-        sound.play_music(stage)
         self.stage = stage
         record.data['best_stage'] = max(record.data['best_stage'], stage + 1)
         self.invincible_timer = max(self.invincible_timer, config.STAGE_INVINCIBLE_TIME)

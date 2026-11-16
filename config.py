@@ -2,9 +2,6 @@ SCREEN_W = 1280
 SCREEN_H = 720
 MAX_DT = 0.05
 # pico2d 볼륨은 0~128이다.
-MUSIC_VOLUME = 64
-# 불릿 타임에는 음악을 줄여 긴장감을 만든다.
-MUSIC_VOLUME_DUCK = 20
 SFX_VOLUME = 96
 SPRITE_SCALE = 2
 # 64칸 스프라이트의 발바닥은 아래에서 4칸 위에 있다. 발 위치에서 그림 중심까지의 높이다.
@@ -35,14 +32,14 @@ STAGES = (
     {'name': '무너지는 고성', 'gravity': 1.0, 'speed': 1.25, 'gold_rate': 1,
      'pattern_tiers': ((0, ('easy',)), (0.25, ('easy', 'normal')), (0.6, ('normal',))),
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
-     'gate': 'assets/map/gate.png', 'music': 'bgm_phase1',
+     'gate': 'assets/map/gate.png',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png', 'arena_platforms': ()},
     {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.25, 'gold_rate': 1.5,
      'pattern_tiers': (),
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
-     'gate': 'assets/map/gate.png', 'music': 'bgm_phase2',
+     'gate': 'assets/map/gate.png',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
      'ground': 'assets/map/ground_phase2.png',
      'platform': 'assets/map/platform_phase2.png', 'platform_cap': 'assets/map/platform_cap_phase2.png',
@@ -51,7 +48,7 @@ STAGES = (
     {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.75, 'gold_rate': 2,
      'pattern_tiers': ((0, ('normal',)), (0.3, ('normal', 'hard')), (0.65, ('hard',))),
      'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
-     'gate': 'assets/map/gate_phase3.png', 'music': 'bgm_phase3',
+     'gate': 'assets/map/gate_phase3.png',
      'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
      'ground': 'assets/map/ground_phase3.png',
      'platform': 'assets/map/platform_phase3.png', 'platform_cap': 'assets/map/platform_cap_phase3.png', 'arena_platforms': ()},

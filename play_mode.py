@@ -35,7 +35,6 @@ def init():
     player = Player(camera, stage)
     chunks = ChunkManager(player, to_boss)
     game_over_timer = None
-    sound.play_music(stage)
     game_world.add_object(Background(player), game_world.LAYER_BACKGROUND)
     game_world.add_object(player, game_world.LAYER_PLAYER)
     game_world.add_object(HUD(player, chunks), game_world.LAYER_UI)
@@ -62,14 +61,8 @@ def handle_event(event):
             player.handle_event(event)
     elif event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE and game_over_timer is None:
         paused = not paused
-        if paused:
-            sound.pause_music()
-        else:
-            sound.resume_music()
     elif paused:
         if event.type == SDL_KEYDOWN and event.key == SDLK_q:
-            # 멈춘 음악을 그대로 두면 타이틀에서 같은 곡을 다시 틀지 못한다.
-            sound.stop_music()
             record.save()
             game_framework.change_mode(title_mode)
         # 멈춘 동안 S를 떼어도 슬라이딩 입력이 눌린 채로 남지 않게 한다.
@@ -114,7 +107,6 @@ def update(dt):
             game_over_timer = config.CLEAR_TIME
         elif player.hp <= 0 or player.get_bb()[3] < 0:
             game_over_timer = config.GAME_OVER_TIME
-            sound.stop_music()
             sound.play('game_over')
 
 

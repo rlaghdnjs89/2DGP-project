@@ -59,7 +59,6 @@ def init():
     camera = Camera()
     time = 0
     run_sprite = Strip('assets/player/run.png', 64)
-    sound.play_music(0)
 
 
 def handle_dev_event(event):
