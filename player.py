@@ -14,7 +14,10 @@ from sprite import Effect, Strip, load_fx_sheet
 from ui import draw_overlay
 
 FRAME_W = 64
-ANIMATION_FPS = {'run': 16, 'idle': 6, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'charge': 10, 'cut': 16}
+ANIMATION_FPS = {'run': 16, 'idle': 6, 'rise': 12, 'fall': 8, 'slide': 20, 'slash': 16, 'dash': 16, 'hit': 16, 'charge': 10, 'cut': 16}
+# 자세가 한쪽으로 변해 가는 동작이라 한 번 재생한 뒤 마지막 자세를 유지한다.
+# 슬라이딩은 판정이 바로 낮아지고, 상승은 꼭대기까지 0.35초라 그 안에 끝나게 빨리 재생한다.
+HOLD_LAST_FRAME = {'slide', 'rise'}
 OTHER_BUTTON = {SDL_BUTTON_LEFT: SDL_BUTTON_RIGHT, SDL_BUTTON_RIGHT: SDL_BUTTON_LEFT}
 MOVE_KEYS = {SDLK_a: -1, SDLK_d: 1}
 ULTIMATES = ('fire3', 'ice3', 'bolt3')
@@ -866,7 +869,13 @@ class Player:
 
         name = self.animation_name()
         sprite, center_y = self.sprites[name]
-        frame = int(self.animation_time * ANIMATION_FPS[name]) % sprite.count
+        if self.state is self.slash_state:
+            # 공격 속도를 올려 베기가 짧아져도 마지막 프레임까지 보이게 베기 시간에 맞춰 재생한다.
+            frame = min(int(self.animation_time / record.stat('attack_speed') * sprite.count), sprite.count - 1)
+        elif name in HOLD_LAST_FRAME:
+            frame = min(int(self.animation_time * ANIMATION_FPS[name]), sprite.count - 1)
+        else:
+            frame = int(self.animation_time * ANIMATION_FPS[name]) % sprite.count
         blink = self.invincible_timer > 0 and int(self.invincible_timer * config.BLINK_HZ) % 2 == 0
         opacity = config.BLINK_OPACITY if blink else 1
         sprite.draw(frame, self.x - camera.x, self.y + center_y - camera.y, opacity, self.facing < 0)
