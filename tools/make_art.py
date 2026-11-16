@@ -742,11 +742,7 @@ def make_witch():
     save(strip(frames), 'monster/witch_circle.png')
 
 
-# 지면과 발판 ----------------------------------------------------------------
-
-GROUND_W = 640
-GROUND_H = 60
-
+# 발판 --------------------------------------------------------------------
 
 def periodic_noise(w, h, cell_x, cell_y, rng):
     """가로로 이어 붙여도 끊기지 않는 값 잡음. 0~1을 돌려준다."""
@@ -770,43 +766,6 @@ def periodic_noise(w, h, cell_x, cell_y, rng):
             row.append(a * (1 - fy) + b * fy)
         out.append(row)
     return out
-
-
-def mix(a, b, t):
-    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3)) + (255,)
-
-
-def brick_ground(rng, base, dark, light, mortar, top, top_light, accent=None):
-    img = new_frame(GROUND_W, GROUND_H)
-    px = img.load()
-    colors = [hex_color(base), hex_color(dark), hex_color(light)]
-    mortar_c = hex_color(mortar)
-    shades = {(i, j): rng.choice(colors) for i in range(GROUND_W // 32 + 1) for j in range(GROUND_H // 10 + 1)}
-    for y in range(GROUND_H):
-        row = y // 10
-        offset = 16 if row % 2 else 0
-        for x in range(GROUND_W):
-            shifted = (x + offset) % GROUND_W
-            if y % 10 == 0 or shifted % 32 == 0:
-                color = mortar_c
-            else:
-                color = shades[(shifted // 32, row)]
-            # 아래로 갈수록 어둡게 해 시선이 윗면에 머물게 한다.
-            px[x, y] = mix(color, mortar_c, min(0.75, y / GROUND_H))
-    top_c, top_l = hex_color(top), hex_color(top_light)
-    for x in range(GROUND_W):
-        depth = 3 + (rng.random() < 0.3)
-        for y in range(depth):
-            px[x, y] = top_l if y == 0 else top_c
-    if accent:
-        accent_c = hex_color(accent)
-        for _ in range(14):
-            x, y = rng.randrange(GROUND_W), rng.randint(8, 30)
-            for _ in range(rng.randint(6, 14)):
-                px[x % GROUND_W, min(GROUND_H - 1, y)] = accent_c
-                x += rng.choice((-1, 0, 1))
-                y += 1
-    return img.resize((GROUND_W * 2, GROUND_H * 2), Image.NEAREST)
 
 
 def make_platform(rng, top, top_light, body, dark):
@@ -839,14 +798,8 @@ def make_platform(rng, top, top_light, body, dark):
     return img.resize((width * 2, 48), Image.NEAREST), cap
 
 
-def make_map():
+def make_platforms():
     rng = random.Random(21)
-    save(brick_ground(rng, '4f4660', '443c54', '5a506e', '2a2438', '6f8a58', '9ab86f'), 'map/ground_phase1.png')
-    save(brick_ground(rng, '453690', '3a2c80', '5040a4', '221a50', '8f78f0', 'e9dcff', accent='a890ff'), 'map/ground_phase2.png')
-    platform, cap = make_platform(rng, '8f78f0', 'e9dcff', '55449a', '352a70')
-    save(platform, 'map/platform_phase2.png')
-    save(cap, 'map/platform_cap_phase2.png')
-    save(brick_ground(rng, '3a1a1e', '2e1418', '46201f', '180a0e', 'c2401a', 'ff8a3d', accent='ff6a20'), 'map/ground_phase3.png')
     platform, cap = make_platform(rng, 'c2401a', 'ff8a3d', '46201f', '2a1014')
     save(platform, 'map/platform_phase3.png')
     save(cap, 'map/platform_cap_phase3.png')
@@ -1141,7 +1094,7 @@ if __name__ == '__main__':
     make_boss_wave()
     make_witch()
     make_executor()
-    make_map()
+    make_platforms()
     make_obstacles()
     make_gate()
     make_altar()
