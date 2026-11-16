@@ -16,16 +16,17 @@ def get_image(path):
 
 
 class Strip:
-    """프레임을 가로로 늘어놓은 이미지. 원본 픽셀을 SPRITE_SCALE배로 그린다."""
+    """프레임을 가로로 늘어놓은 이미지. 원본 픽셀을 scale배로 그린다."""
 
-    def __init__(self, path, frame_w):
+    def __init__(self, path, frame_w, scale=config.SPRITE_SCALE):
         self.image = get_image(path)
         self.frame_w = frame_w
+        self.scale = scale
         self.count = self.image.w // frame_w
 
     def draw(self, frame, x, y, opacity=1, flip=False):
         w, h = self.frame_w, self.image.h
-        scale = config.SPRITE_SCALE
+        scale = self.scale
         self.image.opacify(opacity)
         if flip:
             self.image.clip_composite_draw(frame * w, 0, w, h, 0, 'h', x, y, w * scale, h * scale)

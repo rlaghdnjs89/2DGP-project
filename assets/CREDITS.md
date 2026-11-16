@@ -3,7 +3,8 @@
 | 파일 | 출처 | 라이선스 |
 |---|---|---|
 | `fonts/Galmuri11.ttf` | [Galmuri](https://github.com/quiple/galmuri), Lee Minseo | SIL OFL 1.1 (`fonts/Galmuri-OFL.txt`) |
-| `player/`, `monster/`, `map/`, `ui/` | 이 프로젝트의 `tools/make_art.py`가 코드로 그림 (Claude와 함께 작성) | 프로젝트 소유 |
+| `player/`, `monster/`(보스, 탄), `map/`, `ui/` | 이 프로젝트의 `tools/make_art.py`가 코드로 그림 (Claude와 함께 작성) | 프로젝트 소유 |
+| `monster/grunt_*`, `goblin_*`, `familiar_*`, `mage_*` | 생성형 AI(Google Gemini)로 만든 시트에서 초록 배경을 지우고 프레임별로 잘라 줄임. 사망 프레임은 첫 프레임을 조각내 만듦 | 프로젝트 소유 |
 | `bg/` | 생성형 AI(Google Gemini)로 만든 그림을 1280×720으로 줄이고 근경의 초록 배경을 투명하게 바꾸고 색을 옅게 함. 원경은 좌우 반전본을 이어 붙임 | 프로젝트 소유 |
 | `fx/sword-slash` | [pixelfx](https://github.com/patch-gg/pixelfx), `melee/sword-slash`를 `--sheet --no-actor --bg none`으로 렌더링 | MIT, Patch, Hugo Duprez |
 | `sound/` | 이 프로젝트의 `tools/make_audio.py`가 코드로 합성함 (Claude와 함께 작성) | 프로젝트 소유 |

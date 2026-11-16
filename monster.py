@@ -7,8 +7,8 @@ import sound
 from bullet import Bullet
 from sprite import OneShot, Strip
 
-GRUNT_FRAME_W = 64
-GRUNT_FPS = {'run': 14, 'windup': 8, 'attack': 14, 'recover': 6}
+GRUNT_FRAME_W = 262
+GRUNT_FPS = {'run': 5, 'windup': 1, 'attack': 1, 'recover': 1}
 DEATH_FPS = 16
 GRUNT_NEXT = {
     'windup': ('attack', config.GRUNT_ATTACK_TIME),
@@ -16,13 +16,19 @@ GRUNT_NEXT = {
     'recover': ('run', 0),
 }
 
-GOBLIN_FRAME_W = 64
-GOBLIN_FPS = {'idle': 4, 'windup': 10, 'charge': 16}
+GOBLIN_FRAME_W = 138
+GOBLIN_FPS = {'idle': 1, 'windup': 1, 'charge': 10}
 
-MAGE_FRAME_W = 64
-MAGE_FPS = {'idle': 6, 'cast': 8}
-FAMILIAR_FRAME_W = 48
-FAMILIAR_FPS = 12
+MAGE_FRAME_W = 152
+# 시전 시간(0.4초) 동안 지팡이를 들었다가 앞으로 뻗는 두 프레임이 한 번씩 나온다.
+MAGE_FPS = {'idle': 3, 'cast': 5}
+FAMILIAR_FRAME_W = 158
+FAMILIAR_FPS = 10
+
+
+def monster_strip(name, frame_w):
+    """몬스터 그림은 화면 크기 그대로 저장한다. 지상 몬스터는 발이 프레임 맨 아래에 있다."""
+    return Strip(f'assets/monster/{name}.png', frame_w, scale=1)
 
 
 class Monster:
@@ -80,7 +86,7 @@ class Grunt(Monster):
         self.state = 'run'
         self.timer = 0
         self.time = 0
-        self.sprites = {name: Strip(f'assets/monster/grunt_{name}.png', GRUNT_FRAME_W) for name in GRUNT_FPS}
+        self.sprites = {name: monster_strip(f'grunt_{name}', GRUNT_FRAME_W) for name in GRUNT_FPS}
 
     def update(self, dt):
         self.time += dt
@@ -105,11 +111,11 @@ class Grunt(Monster):
     def draw(self, camera):
         sprite = self.sprites[self.state]
         frame = int(self.time * GRUNT_FPS[self.state]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y)
+        sprite.draw(frame, self.x - camera.x, self.y + sprite.image.h / 2 - camera.y)
 
     def make_death(self):
-        strip = Strip('assets/monster/grunt_death.png', GRUNT_FRAME_W)
-        return OneShot(strip, DEATH_FPS, self.x, self.y + config.SPRITE_CENTER_Y)
+        strip = monster_strip('grunt_death', GRUNT_FRAME_W)
+        return OneShot(strip, DEATH_FPS, self.x, self.y + strip.image.h / 2)
 
     def get_bb(self):
         half_w = config.GRUNT_W / 2
@@ -130,7 +136,7 @@ class Goblin(Monster):
         self.state = 'idle'
         self.timer = 0
         self.time = 0
-        self.sprites = {name: Strip(f'assets/monster/goblin_{name}.png', GOBLIN_FRAME_W) for name in GOBLIN_FPS}
+        self.sprites = {name: monster_strip(f'goblin_{name}', GOBLIN_FRAME_W) for name in GOBLIN_FPS}
 
     def update(self, dt):
         self.time += dt
@@ -154,11 +160,11 @@ class Goblin(Monster):
     def draw(self, camera):
         sprite = self.sprites[self.state]
         frame = int(self.time * GOBLIN_FPS[self.state]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y)
+        sprite.draw(frame, self.x - camera.x, self.y + sprite.image.h / 2 - camera.y)
 
     def make_death(self):
-        strip = Strip('assets/monster/goblin_death.png', GOBLIN_FRAME_W)
-        return OneShot(strip, DEATH_FPS, self.x, self.y + config.SPRITE_CENTER_Y)
+        strip = monster_strip('goblin_death', GOBLIN_FRAME_W)
+        return OneShot(strip, DEATH_FPS, self.x, self.y + strip.image.h / 2)
 
     def get_bb(self):
         half_w = config.GOBLIN_W / 2
@@ -177,7 +183,7 @@ class Familiar(Monster):
         super().__init__(x, y, player)
         self.base_y = y
         self.time = 0
-        self.sprite = Strip('assets/monster/familiar_float.png', FAMILIAR_FRAME_W)
+        self.sprite = monster_strip('familiar_float', FAMILIAR_FRAME_W)
 
     def update(self, dt):
         self.time += dt
@@ -188,7 +194,7 @@ class Familiar(Monster):
         self.sprite.draw(frame, self.x - camera.x, self.y - camera.y)
 
     def make_death(self):
-        strip = Strip('assets/monster/familiar_death.png', FAMILIAR_FRAME_W)
+        strip = monster_strip('familiar_death', FAMILIAR_FRAME_W)
         return OneShot(strip, DEATH_FPS, self.x, self.y)
 
     def get_bb(self):
@@ -209,7 +215,7 @@ class Mage(Monster):
         self.state = 'idle'
         self.time = 0
         self.timer = 0
-        self.sprites = {name: Strip(f'assets/monster/mage_{name}.png', MAGE_FRAME_W) for name in MAGE_FPS}
+        self.sprites = {name: monster_strip(f'mage_{name}', MAGE_FRAME_W) for name in MAGE_FPS}
         game_world.add_collision_pair('reflected:mage', None, self)
 
     def muzzle_y(self):
@@ -242,11 +248,11 @@ class Mage(Monster):
     def draw(self, camera):
         sprite = self.sprites[self.state]
         frame = int(self.time * MAGE_FPS[self.state]) % sprite.count
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y)
+        sprite.draw(frame, self.x - camera.x, self.y + sprite.image.h / 2 - camera.y)
 
     def make_death(self):
-        strip = Strip('assets/monster/mage_death.png', MAGE_FRAME_W)
-        return OneShot(strip, DEATH_FPS, self.x, self.y + config.SPRITE_CENTER_Y)
+        strip = monster_strip('mage_death', MAGE_FRAME_W)
+        return OneShot(strip, DEATH_FPS, self.x, self.y + strip.image.h / 2)
 
     def get_bb(self):
         half_w = config.MAGE_W / 2
