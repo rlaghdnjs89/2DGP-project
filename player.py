@@ -1,4 +1,5 @@
 import math
+import os
 
 from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_a,
                     SDLK_d, SDLK_e, SDLK_q, SDLK_s, SDLK_w, get_time)
@@ -29,6 +30,19 @@ THRUST_FX_SCALE = 1.3
 KILL_FX_SPEED = 1.5
 KILL_FX_SCALE = 2
 DASH_KILL_FX_SPEED = 2
+
+
+def load_sprites(stage):
+    """동작마다 (스트립, 발에서 그림 중심까지의 높이)를 준다. 스테이지 그림이 아직 없는 동작은 기존 픽셀 그림을 쓴다."""
+    sprites = {}
+    for name in ANIMATION_FPS:
+        path = f'assets/player/stage{stage + 1}/{name}.png'
+        if os.path.exists(path):
+            strip = Strip(path, config.PLAYER_ART_W, scale=1)
+            sprites[name] = (strip, strip.image.h / 2)
+        else:
+            sprites[name] = (Strip(f'assets/player/{name}.png', FRAME_W), config.SPRITE_CENTER_Y)
+    return sprites
 
 
 class Run:
@@ -403,7 +417,7 @@ class Player:
         self.animation_time = 0
         self.hit_stop = 0
         self.trail = []
-        self.sprites = {name: Strip(f'assets/player/{name}.png', FRAME_W) for name in ANIMATION_FPS}
+        self.sprites = load_sprites(stage)
 
         self.run_state = Run(self)
         self.slide_state = Slide(self)
@@ -845,17 +859,17 @@ class Player:
         return self.state.ANIMATION
 
     def draw(self, camera):
-        dash_sprite = self.sprites['dash']
+        dash_sprite, dash_center_y = self.sprites['dash']
         for x, y, age in self.trail:
             opacity = config.TRAIL_OPACITY * (1 - age / config.TRAIL_TIME)
-            dash_sprite.draw(0, x - camera.x, y + config.SPRITE_CENTER_Y - camera.y, opacity, self.facing < 0)
+            dash_sprite.draw(0, x - camera.x, y + dash_center_y - camera.y, opacity, self.facing < 0)
 
         name = self.animation_name()
-        sprite = self.sprites[name]
+        sprite, center_y = self.sprites[name]
         frame = int(self.animation_time * ANIMATION_FPS[name]) % sprite.count
         blink = self.invincible_timer > 0 and int(self.invincible_timer * config.BLINK_HZ) % 2 == 0
         opacity = config.BLINK_OPACITY if blink else 1
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y, opacity, self.facing < 0)
+        sprite.draw(frame, self.x - camera.x, self.y + center_y - camera.y, opacity, self.facing < 0)
 
     def get_bb(self):
         half_w = config.PLAYER_W / 2
@@ -941,6 +955,7 @@ class Player:
         sound.play('gate')
         sound.play_music(stage)
         self.stage = stage
+        self.sprites = load_sprites(stage)
         record.data['best_stage'] = max(record.data['best_stage'], stage + 1)
         self.invincible_timer = max(self.invincible_timer, config.STAGE_INVINCIBLE_TIME)
 

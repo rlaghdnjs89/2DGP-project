@@ -9,6 +9,8 @@ SFX_VOLUME = 96
 SPRITE_SCALE = 2
 # 64칸 스프라이트의 발바닥은 아래에서 4칸 위에 있다. 발 위치에서 그림 중심까지의 높이다.
 SPRITE_CENTER_Y = 56
+# 스테이지별 주인공 그림(tools/make_player_art.py)의 칸 너비다. 화면 크기 그대로 그리고 발이 칸 맨 아래에 있다.
+PLAYER_ART_W = 200
 
 SCROLL_SPEED = 400
 GROUND_TOP = 120
