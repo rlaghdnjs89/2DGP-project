@@ -29,16 +29,19 @@ SLIDE_H = PLAYER_H * 0.5
 
 STAGES = (
     # pattern_tiers는 달린 비율이 앞 값을 넘으면 그 등급에서 조각을 고른다. 없으면 직접 설계한 군도를 쓴다.
+    # pattern_gap은 조각과 조각 사이의 빈 거리(px, 최소와 최대)다. 줄이면 쉴 틈이 줄어든다.
+    # cliff_run_up은 낭떠러지 앞 평지에 까는 조각의 등급이다. None이면 평지를 비워 둔다.
     {'name': '무너지는 고성', 'gravity': 1.0, 'speed': 1.25, 'gold_rate': 1,
-     'pattern_tiers': ((0, ('easy',)), (0.25, ('easy', 'normal')), (0.6, ('normal',))),
-     'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
+     'pattern_tiers': ((0, ('easy',)), (0.1, ('easy', 'castle')), (0.3, ('castle',)), (0.55, ('castle', 'castle_rush')), (0.8, ('castle_rush',))),
+     'pattern_gap': (260, 340), 'cliff_run_up': 'run_up',
+     'low': ('assets/map/low_crate_big.png', 'assets/map/low_rock_big.png'), 'low_size': (84, 76), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png',
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png', 'arena_platforms': ()},
     {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.25, 'gold_rate': 1.5,
-     'pattern_tiers': (),
-     'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'high': 'assets/map/high_pillar.png',
+     'pattern_tiers': (), 'pattern_gap': (420, 600), 'cliff_run_up': None,
+     'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'low_size': (60, 60), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png',
      'background': (('assets/bg/phase2_far.png', 0.1), ('assets/bg/phase2_near.png', 0.35)),
      'ground': 'assets/map/ground_phase2.png',
@@ -47,7 +50,8 @@ STAGES = (
      'arena_platforms': ((375, 595, 130), (705, 945, 250))},
     {'name': '폭주하는 심연', 'gravity': 1.0, 'speed': 1.75, 'gold_rate': 2,
      'pattern_tiers': ((0, ('normal',)), (0.3, ('normal', 'hard')), (0.65, ('hard',))),
-     'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'high': 'assets/map/high_pillar_phase3.png',
+     'pattern_gap': (420, 600), 'cliff_run_up': None,
+     'low': ('assets/map/low_crate_phase3.png', 'assets/map/low_rock_phase3.png'), 'low_size': (60, 60), 'high': 'assets/map/high_pillar_phase3.png',
      'gate': 'assets/map/gate_phase3.png',
      'background': (('assets/bg/phase3_far.png', 0.1), ('assets/bg/phase3_near.png', 0.35)),
      'ground': 'assets/map/ground_phase3.png',
@@ -353,11 +357,31 @@ DIVE_SHAKE_AMP = 9
 # 낭떠러지 뒤에 착지할 자리를 비운다.
 CHUNK_MARGIN = 300
 
-LOW_OBSTACLE_W = 60
-LOW_OBSTACLE_H = 60
+# 돌과 상자의 크기는 스테이지마다 다르다(STAGES의 low_size).
 HIGH_OBSTACLE_W = 150
 # 슬라이딩 높이(50)는 지나가고 서 있는 높이(100)는 부딪힌다.
 HIGH_OBSTACLE_CLEARANCE = 70
+# 가시 바닥. 낮지만 넓어 너무 일찍 뛰면 끝에 걸린다.
+SPIKES_W = 150
+SPIKES_H = 36
+# 방책. 1단 점프 높이(150)보다 높아 2단 점프로만 넘는다.
+BARRICADE_W = 70
+BARRICADE_H = 220
+# 매달린 통나무. pillar와 같은 높이에 길게 걸려 있어 오래 슬라이딩해야 한다. 스테이지 1 속도로 0.72초라 슬라이딩 최대 시간(1초) 안에 지나간다.
+# 2단 점프로 통나무 위(210)에 머무는 거리는 260px이라 뛰어넘을 수는 없다.
+BEAM_W = 300
+BEAM_H = 140
+# 굴러오는 바위. 화면에 들어오면 굴러오기 시작해 제자리의 돌보다 빨리 다가온다.
+BOULDER_SIZE = 80
+BOULDER_SPEED = 220
+# 낙석. 플레이어가 TRIGGER_TIME초 거리 안에 오면 천장에서 떨어져 FALL_TIME초 뒤 땅에 박히고, 그 뒤에는 돌처럼 뛰어넘는다.
+RUBBLE_W = 80
+RUBBLE_H = 72
+RUBBLE_TRIGGER_TIME = 0.8
+RUBBLE_FALL_TIME = 0.45
+RUBBLE_WARNING_H = 8
+RUBBLE_SHAKE_TIME = 0.15
+RUBBLE_SHAKE_AMP = 5
 
 # 1단 점프 체공 거리는 약 250px, 2단 점프는 약 440px다.
 PIT_W_SHORT = 160
@@ -401,19 +425,86 @@ ISLAND_CHUNKS = {
 #   grunt: 달려와 베는 근접병         goblin: 웅크렸다가 달려드는 고블린
 #   mage: 지상 마법사                 mage_high: 발판 위 마법사
 #   bat: 서 있으면 부딪히는 사역마    bat_high: 점프하면 부딪히는 사역마
+#   spikes: 가시 바닥, 길게 점프      barricade: 방책, 2단 점프
+#   beam: 매달린 통나무, 긴 슬라이딩  boulder: 굴러오는 바위, 점프
+#   rubble: 천장에서 떨어지는 낙석, 땅에 박힌 뒤 점프
 # 속도 400px/s에서 100px은 0.25초다. 1단 점프는 체공 0.64초(254px), 2단 점프는 약 1.1초(440px)다.
-# 만들 때 지킬 것: 슬라이딩 중에는 공격할 수 없으므로 pillar 바로 뒤에 grunt, goblin을 두면 피할 수 없다.
+# 만들 때 지킬 것: 슬라이딩 중에는 공격할 수 없으므로 pillar, beam 바로 뒤에 grunt, goblin을 두면 피할 수 없다.
 # 천장까지 막는 pillar 앞에 mage_high 발판을 두면 발판에 착지했을 때 넘을 수 없다. 고블린은 스테이지 속도와 상관없이 650px/s로 달린다.
+# boulder는 적어 둔 x보다 약 235px 앞에서, goblin은 약 200px 앞에서 만난다. 조각의 첫 요소로 쓸 때는 x를 그만큼 띄워
+# 앞 조각의 pillar, beam 바로 뒤에서 만나지 않게 한다. boulder가 굴러오는 길에는 구덩이나 다른 장애물을 두지 않는다.
+# barricade는 연달아 넘을 수 없으므로 조각의 마지막 요소로 두지 않는다.
 PATTERNS = {
-    # 입력 둘, 1초 안팎의 간격으로 조각마다 한 가지를 익힌다.
+    # 스테이지 1의 도입. 입력 둘, 1초 안팎의 간격으로 조각마다 한 가지를 익힌다.
     'easy': (
-        (('rock', 0), ('rock', 420)),
-        (('pillar', 0), ('rock', 480)),
+        (('rock', 0), ('rock', 380)),
+        (('pillar', 0), ('rock', 440)),
         (('grunt', 0), ('grunt', 300)),
-        (('goblin', 0), ('rock', 500)),
+        (('rock', 0), ('goblin', 520)),
         (('bat', 0), ('bat', 280)),
-        (('pit', 0), ('rock', 520)),
+        (('pit', 0), ('rock', 480)),
         (('rock', 0), ('mage', 480)),
+        (('spikes', 0), ('rock', 460)),
+        (('barricade', 0), ('bat', 420)),
+        (('beam', 0), ('rock', 620)),
+        (('rock', 0), ('boulder', 700)),
+        (('rubble', 0), ('rubble', 420)),
+    ),
+    # 스테이지 1의 중반. 입력 셋에서 넷, 0.5~0.8초 간격으로 점프, 슬라이딩, 베기를 번갈아 요구한다.
+    'castle': (
+        (('rock', 0), ('spikes', 280), ('rock', 600), ('grunt', 860)),
+        (('pillar', 0), ('barricade', 400), ('grunt', 720)),
+        (('spikes', 0), ('bat', 300), ('rock', 500), ('bat', 700)),
+        (('goblin', 220), ('rock', 340), ('bat', 520)),
+        (('beam', 0), ('rock', 440), ('goblin', 740)),
+        (('rubble', 0), ('pillar', 280), ('rock', 580), ('goblin', 900)),
+        (('barricade', 0), ('spikes', 360), ('grunt', 700)),
+        (('rock', 0), ('rock', 280), ('boulder', 720), ('bat', 860)),
+        (('pit', 0), ('goblin', 400), ('rock', 540)),
+        (('mage', 0), ('beam', 260), ('rock', 740)),
+        (('mage_high', 0), ('grunt', 200), ('rock', 420)),
+        (('pillar', 0), ('boulder', 600), ('bat', 720)),
+        (('bat', 0), ('rock', 200), ('bat_high', 330), ('spikes', 540)),
+        (('grunt', 0), ('rubble', 240), ('grunt', 480)),
+        (('spikes', 0), ('spikes', 310), ('pillar', 620), ('rock', 980)),
+        (('pit', 0), ('barricade', 400), ('bat', 700)),
+        (('rock', 0), ('pillar', 280), ('rock', 560), ('pillar', 820)),
+        (('bat', 0), ('pillar', 200), ('grunt', 620)),
+        (('rubble', 0), ('bat', 240), ('rubble', 440)),
+        (('rock', 0), ('grunt', 240), ('spikes', 480)),
+    ),
+    # 스테이지 1의 후반. 입력 넷 이상, 0.4~0.65초 간격으로 쉬지 않고 이어진다.
+    'castle_rush': (
+        (('rock', 0), ('rock', 150), ('spikes', 440), ('bat', 700), ('goblin', 960)),
+        (('barricade', 0), ('pillar', 320), ('bat', 560), ('barricade', 720), ('grunt', 1060)),
+        (('spikes', 0), ('rock', 270), ('beam', 500), ('rock', 930), ('grunt', 1130)),
+        (('goblin', 220), ('goblin', 340), ('rock', 420), ('boulder', 860), ('bat', 1000)),
+        (('rubble', 0), ('rubble', 250), ('pillar', 500), ('grunt', 860), ('bat', 1020)),
+        (('pit_long', 0), ('bat_high', 170), ('spikes', 580), ('bat', 820)),
+        (('beam', 0), ('barricade', 500), ('spikes', 820), ('bat', 1060)),
+        (('rock', 0), ('bat_high', 130), ('rock', 290), ('bat', 450), ('pillar', 600)),
+        (('mage', 0), ('rock', 180), ('mage_high', 420), ('goblin', 660)),
+        (('grunt', 0), ('rock', 170), ('grunt', 330), ('pillar', 500), ('rock', 820)),
+        (('pillar', 0), ('rock', 260), ('pillar', 480), ('boulder', 1040)),
+        (('pit', 0), ('barricade', 400), ('pit', 760), ('rock', 1100), ('bat', 1300)),
+        (('boulder', 300), ('boulder', 540), ('spikes', 680), ('bat', 980)),
+        (('spikes', 0), ('barricade', 400), ('rock', 740), ('goblin', 1080)),
+        (('rock', 0), ('pillar', 250), ('rock', 530), ('pillar', 780), ('rock', 1060)),
+        (('spikes', 0), ('bat', 290), ('spikes', 460), ('grunt', 820), ('rock', 1060)),
+        (('rubble', 0), ('boulder', 500), ('rubble', 580), ('pillar', 860), ('grunt', 1240)),
+        (('barricade', 0), ('goblin', 540), ('beam', 620), ('rock', 1060)),
+        (('bat', 0), ('bat', 160), ('rock', 340), ('bat_high', 480), ('pillar', 660)),
+        (('rock', 0), ('bat', 150), ('rock', 290), ('bat', 440), ('rock', 580)),
+        (('pillar', 0), ('pillar', 230), ('rock', 520), ('spikes', 780), ('bat', 1000)),
+    ),
+    # 낭떠러지 앞 평지에 까는 조각. 일섬 충전을 기다리는 구간이므로 일섬을 쓰게 만드는 몬스터 없이 장애물만 둔다.
+    # 낭떠러지 앞에 숨 돌릴 평지가 남도록 x는 800을 넘기지 않는다.
+    'run_up': (
+        (('rock', 0), ('spikes', 320), ('rock', 680)),
+        (('pillar', 0), ('rock', 340), ('beam', 560)),
+        (('rubble', 0), ('barricade', 380), ('rubble', 760)),
+        (('spikes', 0), ('pillar', 330), ('boulder', 800)),
+        (('barricade', 0), ('rock', 360), ('rock', 660)),
     ),
     # 입력 둘에서 셋, 0.5~0.8초 간격으로 이어 간다.
     'normal': (
@@ -439,9 +530,7 @@ PATTERNS = {
         (('pit', 0), ('pillar', 380), ('goblin', 440)),
     ),
 }
-# 조각과 조각 사이의 빈 거리(px). 줄이면 쉴 틈이 줄어든다. 1단 점프 체공 거리보다 길어 앞 조각에서 착지할 자리는 남긴다.
-PATTERN_GAP_MIN = 420
-PATTERN_GAP_MAX = 600
+# 조각과 조각 사이의 빈 거리는 STAGES의 pattern_gap이다. 1단 점프 체공 거리보다 길어 앞 조각에서 착지할 자리는 남긴다.
 # 낭떠러지는 조각 사이에 끼우는 휴식 구간이다. 앞에 4초 평지를 두므로 조각 몇 개마다 넣을지가 곧 쉬는 빈도다.
 CLIFF_EVERY_MIN = 6
 CLIFF_EVERY_MAX = 9

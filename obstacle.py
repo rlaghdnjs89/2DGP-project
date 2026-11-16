@@ -1,7 +1,7 @@
 import math
 import random
 
-from pico2d import SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION, SDLK_f
+from pico2d import SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION, SDLK_f, draw_rectangle
 
 import config
 import game_world
@@ -13,6 +13,11 @@ from upgrade_window import UpgradeWindow
 GATE_FRAME_W = 64
 GATE_FPS = 14
 PLATFORM_CAP_W = 32
+SPIKES_IMAGE = 'assets/map/spikes.png'
+BARRICADE_IMAGE = 'assets/map/barricade.png'
+BEAM_IMAGE = 'assets/map/beam.png'
+BOULDER_IMAGE = 'assets/map/boulder.png'
+RUBBLE_IMAGE = 'assets/map/rubble.png'
 WALL_TOP_IMAGE = 'assets/map/wall_top.png'
 WALL_BOTTOM_IMAGE = 'assets/map/wall_bottom.png'
 WALL_BREAK_IMAGE = 'assets/map/wall_break.png'
@@ -59,7 +64,9 @@ class Obstacle:
         pass
 
     def draw(self, camera):
-        self.image.draw_to_origin(self.left - camera.x, self.bottom - camera.y, self.right - self.left, self.top - self.bottom)
+        # 판정보다 큰 그림(통나무를 매단 사슬)도 있어 판정 크기가 아니라 그림 크기로 그린다.
+        scale = config.SPRITE_SCALE
+        self.image.draw_to_origin(self.left - camera.x, self.bottom - camera.y, self.image.w * scale, self.image.h * scale)
 
     def get_bb(self):
         return self.left, self.bottom, self.right, self.top
@@ -68,15 +75,83 @@ class Obstacle:
         pass
 
 
-def make_low_obstacle(left, stage):
+# 패턴 조각의 장애물은 모두 (왼쪽 x, 스테이지, 플레이어)로 만든다.
+
+def make_low_obstacle(left, stage, player):
     image = random.choice(config.STAGES[stage]['low'])
-    return Obstacle(left, config.GROUND_TOP, config.LOW_OBSTACLE_W, config.LOW_OBSTACLE_H, image)
+    return Obstacle(left, config.GROUND_TOP, *config.STAGES[stage]['low_size'], image)
 
 
-def make_high_obstacle(left, stage):
+def make_high_obstacle(left, stage, player):
     bottom = config.GROUND_TOP + config.HIGH_OBSTACLE_CLEARANCE
     # 천장까지 막아 점프로는 넘을 수 없게 한다.
     return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, config.STAGES[stage]['high'])
+
+
+def make_spikes(left, stage, player):
+    return Obstacle(left, config.GROUND_TOP, config.SPIKES_W, config.SPIKES_H, SPIKES_IMAGE)
+
+
+def make_barricade(left, stage, player):
+    return Obstacle(left, config.GROUND_TOP, config.BARRICADE_W, config.BARRICADE_H, BARRICADE_IMAGE)
+
+
+def make_beam(left, stage, player):
+    return Obstacle(left, config.GROUND_TOP + config.HIGH_OBSTACLE_CLEARANCE, config.BEAM_W, config.BEAM_H, BEAM_IMAGE)
+
+
+class Boulder(Obstacle):
+    def __init__(self, left, stage, player):
+        super().__init__(left, config.GROUND_TOP, config.BOULDER_SIZE, config.BOULDER_SIZE, BOULDER_IMAGE)
+        self.camera = player.camera
+        self.angle = 0
+
+    def update(self, dt):
+        # 화면 밖에서부터 굴러오면 조각에 적어 둔 자리와 상관없는 곳에서 만나게 된다.
+        if self.left - self.camera.base_x > config.SCREEN_W:
+            return
+        step = config.BOULDER_SPEED * dt
+        self.left -= step
+        self.right -= step
+        self.angle += step / (config.BOULDER_SIZE / 2)
+
+    def draw(self, camera):
+        size = config.BOULDER_SIZE
+        self.image.composite_draw(self.angle, '', self.left + size / 2 - camera.x, self.bottom + size / 2 - camera.y, size, size)
+
+
+class Rubble(Obstacle):
+    def __init__(self, left, stage, player):
+        super().__init__(left, config.SCREEN_H, config.RUBBLE_W, config.RUBBLE_H, RUBBLE_IMAGE)
+        self.player = player
+        # 떨어지기 시작한 뒤 흐른 시간. 아직 천장에 있으면 None이다.
+        self.fall_time = None
+
+    def landed(self):
+        return self.fall_time is not None and self.fall_time >= config.RUBBLE_FALL_TIME
+
+    def update(self, dt):
+        if self.landed():
+            return
+        if self.fall_time is None:
+            if self.left - self.player.x > self.player.speed() * config.RUBBLE_TRIGGER_TIME:
+                return
+            self.fall_time = 0
+        self.fall_time = min(config.RUBBLE_FALL_TIME, self.fall_time + dt)
+        ratio = self.fall_time / config.RUBBLE_FALL_TIME
+        self.bottom = config.SCREEN_H - (config.SCREEN_H - config.GROUND_TOP) * ratio * ratio
+        self.top = self.bottom + config.RUBBLE_H
+        if self.landed():
+            sound.play('rock')
+            self.player.camera.shake(config.RUBBLE_SHAKE_TIME, config.RUBBLE_SHAKE_AMP)
+
+    def draw(self, camera):
+        if not self.landed():
+            # 보스의 바닥 공격과 같은 표시로 떨어질 자리를 알린다.
+            bottom = config.GROUND_TOP - config.RUBBLE_WARNING_H - camera.y
+            draw_rectangle(self.left - camera.x, bottom, self.right - camera.x, bottom + config.RUBBLE_WARNING_H,
+                           *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
+        super().draw(camera)
 
 
 class StageGate:

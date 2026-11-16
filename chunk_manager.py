@@ -5,7 +5,8 @@ import config
 import game_world
 from boss import Executor, Warden, Witch
 from monster import Familiar, Goblin, Grunt, Mage
-from obstacle import EvolutionAltar, Ground, Platform, StageGate, Wall, make_high_obstacle, make_low_obstacle
+from obstacle import (Boulder, EvolutionAltar, Ground, Platform, Rubble, StageGate, Wall, make_barricade, make_beam,
+                      make_high_obstacle, make_low_obstacle, make_spikes)
 
 Chunk = namedtuple('Chunk', 'length obstacles pits monsters platforms', defaults=((), (), (), ()))
 
@@ -19,13 +20,22 @@ PATTERN_MONSTERS = {
     'bat': (Familiar, config.BAT_H),
     'bat_high': (Familiar, config.BAT_HIGH_H),
 }
-PATTERN_OBSTACLES = {'rock': (make_low_obstacle, config.LOW_OBSTACLE_W), 'pillar': (make_high_obstacle, config.HIGH_OBSTACLE_W)}
+# 조각의 종류별 (장애물을 만드는 함수, 폭). 돌과 상자의 폭은 스테이지마다 달라 STAGES의 low_size에서 읽는다.
+PATTERN_OBSTACLES = {
+    'rock': (make_low_obstacle, None),
+    'pillar': (make_high_obstacle, config.HIGH_OBSTACLE_W),
+    'spikes': (make_spikes, config.SPIKES_W),
+    'barricade': (make_barricade, config.BARRICADE_W),
+    'beam': (make_beam, config.BEAM_W),
+    'boulder': (Boulder, config.BOULDER_SIZE),
+    'rubble': (Rubble, config.RUBBLE_W),
+}
 PATTERN_PITS = {'pit': config.PIT_W_SHORT, 'pit_long': config.PIT_W_LONG}
 
 
 def build_pattern(pattern, stage):
     speed = config.STAGES[stage]['speed']
-    start = random.randint(config.PATTERN_GAP_MIN, config.PATTERN_GAP_MAX) * speed
+    start = random.randint(*config.STAGES[stage]['pattern_gap']) * speed
     obstacles, pits, monsters, platforms = [], [], [], []
     end = start
     for kind, x in pattern:
@@ -33,6 +43,7 @@ def build_pattern(pattern, stage):
         width = 0
         if kind in PATTERN_OBSTACLES:
             make, width = PATTERN_OBSTACLES[kind]
+            width = width or config.STAGES[stage]['low_size'][0]
             obstacles.append((make, offset))
         elif kind in PATTERN_PITS:
             width = int(PATTERN_PITS[kind] * speed)
@@ -50,7 +61,9 @@ def build_cliff(stage):
     start = int(config.SCROLL_SPEED * config.STAGES[stage]['speed'] * config.CLIFF_RUN_UP_TIME)
     pits = [(start, config.CLIFF_W)]
     monsters = [(Familiar, start + x, config.GROUND_TOP + y) for x, y in config.CLIFF_FAMILIARS]
-    return Chunk(start + config.CLIFF_W + config.CHUNK_MARGIN, pits=pits, monsters=monsters)
+    tier = config.STAGES[stage]['cliff_run_up']
+    obstacles = build_pattern(random.choice(config.PATTERNS[tier]), stage).obstacles if tier else ()
+    return Chunk(start + config.CLIFF_W + config.CHUNK_MARGIN, obstacles, pits, monsters)
 
 
 def build_island(name):
@@ -156,7 +169,7 @@ class ChunkManager:
         for left, right, height in built.platforms:
             self.add_platform(self.end_x + left, self.end_x + right, height)
         for make, offset in built.obstacles:
-            self.add_obstacle(make(self.end_x + offset, self.stage))
+            self.add_obstacle(make(self.end_x + offset, self.stage, self.player))
         for make, offset, y in built.monsters:
             self.add_monster(make(self.end_x + offset, y, self.player))
         self.end_x += built.length

@@ -810,29 +810,144 @@ def make_platforms():
 
 # 장애물 --------------------------------------------------------------------
 
-def make_crate():
-    img = new_frame(30, 30)
+def make_crate(w=30, h=30):
+    img = new_frame(w, h)
     wood, wood_dark, wood_light, iron = hex_color('a56a33'), hex_color('734521'), hex_color('c98f4e'), hex_color('565a68')
-    rect(img, 1, 1, 29, 29, wood)
-    for y in (9, 19):
-        rect(img, 1, y, 29, y + 1, wood_dark)
-    capsule(img, (4, 4), (26, 26), 1.3, 1.3, wood_light)
-    capsule(img, (26, 4), (4, 26), 1.0, 1.0, wood_dark)
-    rect(img, 1, 1, 29, 4, wood_light)
-    rect(img, 1, 26, 29, 29, wood_dark)
-    for x, y in ((1, 1), (24, 1), (1, 24), (24, 24)):
+    rect(img, 1, 1, w - 1, h - 1, wood)
+    for y in (h * 3 // 10, h * 19 // 30):
+        rect(img, 1, y, w - 1, y + 1, wood_dark)
+    capsule(img, (4, 4), (w - 4, h - 4), 1.3, 1.3, wood_light)
+    capsule(img, (w - 4, 4), (4, h - 4), 1.0, 1.0, wood_dark)
+    rect(img, 1, 1, w - 1, 4, wood_light)
+    rect(img, 1, h - 4, w - 1, h - 1, wood_dark)
+    for x, y in ((1, 1), (w - 6, 1), (1, h - 6), (w - 6, h - 6)):
         rect(img, x, y, x + 5, y + 5, iron)
     return outlined(img, hex_color('1a1020'))
 
 
-def make_rock():
-    img = new_frame(30, 30)
-    polygon(img, [(1, 29), (2, 16), (8, 6), (17, 2), (25, 8), (29, 19), (29, 29)], hex_color('6b6577'))
-    polygon(img, [(4, 18), (9, 8), (17, 4), (22, 9), (14, 13)], hex_color('93899f'))
-    polygon(img, [(14, 29), (18, 18), (29, 19), (29, 29)], hex_color('4a4557'))
-    capsule(img, (9, 19), (14, 24), 0.6, 0.6, hex_color('3a3646'))
-    capsule(img, (20, 11), (24, 16), 0.6, 0.6, hex_color('4a4557'))
+def make_rock(w=30, h=30):
+    def scaled(points):
+        return [(x * w / 30, y * h / 30) for x, y in points]
+
+    img = new_frame(w, h)
+    polygon(img, scaled([(1, 29), (2, 16), (8, 6), (17, 2), (25, 8), (29, 19), (29, 29)]), hex_color('6b6577'))
+    polygon(img, scaled([(4, 18), (9, 8), (17, 4), (22, 9), (14, 13)]), hex_color('93899f'))
+    polygon(img, scaled([(14, 29), (18, 18), (29, 19), (29, 29)]), hex_color('4a4557'))
+    capsule(img, *scaled([(9, 19), (14, 24)]), 0.6, 0.6, hex_color('3a3646'))
+    capsule(img, *scaled([(20, 11), (24, 16)]), 0.6, 0.6, hex_color('4a4557'))
     return outlined(img, hex_color('1a1020'))
+
+
+def make_spikes():
+    """바닥 철판에 박힌 가시 다섯 개."""
+    w, h = 75, 18
+    img = new_frame(w, h)
+    steel, light, dark = hex_color('9aa0b4'), hex_color('dfe4f2'), hex_color('565a68')
+    for i in range(5):
+        left = 2 + i * 14.4
+        polygon(img, [(left, h - 4), (left + 6.5, 1), (left + 13, h - 4)], steel)
+        polygon(img, [(left, h - 4), (left + 6.5, 1), (left + 5, h - 4)], light)
+        polygon(img, [(left + 9, h - 4), (left + 6.5, 1), (left + 13, h - 4)], dark)
+    rect(img, 1, h - 5, w - 1, h - 1, dark)
+    rect(img, 1, h - 5, w - 1, h - 4, steel)
+    return outlined(img, hex_color('1a1020'))
+
+
+def make_barricade():
+    """끝을 깎은 통나무를 엮은 방책. 1단 점프보다 높다."""
+    w, h = 35, 110
+    img = new_frame(w, h)
+    wood, wood_dark, wood_light, iron = hex_color('8a5a2e'), hex_color('5c3a1c'), hex_color('b98549'), hex_color('565a68')
+    rng = random.Random(31)
+    for i, tip in enumerate((10, 2, 7)):
+        left = 2 + i * 10.5
+        polygon(img, [(left, tip + 14), (left + 5, tip), (left + 10, tip + 14), (left + 10, h - 1), (left, h - 1)], wood)
+        rect(img, left, tip + 14, left + 3, h - 1, wood_light)
+        rect(img, left + 8, tip + 14, left + 10, h - 1, wood_dark)
+        polygon(img, [(left + 5, tip), (left + 10, tip + 14), (left + 6, tip + 14)], wood_dark)
+        for _ in range(4):
+            y = rng.randint(tip + 20, h - 10)
+            rect(img, left + 4, y, left + 6, y + 5, wood_dark)
+    for y in (38, 82):
+        rect(img, 1, y, w - 1, y + 5, iron)
+        rect(img, 1, y, w - 1, y + 1, hex_color('8d92a6'))
+        for x in (5, 16, 27):
+            rect(img, x, y + 2, x + 2, y + 4, hex_color('2a2238'))
+    return outlined(img, hex_color('1a1020'))
+
+
+def make_beam():
+    """사슬에 매달린 가시 통나무. 아래 70px이 통나무이고 그 위는 화면 꼭대기까지 닿는 사슬이다."""
+    w, h, log_h = 150, 265, 70
+    img = new_frame(w, h)
+    wood, wood_dark, wood_light = hex_color('7a4f2a'), hex_color('4e3018'), hex_color('a8763f')
+    iron, iron_light, iron_dark = hex_color('565a68'), hex_color('8d92a6'), hex_color('2a2238')
+    top = h - log_h
+    for x in (22, w - 22):
+        for y in range(0, top + 6, 8):
+            capsule(img, (x, y), (x, y + 5), 2.4, 2.4, iron if (y // 8) % 2 else iron_light)
+            disc(img, x, y + 2.5, 1.0, iron_dark)
+    rect(img, 2, top + 4, w - 2, h - 12, wood)
+    rect(img, 2, top + 4, w - 2, top + 10, wood_light)
+    rect(img, 2, h - 22, w - 2, h - 12, wood_dark)
+    rng = random.Random(33)
+    for _ in range(14):
+        x, y = rng.randint(6, w - 16), rng.randint(top + 14, h - 26)
+        rect(img, x, y, x + rng.randint(5, 10), y + 1, wood_dark)
+    for x in (10, w - 20, w // 2 - 5):
+        rect(img, x, top + 2, x + 10, h - 10, iron)
+        rect(img, x, top + 2, x + 3, h - 10, iron_light)
+    # 아래로 난 가시가 위험한 면을 알려 준다.
+    for x in range(8, w - 8, 12):
+        polygon(img, [(x - 5, h - 12), (x + 5, h - 12), (x, h - 1)], iron_light)
+        polygon(img, [(x, h - 12), (x + 5, h - 12), (x, h - 1)], iron)
+    return outlined(img, hex_color('1a1020'))
+
+
+def make_boulder():
+    """굴러오는 둥근 바위. 돌려 그려도 어색하지 않게 무늬를 고르게 둔다."""
+    size = 40
+    img = new_frame(size, size)
+    c = size / 2
+    disc(img, c, c, 18.5, hex_color('6b6577'))
+    disc(img, c - 3, c - 3, 13, hex_color('7f778c'))
+    disc(img, c - 6, c - 7, 6, hex_color('93899f'))
+    dark = hex_color('4a4557')
+    for a in range(0, 360, 72):
+        p0 = (c + math.cos(math.radians(a)) * 8, c + math.sin(math.radians(a)) * 8)
+        p1 = (c + math.cos(math.radians(a + 25)) * 16, c + math.sin(math.radians(a + 25)) * 16)
+        capsule(img, p0, p1, 0.8, 0.5, dark)
+    for a in range(36, 360, 120):
+        disc(img, c + math.cos(math.radians(a)) * 13, c + math.sin(math.radians(a)) * 13, 2.2, dark)
+    return outlined(img, hex_color('1a1020'))
+
+
+def make_rubble():
+    """천장에서 떨어지는 성벽 조각. 벽돌 줄눈이 보여 돌과 구분된다."""
+    w, h = 40, 36
+    img = new_frame(w, h)
+    shape = [(1, h - 1), (3, 14), (10, 9), (15, 2), (25, 5), (30, 1), (38, 12), (w - 1, h - 1)]
+    polygon(img, shape, hex_color('7d7691'))
+    polygon(img, [(20, h - 1), (24, 14), (38, 12), (w - 1, h - 1)], hex_color('5e586e'))
+    px = img.load()
+    dark = hex_color('3d384c')
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] and (y % 9 == 4 or (x + (y // 9) * 7) % 14 == 0):
+                px[x, y] = dark
+    polygon(img, [(3, 14), (10, 9), (15, 2), (17, 8), (9, 13)], hex_color('a39db4'))
+    return outlined(img, hex_color('1a1020'))
+
+
+def make_castle_obstacles():
+    """스테이지 1의 커진 돌과 상자, 새 장애물."""
+    save(make_crate(42, 38), 'map/low_crate_big.png')
+    save(make_rock(42, 38), 'map/low_rock_big.png')
+    save(make_spikes(), 'map/spikes.png')
+    save(make_barricade(), 'map/barricade.png')
+    save(make_beam(), 'map/beam.png')
+    save(make_boulder(), 'map/boulder.png')
+    save(make_rubble(), 'map/rubble.png')
 
 
 def make_pillar():
@@ -1096,6 +1211,7 @@ if __name__ == '__main__':
     make_executor()
     make_platforms()
     make_obstacles()
+    make_castle_obstacles()
     make_gate()
     make_altar()
     make_coin()
