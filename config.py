@@ -39,7 +39,7 @@ STAGES = (
      'background': (('assets/bg/phase1_far.png', 0.1), ('assets/bg/phase1_near.png', 0.35)),
      'ground': 'assets/map/ground_phase1.png',
      'platform': 'assets/map/platform_phase1.png', 'platform_cap': 'assets/map/platform_cap_phase1.png', 'arena_platforms': ()},
-    {'name': '무중력 균열', 'gravity': 0.5, 'speed': 1.25, 'gold_rate': 1.5,
+    {'name': '무중력 균열', 'gravity': 0.6, 'speed': 1.25, 'gold_rate': 1.5,
      'pattern_tiers': (), 'pattern_gap': (420, 600), 'cliff_run_up': None,
      'low': ('assets/map/low_crate.png', 'assets/map/low_rock.png'), 'low_size': (60, 60), 'high': 'assets/map/high_pillar.png',
      'gate': 'assets/map/gate.png',
@@ -203,7 +203,7 @@ WITCH_H = 170
 WITCH_IDLE_TIME = 0.45
 # 시작 위치에서 잰 순간이동 자리. 처음 자리가 화면 770px쯤이고 오른쪽 장벽은 1075px이다.
 WITCH_ANCHOR_X = (0, 130, 240)
-# 지면 위 높이. 땅에서 베면 닿지 않고, 저중력 점프(300px)나 발판에서는 닿는다.
+# 지면 위 높이. 땅에서 베면 닿지 않고, 저중력 점프(250px)나 발판에서는 닿는다.
 WITCH_ANCHOR_Y = (170, 300, 430)
 WITCH_MUZZLE_Y = 110
 # 플레이어와 가로로 이만큼 떨어진 자리로만 순간이동한다. 플레이어 바로 위나 옆에 나타나 몸통이 겹치지 않게 한다.
@@ -397,7 +397,7 @@ CLIFF_FAMILIARS = ((220, 200), (450, 450))
 
 PLATFORM_H = 24
 # 청크 E는 건널 수 없는 배치가 나오지 않도록 직접 설계한다 (MP-5). 높이는 모두 지면 위 기준이다.
-# 낮은 중력에서 1단 점프는 높이 300px, 평지 기준 체공 거리 약 500px다. 사역마 간격은 사거리 400px 안이다.
+# 낮은 중력에서 1단 점프는 높이 250px, 평지 기준 체공 거리 약 530px다. 사역마 간격은 사거리 400px 안이다.
 ISLAND_CHUNKS = {
     'E1': {
         'length': 2800,
