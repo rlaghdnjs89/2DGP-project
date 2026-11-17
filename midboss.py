@@ -4,7 +4,7 @@ import random
 import config
 import game_world
 import sound
-from sprite import Effect, Strip, get_image
+from sprite import Effect, OneShot, Strip, get_image
 
 BROOM_FRAME_W = 128
 BROOM_FPS = 8
@@ -19,6 +19,8 @@ SPARK_FRAME_W = 24
 REFLECTED_IMAGE = 'assets/monster/bullet_reflected.png'
 PARRY_FX_SCALE = 1
 BURST_FX_SPEED = 2
+DEATH_IMAGE = 'assets/monster/broom_death.png'
+DEATH_FPS = 8
 BOLT_IMAGE = 'assets/monster/bolt.png'
 BOLT_FRAME_W = 32
 BOLT_FPS = 14
@@ -212,7 +214,8 @@ class Press:
 
 
 class BroomWitch:
-    """스테이지 2의 중간 보스. 빗자루를 타고 플레이어 앞을 날며 탄을 쏘고, 파편 무리와 전기 함정을 무작위 순서로 불러낸다."""
+    """스테이지 2의 중간 보스. 빗자루를 타고 플레이어 앞을 날며 탄을 쏘고, 파편 무리와 전기 함정을 무작위 순서로 불러낸다.
+    버틸 시간이 다 지나면 불릿 타임이 열리고, 그동안 좌+우 동시 클릭으로 벨 수 있다."""
     NAME = '빗자루 마녀'
 
     def __init__(self, start_x, player):
@@ -222,7 +225,7 @@ class BroomWitch:
         self.time = 0
         self.timer = 0
         self.remain = config.MIDBOSS_TIME
-        # 마녀는 맞지 않으므로 화면 좌표로 둔다.
+        # 마녀는 화면의 같은 자리에 떠 있으므로 화면 좌표로 둔다.
         self.screen_x = BROOM_START_X
         self.y = config.BROOM_HOVER_Y
         self.hazards = []
@@ -259,14 +262,14 @@ class BroomWitch:
         self.y = config.BROOM_HOVER_Y + config.BROOM_HOVER_AMP * math.sin(self.time * config.BROOM_HOVER_SPEED)
         if self.state == 'fight':
             self.fight(dt)
-            return
-        self.timer -= dt
-        if self.state == 'intro':
+        elif self.state == 'intro':
+            self.timer -= dt
             t = max(0, self.timer / config.MIDBOSS_INTRO_TIME)
             self.screen_x = config.BROOM_SCREEN_X + (BROOM_START_X - config.BROOM_SCREEN_X) * t * t
             if self.timer <= 0:
                 self.state = 'fight'
-        else:
+        elif self.state == 'leave':
+            self.timer -= dt
             t = 1 - max(0, self.timer / config.MIDBOSS_LEAVE_TIME)
             self.screen_x = config.BROOM_SCREEN_X + (BROOM_START_X - config.BROOM_SCREEN_X) * t * t
             if self.timer <= 0:
@@ -276,7 +279,7 @@ class BroomWitch:
     def fight(self, dt):
         self.remain -= dt
         if self.remain <= 0:
-            self.leave()
+            self.open_finish()
             return
         self.shot_timer -= dt
         if self.shot_timer <= 0:
@@ -292,13 +295,31 @@ class BroomWitch:
                 self.orb_timer += self.orb_interval
                 self.send_orb()
 
-    def leave(self):
-        sound.play('teleport')
+    def open_finish(self):
+        """탄막과 함정을 걷고 불릿 타임을 연다. 좌+우 동시 클릭이 들어오면 on_cut, 놓치면 on_bullet_timeout으로 이어진다."""
         for hazard in self.hazards:
             game_world.remove_object(hazard)
         self.remain = 0
+        self.state = 'finish'
+        self.player.enter_bullet_time(self)
+
+    def on_bullet_timeout(self):
+        sound.play('teleport')
         self.state = 'leave'
         self.timer = config.MIDBOSS_LEAVE_TIME
+
+    def cut_center(self):
+        return self.x, self.y
+
+    def on_cut(self):
+        x, y = self.cut_center()
+        player = self.player
+        player.end_midboss()
+        # 모은 힘으로 마녀를 꿰뚫고 지나가 그 뒤에 선다.
+        player.streak_to(x + config.BROOM_CUT_PASS, y - config.PLAYER_H / 2)
+        game_world.remove_object(self)
+        # 절단의 폭발이 마녀 자리에서 터지므로, 흩어지는 모습이 묻히지 않게 이펙트보다 위에 그린다.
+        game_world.add_object(OneShot(Strip(DEATH_IMAGE, BROOM_FRAME_W), DEATH_FPS, x, y), game_world.LAYER_WARNING)
 
     def add_hazard(self, hazard, group):
         self.hazards.append(hazard)

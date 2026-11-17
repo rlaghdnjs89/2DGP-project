@@ -717,14 +717,18 @@ def save_witch_strip(name, frames):
     save(strip([tint_all(frame, (255, 255, 255)) for frame in frames]), f'monster/witch_{name}_flash.png')
 
 
-def make_witch():
-    save_witch_strip('float', [draw_witch(math.sin(i / 6 * math.pi * 2) * 2, 0, False) for i in range(6)])
-    save_witch_strip('cast', [draw_witch(-2, 10 + i * 3, True) for i in range(3)])
-    body = draw_witch(0, 0, False)
+def witch_death_frames(body):
+    """하얗게 번쩍인 뒤 보랏빛 조각으로 흩어진다."""
     death = [tint_all(body, (255, 240, 255))]
     for i, (amount, tint) in enumerate(((0.2, (230, 190, 255)), (0.4, (190, 130, 255)), (0.6, (150, 90, 230)), (0.8, (100, 60, 180)))):
         death.append(dissolve(body, amount, 61 + i, tint, 6 + i * 8))
-    save(strip(death), 'monster/witch_death.png')
+    return death
+
+
+def make_witch():
+    save_witch_strip('float', [draw_witch(math.sin(i / 6 * math.pi * 2) * 2, 0, False) for i in range(6)])
+    save_witch_strip('cast', [draw_witch(-2, 10 + i * 3, True) for i in range(3)])
+    save(strip(witch_death_frames(draw_witch(0, 0, False))), 'monster/witch_death.png')
 
     frames = []
     for i in range(6):
@@ -772,6 +776,7 @@ def draw_broom_witch(bob, arm_lift, glow, sway):
 def make_broom_witch():
     save(strip([draw_broom_witch(math.sin(i / 6 * math.pi * 2) * 2, 0, False, (i % 3) - 1) for i in range(6)]), 'monster/broom_fly.png')
     save(strip([draw_broom_witch(-2, 10 + i * 3, True, i - 1) for i in range(3)]), 'monster/broom_cast.png')
+    save(strip(witch_death_frames(draw_broom_witch(0, 0, False, 0))), 'monster/broom_death.png')
 
     # 반짝이는 탄: 금빛 탄에서 가로세로 빛살과 대각선 빛살이 번갈아 길어지며 반짝인다. 베어 튕겨 낼 수 있다.
     frames = []

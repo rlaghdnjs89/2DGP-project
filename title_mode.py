@@ -57,6 +57,9 @@ def init():
                 continue
             x = config.SCREEN_W / 2 + (stage - (len(config.STAGES) - 1) / 2) * DEV_BUTTON_GAP
             dev_starts.append((Button(x, config.SCREEN_H * (0.6 - row * 0.11), DEV_BUTTON_W, DEV_BUTTON_H, f'{label} {stage + 1}'), stage, goal))
+    # 중간 보스 옆 칸. 버틸 시간이 거의 끝난 채로 시작해 격파 연출을 바로 시험한다.
+    dev_starts.append((Button(config.SCREEN_W / 2 + DEV_BUTTON_GAP, config.SCREEN_H * (0.6 - 0.11), DEV_BUTTON_W, DEV_BUTTON_H, '마녀 격파'),
+                       config.MIDBOSS_STAGE, 'midboss_end'))
     dev_reset_button = Button(config.SCREEN_W / 2, config.SCREEN_H * 0.26, DEV_RESET_W, DEV_BUTTON_H, '테스트 강화 초기화')
     camera = Camera()
     time = 0

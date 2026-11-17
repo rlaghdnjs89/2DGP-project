@@ -30,6 +30,7 @@ THRUST_FX_SCALE = 1.3
 KILL_FX_SPEED = 1.5
 KILL_FX_SCALE = 2
 DASH_KILL_FX_SPEED = 2
+STREAK_TRAILS = 8
 
 
 class PlayerArt:
@@ -155,8 +156,6 @@ class Fly:
         if player.midboss:
             player.try_attack()
         else:
-            # 비행이 끝나면 떨어지는 동안 공중 점프를 쓸 수 있다.
-            player.air_jumps = config.AIR_JUMPS
             player.change_state(player.jump_state)
 
 
@@ -692,6 +691,16 @@ class Player:
 
     def end_midboss(self):
         self.midboss = None
+        # 비행이 끝나면 떨어지는 동안 공중 점프를 쓸 수 있다.
+        self.air_jumps = config.AIR_JUMPS
+
+    def streak_to(self, x, y):
+        """지나온 길에 잔상을 남기며 (x, y)로 단숨에 옮겨 간다."""
+        for i in range(STREAK_TRAILS):
+            t = i / STREAK_TRAILS
+            self.trail.append((self.x + (x - self.x) * t, self.y + (y - self.y) * t, 0))
+        self.x = x
+        self.y = y
 
     def at_altar(self):
         return self.altar is not None and self.altar.is_stopped()

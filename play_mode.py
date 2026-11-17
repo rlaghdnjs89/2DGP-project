@@ -22,7 +22,7 @@ camera = None
 chunks = None
 game_over_timer = None
 paused = False
-# 개발자 테스트로 시작할 (스테이지 번호, 원석 다음에 나올 것: 'run', 'midboss', 'boss'). 보통 시작이면 None이고, 결과 화면에서 재도전해도 그대로 쓴다.
+# 개발자 테스트로 시작할 (스테이지 번호, 원석 다음에 나올 것: 'run', 'midboss', 'midboss_end', 'boss'). 보통 시작이면 None이고, 결과 화면에서 재도전해도 그대로 쓴다.
 dev_start = None
 
 

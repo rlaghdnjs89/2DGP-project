@@ -229,10 +229,15 @@ BLINK_FX_SPEED = 3
 BLINK_FX_SCALE = 3
 
 # 스테이지 2의 중간 보스 '빗자루 마녀'. 달리기 구간을 이 비율만큼 달리면 나타난다.
-# 쓰러뜨릴 수 없고, MIDBOSS_TIME초를 버티면 물러난다. 버티는 시간은 달린 시간에 넣지 않는다.
+# 버티는 동안에는 벨 수 없다. MIDBOSS_TIME초를 버티면 불릿 타임이 열리고, 좌+우 동시 클릭으로 베어 쓰러뜨린다. 놓치면 마녀는 달아난다.
+# 버티는 시간은 달린 시간에 넣지 않는다.
 MIDBOSS_STAGE = 1
 MIDBOSS_PROGRESS = 0.5
 MIDBOSS_TIME = 35
+# 개발자 테스트의 '마녀 격파'는 버틸 시간을 이만큼만 남기고 시작한다.
+MIDBOSS_DEV_END_TIME = 3
+# 마녀를 벤 플레이어가 마녀 중심에서 이만큼 지나간 자리에 선다.
+BROOM_CUT_PASS = 90
 MIDBOSS_INTRO_TIME = 1.5
 MIDBOSS_LEAVE_TIME = 1.2
 # 중간 보스전 동안은 중력이 사라져 마우스 커서를 따라 화면 안을 날아다닌다. 커서로 곧장 옮기면 장벽을 건너뛰므로 이 속도로 따라간다.

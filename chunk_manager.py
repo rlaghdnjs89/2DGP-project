@@ -80,8 +80,9 @@ BOSSES = (Warden, Witch, Executor)
 class ChunkManager:
     def __init__(self, player, dev_goal=None):
         """dev_goal이 None이 아니면 개발자 테스트다. 원석에서 시작해 강화를 고르고, 원석 다음에 나올 것을 고른다.
-        'run'이면 달리기 구간의 처음, 'midboss'면 중간 보스, 'boss'면 보스 아레나다."""
+        'run'이면 달리기 구간의 처음, 'midboss'면 중간 보스, 'midboss_end'면 버틸 시간이 거의 끝난 중간 보스, 'boss'면 보스 아레나다."""
         self.player = player
+        self.dev_goal = dev_goal
         self.objects = []
         self.last_chunk = None
         self.stage = player.stage
@@ -102,7 +103,7 @@ class ChunkManager:
         else:
             # 스테이지 끝의 원석은 따로 나와야 한다.
             self.altar_placed = False
-            if dev_goal == 'midboss':
+            if dev_goal in ('midboss', 'midboss_end'):
                 self.run_time = config.STAGE_RUN_TIME * config.MIDBOSS_PROGRESS
 
     def add_ground(self, left, right):
@@ -200,7 +201,10 @@ class ChunkManager:
             self.spawn_flat(config.SCREEN_W)
         elif self.midboss == 'ahead' and self.stage == config.MIDBOSS_STAGE and self.progress() >= config.MIDBOSS_PROGRESS:
             self.midboss = 'active'
-            game_world.add_object(BroomWitch(self.end_x, self.player), game_world.LAYER_MONSTER)
+            witch = BroomWitch(self.end_x, self.player)
+            if self.dev_goal == 'midboss_end':
+                witch.remain = config.MIDBOSS_DEV_END_TIME
+            game_world.add_object(witch, game_world.LAYER_MONSTER)
             # 마녀는 카메라가 이 평지의 시작에 닿으면 나타난다. 그때까지 다음 청크가 붙지 않도록 화면 두 개 길이로 깐다.
             self.spawn_flat(2 * config.SCREEN_W)
         elif not config.STAGES[self.stage]['pattern_tiers']:
