@@ -4,8 +4,6 @@ MAX_DT = 0.05
 # pico2d 볼륨은 0~128이다.
 SFX_VOLUME = 96
 SPRITE_SCALE = 2
-# 64칸 스프라이트의 발바닥은 아래에서 4칸 위에 있다. 발 위치에서 그림 중심까지의 높이다.
-SPRITE_CENTER_Y = 56
 
 SCROLL_SPEED = 400
 GROUND_TOP = 120

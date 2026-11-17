@@ -14,7 +14,6 @@ from coin import Coin
 from sprite import Effect, Strip, load_fx_sheet
 from ui import draw_overlay, mouse_pos
 
-FRAME_W = 64
 ANIMATION_FPS = {'run': 16, 'idle': 6, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'charge': 10, 'cut': 16}
 OTHER_BUTTON = {SDL_BUTTON_LEFT: SDL_BUTTON_RIGHT, SDL_BUTTON_RIGHT: SDL_BUTTON_LEFT}
 MOVE_KEYS = {SDLK_a: -1, SDLK_d: 1}
@@ -34,24 +33,21 @@ DASH_KILL_FX_SPEED = 2
 
 
 class PlayerArt:
-    """스테이지마다 바뀌는 플레이어 그림. tools/make_player_art.py가 만든 그림이 없는 스테이지는 예전 픽셀 아트를 쓴다."""
+    """스테이지마다 바뀌는 플레이어 그림. tools/make_player_art.py가 만든 그림이 없는 스테이지는 스테이지 1 그림을 쓴다."""
 
     def __init__(self, stage):
         folder = f'assets/player/stage{stage + 1}'
+        if not os.path.exists(f'{folder}/meta.json'):
+            folder = 'assets/player/stage1'
+        with open(f'{folder}/meta.json', encoding='utf-8') as f:
+            meta = json.load(f)
+        # 원본 해상도에 맞춰 줄인 그림이라 늘리지 않고 그린다.
+        self.sprites = {name: Strip(f'{folder}/{name}.png', meta['frame_w'], 1) for name in ANIMATION_FPS}
+        self.center_y = meta['center_y']
         self.fps = dict(ANIMATION_FPS)
+        self.fps.update(meta['fps'])
         # 반복하지 않고 마지막 프레임에 머무는 애니메이션
-        self.hold = ()
-        if os.path.exists(f'{folder}/meta.json'):
-            with open(f'{folder}/meta.json', encoding='utf-8') as f:
-                meta = json.load(f)
-            # 원본 해상도에 맞춰 줄인 그림이라 늘리지 않고 그린다.
-            self.sprites = {name: Strip(f'{folder}/{name}.png', meta['frame_w'], 1) for name in ANIMATION_FPS}
-            self.center_y = meta['center_y']
-            self.fps.update(meta['fps'])
-            self.hold = meta['hold']
-        else:
-            self.sprites = {name: Strip(f'assets/player/{name}.png', FRAME_W) for name in ANIMATION_FPS}
-            self.center_y = config.SPRITE_CENTER_Y
+        self.hold = meta['hold']
 
     def draw(self, name, time, x, y, opacity=1, flip=False):
         """발이 (x, y)에 닿게 그린다."""
