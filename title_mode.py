@@ -10,7 +10,8 @@ import sound
 from background import draw_background
 from camera import Camera
 from obstacle import draw_strip
-from sprite import Strip, get_image
+from player import PlayerArt
+from sprite import get_image
 from ui import Button, draw_overlay, draw_text, mouse_pos
 
 LOGO_SIZE = 96
@@ -18,7 +19,6 @@ SUBTITLE_SIZE = 36
 INFO_SIZE = 24
 HELP_SIZE = 12
 SCROLL_SPEED = 240
-RUN_FPS = 16
 BLINK_SPEED = 5
 LOGO_COLOR = (250, 250, 255)
 SHADOW_COLOR = (40, 20, 70)
@@ -35,7 +35,7 @@ HELP = 'W 점프 (공중에서 2단)   S 슬라이딩   SPACE 일섬   좌클릭
 
 camera = None
 time = 0
-run_sprite = None
+player_art = None
 reset_armed = False
 dev_open = False
 # (버튼, 시작 스테이지 번호, 원석 다음에 나올 것)
@@ -44,7 +44,7 @@ dev_reset_button = None
 
 
 def init():
-    global camera, time, run_sprite, reset_armed, dev_open, dev_starts, dev_reset_button
+    global camera, time, player_art, reset_armed, dev_open, dev_starts, dev_reset_button
     # 개발자 테스트에서 돌아오면 진짜 기록을 다시 보여 준다.
     record.end_dev()
     reset_armed = False
@@ -60,7 +60,7 @@ def init():
     dev_reset_button = Button(config.SCREEN_W / 2, config.SCREEN_H * 0.26, DEV_RESET_W, DEV_BUTTON_H, '테스트 강화 초기화')
     camera = Camera()
     time = 0
-    run_sprite = Strip('assets/player/run.png', 64)
+    player_art = PlayerArt(0)
 
 
 def handle_dev_event(event):
@@ -115,7 +115,7 @@ def update(dt):
 def draw():
     draw_background(0, camera)
     draw_strip(get_image(config.STAGES[0]['ground']), camera.x, camera.x + config.SCREEN_W, 0, camera)
-    run_sprite.draw(int(time * RUN_FPS) % run_sprite.count, config.PLAYER_SCREEN_X, config.GROUND_TOP + config.SPRITE_CENTER_Y)
+    player_art.draw('run', time, config.PLAYER_SCREEN_X, config.GROUND_TOP)
 
     center_x = config.SCREEN_W / 2
     if dev_open:
