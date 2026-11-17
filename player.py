@@ -1,4 +1,6 @@
+import json
 import math
+import os
 
 from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION, SDLK_SPACE, SDLK_a,
                     SDLK_d, SDLK_e, SDLK_q, SDLK_s, SDLK_w, get_time)
@@ -29,6 +31,34 @@ THRUST_FX_SCALE = 1.3
 KILL_FX_SPEED = 1.5
 KILL_FX_SCALE = 2
 DASH_KILL_FX_SPEED = 2
+
+
+class PlayerArt:
+    """스테이지마다 바뀌는 플레이어 그림. tools/make_player_art.py가 만든 그림이 없는 스테이지는 예전 픽셀 아트를 쓴다."""
+
+    def __init__(self, stage):
+        folder = f'assets/player/stage{stage + 1}'
+        self.fps = dict(ANIMATION_FPS)
+        # 반복하지 않고 마지막 프레임에 머무는 애니메이션
+        self.hold = ()
+        if os.path.exists(f'{folder}/meta.json'):
+            with open(f'{folder}/meta.json', encoding='utf-8') as f:
+                meta = json.load(f)
+            # 원본 해상도에 맞춰 줄인 그림이라 늘리지 않고 그린다.
+            self.sprites = {name: Strip(f'{folder}/{name}.png', meta['frame_w'], 1) for name in ANIMATION_FPS}
+            self.center_y = meta['center_y']
+            self.fps.update(meta['fps'])
+            self.hold = meta['hold']
+        else:
+            self.sprites = {name: Strip(f'assets/player/{name}.png', FRAME_W) for name in ANIMATION_FPS}
+            self.center_y = config.SPRITE_CENTER_Y
+
+    def draw(self, name, time, x, y, opacity=1, flip=False):
+        """발이 (x, y)에 닿게 그린다."""
+        sprite = self.sprites[name]
+        frame = int(time * self.fps[name])
+        frame = min(frame, sprite.count - 1) if name in self.hold else frame % sprite.count
+        sprite.draw(frame, x, y + self.center_y, opacity, flip)
 
 
 class Run:
@@ -426,7 +456,7 @@ class Player:
         self.animation_time = 0
         self.hit_stop = 0
         self.trail = []
-        self.sprites = {name: Strip(f'assets/player/{name}.png', FRAME_W) for name in ANIMATION_FPS}
+        self.art = PlayerArt(stage)
 
         self.run_state = Run(self)
         self.slide_state = Slide(self)
@@ -904,17 +934,14 @@ class Player:
         return self.state.ANIMATION
 
     def draw(self, camera):
-        dash_sprite = self.sprites['dash']
+        flip = self.facing < 0
         for x, y, age in self.trail:
             opacity = config.TRAIL_OPACITY * (1 - age / config.TRAIL_TIME)
-            dash_sprite.draw(0, x - camera.x, y + config.SPRITE_CENTER_Y - camera.y, opacity, self.facing < 0)
+            self.art.draw('dash', 0, x - camera.x, y - camera.y, opacity, flip)
 
-        name = self.animation_name()
-        sprite = self.sprites[name]
-        frame = int(self.animation_time * ANIMATION_FPS[name]) % sprite.count
         blink = self.invincible_timer > 0 and int(self.invincible_timer * config.BLINK_HZ) % 2 == 0
         opacity = config.BLINK_OPACITY if blink else 1
-        sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y, opacity, self.facing < 0)
+        self.art.draw(self.animation_name(), self.animation_time, self.x - camera.x, self.y - camera.y, opacity, flip)
 
     def get_bb(self):
         if self.midboss:
@@ -1003,6 +1030,7 @@ class Player:
     def enter_stage(self, stage):
         sound.play('gate')
         self.stage = stage
+        self.art = PlayerArt(stage)
         record.data['best_stage'] = max(record.data['best_stage'], stage + 1)
         self.invincible_timer = max(self.invincible_timer, config.STAGE_INVINCIBLE_TIME)
 
