@@ -3,6 +3,7 @@ from pico2d import SDL_KEYDOWN, SDL_KEYUP, SDLK_ESCAPE, SDLK_q
 import config
 import game_framework
 import game_world
+import record
 import result_mode
 import sound
 import title_mode
@@ -21,6 +22,8 @@ camera = None
 chunks = None
 game_over_timer = None
 paused = False
+# 개발자 테스트로 시작할 (스테이지 번호, 원석 다음에 나올 것: 'run', 'midboss', 'midboss_end', 'boss'). 보통 시작이면 None이고, 결과 화면에서 재도전해도 그대로 쓴다.
+dev_start = None
 
 
 def init():
@@ -28,13 +31,13 @@ def init():
     paused = False
     game_world.clear()
     camera = Camera()
-    player = Player(camera)
-    chunks = ChunkManager(player)
+    stage, dev_goal = dev_start or (0, None)
+    player = Player(camera, stage)
+    chunks = ChunkManager(player, dev_goal)
     game_over_timer = None
-    sound.play_music(0)
     game_world.add_object(Background(player), game_world.LAYER_BACKGROUND)
     game_world.add_object(player, game_world.LAYER_PLAYER)
-    game_world.add_object(HUD(player), game_world.LAYER_UI)
+    game_world.add_object(HUD(player, chunks), game_world.LAYER_UI)
     game_world.add_collision_pair('player:ground', player, None)
     game_world.add_collision_pair('player:gate', player, None)
     # 같은 프레임에 닿으면 베기가 이기도록 피격 그룹보다 먼저 처리한다.
@@ -46,20 +49,23 @@ def init():
     game_world.add_collision_pair('player:strike', player, None)
     game_world.add_collision_pair('player:wall', player, None)
     game_world.add_collision_pair('reflected:mage', None, None)
+    game_world.add_collision_pair('reflected:shot', None, None)
+    game_world.add_collision_pair('reflected:witch', None, None)
+    game_world.add_collision_pair('shard:monster', None, None)
 
 
 def handle_event(event):
     global paused
-    if event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE and game_over_timer is None:
+    if player.window:
+        player.window.handle_event(event)
+        # 창을 연 동안 뗀 키가 눌린 채로 남지 않게 한다.
+        if event.type == SDL_KEYUP:
+            player.handle_event(event)
+    elif event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE and game_over_timer is None:
         paused = not paused
-        if paused:
-            sound.pause_music()
-        else:
-            sound.resume_music()
     elif paused:
         if event.type == SDL_KEYDOWN and event.key == SDLK_q:
-            # 멈춘 음악을 그대로 두면 타이틀에서 같은 곡을 다시 틀지 못한다.
-            sound.stop_music()
+            record.save()
             game_framework.change_mode(title_mode)
         # 멈춘 동안 S를 떼어도 슬라이딩 입력이 눌린 채로 남지 않게 한다.
         elif event.type == SDL_KEYUP:
@@ -72,6 +78,10 @@ def update(dt):
     global game_over_timer
     if paused:
         return
+    if player.window:
+        game_world.update_layer(game_world.LAYER_EFFECT, dt)
+        return
+    player.run_time += dt
     camera.update_shake(dt)
     # 멈춤 동안 로직만 쉬고 입력은 handle_event로 계속 받아 버퍼에 남는다.
     if player.hit_stop > 0:
@@ -84,7 +94,7 @@ def update(dt):
             game_framework.change_mode(result_mode)
             return
         dt *= config.GAME_OVER_TIME_SCALE
-    elif player.bullet_wall:
+    elif player.bullet_target:
         player.tick_bullet_time(dt)
         dt *= config.BULLET_TIME_SCALE
     elif player.cut_after_timer > 0:
@@ -94,10 +104,12 @@ def update(dt):
     game_world.handle_collisions()
     camera.follow(player, dt)
     chunks.update(camera, dt)
-    if game_over_timer is None and (player.hp <= 0 or player.get_bb()[3] < 0):
-        game_over_timer = config.GAME_OVER_TIME
-        sound.stop_music()
-        sound.play('game_over')
+    if game_over_timer is None:
+        if player.cleared:
+            game_over_timer = config.CLEAR_TIME
+        elif player.hp <= 0 or player.get_bb()[3] < 0:
+            game_over_timer = config.GAME_OVER_TIME
+            sound.play('game_over')
 
 
 def draw():

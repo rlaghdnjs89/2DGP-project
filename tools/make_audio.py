@@ -1,4 +1,4 @@
-"""게임 효과음과 배경음을 코드로 합성해 assets/sound 아래에 저장한다.
+"""게임 효과음을 코드로 합성해 assets/sound 아래에 저장한다.
 
 실행: python tools/make_audio.py  (표준 라이브러리만 쓴다, 게임 실행에는 필요 없다)
 """
@@ -166,6 +166,7 @@ def make_sfx():
     save(record, 'new_record')
 
     make_boss_sfx()
+    make_gold_sfx()
 
 
 def make_boss_sfx():
@@ -216,98 +217,60 @@ def make_boss_sfx():
     add(seal, tone(110, 0.7, triangle, slide=-50, release=0.4), 0.18, 0.7)
     save(seal, 'seal_break', 0.8)
 
+    block = silence(0.3)
+    add(block, tone(1760, 0.18, triangle, slide=-400, release=0.14), gain=0.6)
+    add(block, tone(2637, 0.12, pulse, release=0.1), gain=0.2)
+    add(block, noise(0.08, rng, 2, 0.2), gain=0.7)
+    save(block, 'shield_block', 0.7)
 
-# 배경음 --------------------------------------------------------------------
+    wave = silence(0.5)
+    add(wave, tone(70, 0.45, pulse, slide=-30, release=0.2), gain=0.5)
+    add(wave, noise(0.45, rng, 1.6, 0.7), gain=1.0)
+    save(wave, 'boss_wave', 0.7)
 
-def make_track(name, bpm, chords, melody, seed, bass_steps=(0, 2, 4, 6), arp_gain=0.14, lead_wave=None, half_time=False, lead_vibrato=0.0):
-    """chords는 마디별 코드 음 이름, melody는 8분음표 단위 음 이름(None은 쉼표)이다. 8마디를 두 번 돌아 이어 붙인다."""
-    rng = random.Random(seed)
-    beat = 60 / bpm
-    eighth = beat / 2
-    sixteenth = beat / 4
-    bar = beat * 4
-    loops = 2
-    bars = len(chords) * loops
-    out = silence(bars * bar)
-    lead_wave = lead_wave or (lambda p: pulse(p, 0.25))
+    rock = silence(0.4)
+    add(rock, tone(110, 0.3, triangle, slide=-120, release=0.15), gain=0.8)
+    add(rock, noise(0.35, rng, 2.4, 0.6), gain=1.0)
+    save(rock, 'rock', 0.6)
 
-    kick = tone(120, 0.12, triangle, slide=-700, release=0.06)
-    snare = noise(0.14, rng, 2.2, 0.15)
-    hat = noise(0.03, rng, 2, 0.0)
+    zap = silence(0.25)
+    add(zap, noise(0.2, rng, 1.5, 0.0), gain=0.7)
+    add(zap, tone(1800, 0.18, pulse, slide=-3000, release=0.05), gain=0.4)
+    save(zap, 'zap', 0.5)
 
-    for b in range(bars):
-        start = b * bar
-        chord = chords[b % len(chords)]
-        root = note_freq(chord[0])
-        for step in range(8):
-            t = start + step * eighth
-            if half_time:
-                if step == 0:
-                    add(out, kick, t, 0.6)
-                if step == 4:
-                    add(out, snare, t, 0.3)
-            else:
-                if step % 4 == 0:
-                    add(out, kick, t, 0.65)
-                if step % 4 == 2:
-                    add(out, snare, t, 0.35)
-            add(out, hat, t, 0.12)
-        for step in bass_steps:
-            octave = 2 if step % 4 == 2 else 1
-            add(out, tone(root / 2 * octave, eighth * 0.9, triangle, release=0.02), start + step * eighth, 0.5)
-        for step in range(16):
-            n = chord[step % len(chord)]
-            add(out, tone(note_freq(n) * 2, sixteenth * 0.85, lambda p: pulse(p, 0.125), release=0.02), start + step * sixteenth, arp_gain)
+    teleport = silence(0.4)
+    add(teleport, tone(600, 0.3, triangle, slide=2400, vibrato=0.04, release=0.1), gain=0.5)
+    add(teleport, tone(900, 0.3, lambda p: pulse(p, 0.125), slide=-1500, release=0.1), 0.05, 0.25)
+    save(teleport, 'teleport', 0.6)
 
-    # 두 번째 바퀴에서는 한 옥타브 위 소리를 겹쳐 변화를 준다.
-    for loop in range(loops):
-        loop_start = loop * len(chords) * bar
-        i = 0
-        while i < len(melody):
-            n = melody[i]
-            if n is None:
-                i += 1
-                continue
-            length = 1
-            while i + length < len(melody) and melody[i + length] == '-':
-                length += 1
-            t = loop_start + i * eighth
-            add(out, tone(note_freq(n), eighth * length * 0.95, lead_wave, release=0.04, vibrato=lead_vibrato), t, 0.3)
-            if loop == 1:
-                add(out, tone(note_freq(n) * 2, eighth * length * 0.95, triangle, release=0.04), t, 0.12)
-            i += length
-    save(out, name, 0.7)
+    hole = silence(1.4)
+    add(hole, tone(60, 1.3, pulse, attack=0.3, slide=-20, vibrato=0.06, release=0.5), gain=0.5)
+    add(hole, list(reversed(noise(1.3, rng, 1.2, 0.7))), gain=0.8)
+    save(hole, 'blackhole', 0.7)
+
+    flame = silence(0.7)
+    add(flame, noise(0.65, rng, 1.0, 0.45), gain=1.0)
+    add(flame, tone(90, 0.6, pulse, slide=60, release=0.3), gain=0.35)
+    save(flame, 'flame', 0.6)
 
 
-def parse(text):
-    """'A4 - C5 .'처럼 쓴 멜로디를 목록으로 바꾼다. '-'는 앞 음을 잇고 '.'은 쉼표다."""
-    return [None if token == '.' else token for token in text.split()]
+def make_gold_sfx():
+    coin = silence(0.16)
+    add(coin, tone(note_freq('B5'), 0.05, pulse, release=0.02), gain=0.4)
+    add(coin, tone(note_freq('E6'), 0.12, pulse, release=0.08), 0.04, 0.4)
+    save(coin, 'coin', 0.45)
 
+    deny = silence(0.18)
+    add(deny, tone(150, 0.08, pulse, release=0.02), gain=0.5)
+    add(deny, tone(120, 0.1, pulse, release=0.04), 0.08, 0.5)
+    save(deny, 'deny', 0.5)
 
-def make_music():
-    make_track(
-        'bgm_phase1', 150,
-        [('A3', 'C4', 'E4'), ('F3', 'A3', 'C4'), ('C4', 'E4', 'G4'), ('G3', 'B3', 'D4'),
-         ('A3', 'C4', 'E4'), ('F3', 'A3', 'C4'), ('D3', 'F3', 'A3'), ('E3', 'G#3', 'B3')],
-        parse('A4 - C5 - E5 D5 C5 B4  A4 - F4 - C5 - A4 -  G4 - C5 - E5 G5 E5 C5  D5 - B4 - G4 A4 B4 D5 '
-              'E5 - A5 - G5 E5 D5 C5  F5 - E5 C5 D5 - C5 A4  D5 - F5 - A5 G5 F5 E5  E5 - G#4 B4 E5 - - .'),
-        1)
-    make_track(
-        'bgm_phase2', 120,
-        [('D3', 'F3', 'A3'), ('A#2', 'D3', 'F3'), ('G2', 'A#2', 'D3'), ('A2', 'C#3', 'E3'),
-         ('D3', 'F3', 'A3'), ('F3', 'A3', 'C4'), ('G2', 'A#2', 'D3'), ('A2', 'C#3', 'E3')],
-        parse('A4 - - - F4 - D4 -  A#4 - - - F4 - D4 -  G4 - A#4 - D5 - - -  C#5 - - - A4 - - - '
-              'A4 - D5 - F5 - - -  E5 - C5 - A4 - - -  A#4 - G4 - A#4 - D5 -  C#5 - - - - - . .'),
-        2, bass_steps=(0, 4), arp_gain=0.2, lead_wave=triangle, half_time=True, lead_vibrato=0.006)
-    make_track(
-        'bgm_phase3', 176,
-        [('E3', 'G3', 'B3'), ('F3', 'A3', 'C4'), ('E3', 'G3', 'B3'), ('D3', 'F#3', 'A3'),
-         ('E3', 'G3', 'B3'), ('F3', 'A3', 'C4'), ('G3', 'B3', 'D4'), ('F3', 'A3', 'C4')],
-        parse('E5 E5 . E5 F5 - E5 D5  C5 C5 . C5 D5 - E5 C5  B4 E5 G5 - F5 E5 D5 E5  F#5 - D5 - A4 - D5 F#5 '
-              'E5 G5 B5 - A5 G5 F5 E5  F5 A5 C6 - B5 A5 G5 F5  G5 - B5 - D6 - B5 G5  A5 - F5 - C5 - E5 -'),
-        3, bass_steps=(0, 1, 2, 3, 4, 5, 6, 7), arp_gain=0.1)
+    upgrade = silence(0.7)
+    for i, n in enumerate(('C5', 'E5', 'G5', 'C6')):
+        add(upgrade, tone(note_freq(n), 0.3, triangle, release=0.2), i * 0.07, 0.5)
+    add(upgrade, tone(note_freq('C7'), 0.3, pulse, release=0.25), 0.28, 0.12)
+    save(upgrade, 'upgrade', 0.7)
 
 
 if __name__ == '__main__':
     make_sfx()
-    make_music()

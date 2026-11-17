@@ -1,15 +1,23 @@
 import math
 import random
 
+from pico2d import SDL_BUTTON_LEFT, SDL_KEYDOWN, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION, SDLK_f, draw_rectangle
+
 import config
 import game_world
 import sound
 from sprite import Effect, OneShot, Strip, get_image
-from ui import draw_text
+from ui import Button, draw_text, mouse_pos
+from upgrade_window import UpgradeWindow
 
 GATE_FRAME_W = 64
 GATE_FPS = 14
 PLATFORM_CAP_W = 32
+SPIKES_IMAGE = 'assets/map/spikes.png'
+BARRICADE_IMAGE = 'assets/map/barricade.png'
+BEAM_IMAGE = 'assets/map/beam.png'
+BOULDER_IMAGE = 'assets/map/boulder.png'
+RUBBLE_IMAGE = 'assets/map/rubble.png'
 WALL_TOP_IMAGE = 'assets/map/wall_top.png'
 WALL_BOTTOM_IMAGE = 'assets/map/wall_bottom.png'
 WALL_BREAK_IMAGE = 'assets/map/wall_break.png'
@@ -23,6 +31,11 @@ FLIGHT_SPEED_X = 500
 FLIGHT_SPEED_Y = 700
 FLIGHT_GRAVITY = 1200
 FLIGHT_SPIN = -5
+ALTAR_FRAME_W = 80
+ALTAR_FPS = 8
+CHALLENGE_BUTTON = (config.SCREEN_W / 2, 150, 200, 56)
+COUNTDOWN_SIZE = 96
+PROMPT_SIZE = 24
 WARNING_SIZE = 24
 WARNING_COLOR = (255, 90, 90)
 READY_COLOR = (255, 214, 90)
@@ -51,7 +64,9 @@ class Obstacle:
         pass
 
     def draw(self, camera):
-        self.image.draw_to_origin(self.left - camera.x, self.bottom - camera.y, self.right - self.left, self.top - self.bottom)
+        # 판정보다 큰 그림(통나무를 매단 사슬)도 있어 판정 크기가 아니라 그림 크기로 그린다.
+        scale = config.SPRITE_SCALE
+        self.image.draw_to_origin(self.left - camera.x, self.bottom - camera.y, self.image.w * scale, self.image.h * scale)
 
     def get_bb(self):
         return self.left, self.bottom, self.right, self.top
@@ -60,23 +75,91 @@ class Obstacle:
         pass
 
 
-def make_low_obstacle(left, phase):
-    image = random.choice(config.PHASES[phase]['low'])
-    return Obstacle(left, config.GROUND_TOP, config.LOW_OBSTACLE_W, config.LOW_OBSTACLE_H, image)
+# 패턴 조각의 장애물은 모두 (왼쪽 x, 스테이지, 플레이어)로 만든다.
+
+def make_low_obstacle(left, stage, player):
+    image = random.choice(config.STAGES[stage]['low'])
+    return Obstacle(left, config.GROUND_TOP, *config.STAGES[stage]['low_size'], image)
 
 
-def make_high_obstacle(left, phase):
+def make_high_obstacle(left, stage, player):
     bottom = config.GROUND_TOP + config.HIGH_OBSTACLE_CLEARANCE
     # 천장까지 막아 점프로는 넘을 수 없게 한다.
-    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, config.PHASES[phase]['high'])
+    return Obstacle(left, bottom, config.HIGH_OBSTACLE_W, config.SCREEN_H - bottom, config.STAGES[stage]['high'])
 
 
-class PhaseGate:
-    def __init__(self, x, phase):
+def make_spikes(left, stage, player):
+    return Obstacle(left, config.GROUND_TOP, config.SPIKES_W, config.SPIKES_H, SPIKES_IMAGE)
+
+
+def make_barricade(left, stage, player):
+    return Obstacle(left, config.GROUND_TOP, config.BARRICADE_W, config.BARRICADE_H, BARRICADE_IMAGE)
+
+
+def make_beam(left, stage, player):
+    return Obstacle(left, config.GROUND_TOP + config.HIGH_OBSTACLE_CLEARANCE, config.BEAM_W, config.BEAM_H, BEAM_IMAGE)
+
+
+class Boulder(Obstacle):
+    def __init__(self, left, stage, player):
+        super().__init__(left, config.GROUND_TOP, config.BOULDER_SIZE, config.BOULDER_SIZE, BOULDER_IMAGE)
+        self.camera = player.camera
+        self.angle = 0
+
+    def update(self, dt):
+        # 화면 밖에서부터 굴러오면 조각에 적어 둔 자리와 상관없는 곳에서 만나게 된다.
+        if self.left - self.camera.base_x > config.SCREEN_W:
+            return
+        step = config.BOULDER_SPEED * dt
+        self.left -= step
+        self.right -= step
+        self.angle += step / (config.BOULDER_SIZE / 2)
+
+    def draw(self, camera):
+        size = config.BOULDER_SIZE
+        self.image.composite_draw(self.angle, '', self.left + size / 2 - camera.x, self.bottom + size / 2 - camera.y, size, size)
+
+
+class Rubble(Obstacle):
+    def __init__(self, left, stage, player):
+        super().__init__(left, config.SCREEN_H, config.RUBBLE_W, config.RUBBLE_H, RUBBLE_IMAGE)
+        self.player = player
+        # 떨어지기 시작한 뒤 흐른 시간. 아직 천장에 있으면 None이다.
+        self.fall_time = None
+
+    def landed(self):
+        return self.fall_time is not None and self.fall_time >= config.RUBBLE_FALL_TIME
+
+    def update(self, dt):
+        if self.landed():
+            return
+        if self.fall_time is None:
+            if self.left - self.player.x > self.player.speed() * config.RUBBLE_TRIGGER_TIME:
+                return
+            self.fall_time = 0
+        self.fall_time = min(config.RUBBLE_FALL_TIME, self.fall_time + dt)
+        ratio = self.fall_time / config.RUBBLE_FALL_TIME
+        self.bottom = config.SCREEN_H - (config.SCREEN_H - config.GROUND_TOP) * ratio * ratio
+        self.top = self.bottom + config.RUBBLE_H
+        if self.landed():
+            sound.play('rock')
+            self.player.camera.shake(config.RUBBLE_SHAKE_TIME, config.RUBBLE_SHAKE_AMP)
+
+    def draw(self, camera):
+        if not self.landed():
+            # 보스의 바닥 공격과 같은 표시로 떨어질 자리를 알린다.
+            bottom = config.GROUND_TOP - config.RUBBLE_WARNING_H - camera.y
+            draw_rectangle(self.left - camera.x, bottom, self.right - camera.x, bottom + config.RUBBLE_WARNING_H,
+                           *config.BOSS_STRIKE_WARNING_COLOR, 255, True)
+        super().draw(camera)
+
+
+class StageGate:
+    def __init__(self, x, stage):
         self.x = x
-        self.phase = phase
+        self.stage = stage
         self.time = 0
-        self.sprite = Strip(config.PHASES[phase]['gate'], GATE_FRAME_W)
+        self.sprite = Strip(config.STAGES[stage]['gate'], GATE_FRAME_W)
 
     def update(self, dt):
         self.time += dt
@@ -106,6 +189,7 @@ class Wall:
         self.top_image = get_image(WALL_TOP_IMAGE)
         self.bottom_image = get_image(WALL_BOTTOM_IMAGE)
         self.seal_image = get_image(WALL_SEAL_IMAGE)
+        player.next_wall = self
 
     def update(self, dt):
         self.time += dt
@@ -150,10 +234,10 @@ class Wall:
 
     def draw_warning(self):
         gap = self.x - self.player.x
-        if self.player.boss or self.player.bullet_wall or not 0 < gap <= self.player.speed() * config.WALL_WARNING_TIME:
+        if self.player.boss or self.player.bullet_target or not 0 < gap <= self.player.speed() * config.WALL_WARNING_TIME:
             return
         if self.sealed:
-            draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인된 장벽! 수문장을 베어라', WARNING_COLOR, align=1)
+            draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인된 장벽! 보스를 베어라', WARNING_COLOR, align=1)
         else:
             draw_text(WARNING_SIZE, config.SCREEN_W - 20, config.SCREEN_H * 0.62, '봉인 해제! 발도술 준비', READY_COLOR, align=1)
 
@@ -163,25 +247,107 @@ class Wall:
     def handle_collision(self, group, other):
         self.shatter()
 
-    def cut(self):
+    def on_bullet_timeout(self):
+        # 입력하지 못하면 불릿 타임만 끝나고, 피해는 장벽에 닿을 때 받는다.
+        pass
+
+    def cut_center(self):
+        return self.x + config.WALL_W / 2, config.SCREEN_H / 2
+
+    def on_cut(self):
         self.state = 'cut'
+        self.player.next_wall = None
         game_world.remove_collision('player:wall', self)
 
     def shatter(self):
         sound.play('wall_break')
+        self.player.next_wall = None
         game_world.remove_object(self)
         strip = Strip(WALL_BREAK_IMAGE, WALL_BREAK_FRAME_W)
         center = (self.x + config.WALL_W / 2, config.GROUND_TOP + strip.image.h * config.SPRITE_SCALE / 2)
         game_world.add_object(OneShot(strip, WALL_BREAK_FPS, *center), game_world.LAYER_EFFECT)
 
 
+class EvolutionAltar:
+    def __init__(self, x, player):
+        self.x = x
+        self.player = player
+        self.state = 'far'
+        self.timer = 0
+        self.time = 0
+        self.strip = Strip('assets/map/altar.png', ALTAR_FRAME_W)
+        self.button = Button(*CHALLENGE_BUTTON, '도전')
+
+    def stop_x(self):
+        return self.x - config.ALTAR_STOP_GAP
+
+    def speed_ratio(self):
+        if self.state != 'approach':
+            return 0
+        # 남은 거리에 맞춰 등감속해 원석 앞에서 멈춘다.
+        ratio = math.sqrt(max(0, self.stop_x() - self.player.x) / config.ALTAR_SLOW_DISTANCE)
+        return max(config.ALTAR_MIN_SPEED_RATIO, min(1, ratio))
+
+    def update(self, dt):
+        self.time += dt
+        if self.state == 'far':
+            if self.x - self.player.camera.x <= config.SCREEN_W:
+                self.state = 'approach'
+                self.player.altar = self
+        elif self.state == 'approach':
+            if self.player.x >= self.stop_x():
+                self.player.x = self.stop_x()
+                self.state = 'ready'
+                self.player.arrive_at_altar()
+        elif self.state == 'countdown':
+            self.timer -= dt
+            if self.timer <= 0:
+                self.state = 'done'
+                self.player.altar = None
+                sound.play('ui_start')
+
+    def is_stopped(self):
+        return self.state in ('ready', 'countdown')
+
+    def handle_event(self, event):
+        if self.state != 'ready':
+            return
+        if event.type == SDL_KEYDOWN and event.key == SDLK_f:
+            self.button.hover = False
+            self.player.window = UpgradeWindow(self.player, self)
+        elif event.type == SDL_MOUSEMOTION:
+            self.button.hover = self.button.contains(*mouse_pos(event))
+        elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT and self.button.contains(*mouse_pos(event)):
+            self.start_challenge()
+
+    def start_challenge(self):
+        self.state = 'countdown'
+        self.timer = config.ALTAR_COUNTDOWN
+        sound.play('ui_start')
+
+    def draw(self, camera):
+        frame = int(self.time * ALTAR_FPS) % self.strip.count
+        center_y = config.GROUND_TOP + self.strip.image.h * config.SPRITE_SCALE / 2
+        self.strip.draw(frame, self.x - camera.x, center_y - camera.y)
+        if self.state == 'ready':
+            top = config.GROUND_TOP + self.strip.image.h * config.SPRITE_SCALE
+            draw_text(PROMPT_SIZE, self.x - camera.x, top + 24 - camera.y, 'F 강화', align=0.5)
+            self.button.draw()
+        elif self.state == 'countdown':
+            draw_text(COUNTDOWN_SIZE, config.SCREEN_W / 2, config.SCREEN_H * 0.6, str(math.ceil(self.timer)), align=0.5)
+
+    def get_bb(self):
+        half_w = ALTAR_FRAME_W * config.SPRITE_SCALE / 2
+        return self.x - half_w, config.GROUND_TOP, self.x + half_w, config.SCREEN_H
+
+
 class Platform:
-    def __init__(self, left, right, top, phase):
+    def __init__(self, left, right, top, stage):
         self.left = left
         self.right = right
         self.top = top
-        self.image = get_image(config.PHASES[phase]['platform'])
-        self.cap = get_image(config.PHASES[phase]['platform_cap'])
+        self.image = get_image(config.STAGES[stage]['platform'])
+        self.cap = get_image(config.STAGES[stage]['platform_cap'])
 
     def update(self, dt):
         pass
@@ -203,11 +369,11 @@ class Platform:
 
 
 class Ground:
-    def __init__(self, left, right, phase):
+    def __init__(self, left, right, stage):
         self.left = left
         self.right = right
         self.top = config.GROUND_TOP
-        self.image = get_image(config.PHASES[phase]['ground'])
+        self.image = get_image(config.STAGES[stage]['ground'])
 
     def update(self, dt):
         pass

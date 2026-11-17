@@ -18,7 +18,8 @@ class Camera:
             return
         # 평소에는 플레이어와 같은 속도로 움직여 간격이 없고, 일섬으로 벌어진 간격만 서서히 줄인다.
         step = target.speed() * dt
-        gap = target.x - config.PLAYER_SCREEN_X - (self.base_x + step)
+        # 중간 보스전에서는 플레이어가 화면 안을 날아다니므로 따라가지 않고 달리는 속도로만 흐른다.
+        gap = 0 if target.midboss else target.x - config.PLAYER_SCREEN_X - (self.base_x + step)
         # 보스전 뒤에 플레이어가 기준 위치보다 뒤에 있어도 되감지 않고 따라올 때까지 기다린다.
         self.base_x += max(0, step + gap * min(1, config.CAMERA_CATCH_UP * dt))
         self.x = self.base_x + self.offset_x

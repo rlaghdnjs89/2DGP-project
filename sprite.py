@@ -16,18 +16,22 @@ def get_image(path):
 
 
 class Strip:
-    """프레임을 가로로 늘어놓은 이미지. 원본 픽셀을 SPRITE_SCALE배로 그린다."""
+    """프레임을 가로로 늘어놓은 이미지. 원본 픽셀을 scale배로 그린다."""
 
-    def __init__(self, path, frame_w):
+    def __init__(self, path, frame_w, scale=config.SPRITE_SCALE):
         self.image = get_image(path)
         self.frame_w = frame_w
+        self.scale = scale
         self.count = self.image.w // frame_w
 
-    def draw(self, frame, x, y, opacity=1):
+    def draw(self, frame, x, y, opacity=1, flip=False):
         w, h = self.frame_w, self.image.h
-        scale = config.SPRITE_SCALE
+        scale = self.scale
         self.image.opacify(opacity)
-        self.image.clip_draw(frame * w, 0, w, h, x, y, w * scale, h * scale)
+        if flip:
+            self.image.clip_composite_draw(frame * w, 0, w, h, 0, 'h', x, y, w * scale, h * scale)
+        else:
+            self.image.clip_draw(frame * w, 0, w, h, x, y, w * scale, h * scale)
         # opacify는 텍스처 자체를 바꾸므로 같은 이미지를 쓰는 다른 객체에 남지 않게 되돌린다.
         self.image.opacify(1)
 
@@ -35,11 +39,12 @@ class Strip:
 class OneShot:
     """한 번 재생하고 사라지는 애니메이션. 몬스터 사망에 쓴다."""
 
-    def __init__(self, strip, fps, x, y):
+    def __init__(self, strip, fps, x, y, flip=False):
         self.strip = strip
         self.fps = fps
         self.x = x
         self.y = y
+        self.flip = flip
         self.time = 0
 
     def update(self, dt):
@@ -48,7 +53,7 @@ class OneShot:
             game_world.remove_object(self)
 
     def draw(self, camera):
-        self.strip.draw(int(self.time * self.fps), self.x - camera.x, self.y - camera.y)
+        self.strip.draw(int(self.time * self.fps), self.x - camera.x, self.y - camera.y, flip=self.flip)
 
 
 def load_fx_sheet(name):
@@ -59,11 +64,12 @@ def load_fx_sheet(name):
 
 
 class Effect:
-    """pixelfx 시트를 재생한다. anchor를 주면 anchor를 따라다니고, flip이면 왼쪽을 향한다."""
+    """pixelfx 시트를 재생한다. anchor를 주면 anchor를 따라다니고, flip이면 왼쪽을 향하며, loop면 지울 때까지 되풀이한다."""
 
-    def __init__(self, name, x, y, anchor=None, speed=1, scale=config.SPRITE_SCALE, flip=False):
+    def __init__(self, name, x, y, anchor=None, speed=1, scale=config.SPRITE_SCALE, flip=False, loop=False):
         self.image, data = load_fx_sheet(name)
         self.flip = flip
+        self.loop = loop
         self.frames = data['frames']
         self.pivot = data['meta']['pixelfx']['pivot']
         self.x = x
@@ -79,7 +85,9 @@ class Effect:
         while self.elapsed >= self.frames[self.index]['duration']:
             self.elapsed -= self.frames[self.index]['duration']
             self.index += 1
-            if self.index == len(self.frames):
+            if self.index == len(self.frames) and self.loop:
+                self.index = 0
+            elif self.index == len(self.frames):
                 game_world.remove_object(self)
                 self.index -= 1
                 return

@@ -1,7 +1,7 @@
 import ctypes
 import random
 
-from pico2d import TTF_SizeUTF8, draw_rectangle, load_font
+from pico2d import TTF_SizeUTF8, draw_rectangle, get_canvas_height, load_font
 
 import config
 import record
@@ -12,11 +12,14 @@ HP_GAP = 10
 MARGIN = 20
 FONT_PATH = 'assets/fonts/Galmuri11.ttf'
 TEXT_COLOR = (250, 250, 250)
-SCORE_SIZE = 24
+GOLD_SIZE = 24
+GOLD_COLOR = (255, 214, 90)
 COMBO_SIZE = 24
 DASH_SIZE = 24
+SKILL_SLOT_X = 240
+SKILL_SLOT_GAP = 130
 DASH_EMPTY_COLOR = (130, 130, 130)
-PHASE_SIZE = 24
+STAGE_SIZE = 24
 BOSS_BAR_W = 560
 BOSS_BAR_H = 14
 BOSS_BAR_TOP = 92
@@ -25,11 +28,30 @@ BOSS_BAR_COLOR = (232, 56, 79)
 BOSS_NAME_SIZE = 24
 BOSS_INTRO_SIZE = 48
 BOSS_INTRO_COLOR = (255, 90, 90)
+COUNTER_PIP_SIZE = 18
+COUNTER_PIP_SPACE = 10
+COUNTER_PIP_GAP = 12
 BULLET_DIM = 0.35
 BULLET_TEXT_SIZE = 48
 BULLET_BAR_W = 420
 BULLET_BAR_H = 10
 BULLET_BAR_COLOR = (255, 214, 90)
+BUTTON_COLOR = (60, 44, 96)
+BUTTON_HOVER = (96, 72, 150)
+BUTTON_BORDER = (240, 240, 250)
+BUTTON_TEXT_SIZE = 24
+PROGRESS_BAR_W = 420
+PROGRESS_BAR_H = 8
+PROGRESS_BAR_TOP = 56
+PROGRESS_COLOR = (255, 214, 90)
+GAUGE_W = 120
+GAUGE_H = 12
+# 근접병이 칼을 치켜드는 준비 동작에도 가려지지 않는 높이다.
+GAUGE_GAP = 48
+GAUGE_ZONE_COLOR = (60, 120, 70)
+GAUGE_READY_COLOR = (120, 240, 140)
+GAUGE_CURSOR_W = 4
+GAUGE_CURSOR_OVER = 5
 HEART_SHAKE_TIME = 0.3
 HEART_SHAKE = 4
 HEAL_NOTICE_TIME = 1.2
@@ -70,17 +92,41 @@ def draw_overlay(path, opacity):
     image.opacify(1)
 
 
+def mouse_pos(event):
+    # 마우스 이벤트의 y는 위에서 아래로 증가한다.
+    return event.x, get_canvas_height() - 1 - event.y
+
+
+class Button:
+    def __init__(self, x, y, w, h, text):
+        self.left = x - w / 2
+        self.bottom = y - h / 2
+        self.right = x + w / 2
+        self.top = y + h / 2
+        self.text = text
+        self.hover = False
+
+    def contains(self, x, y):
+        return self.left <= x <= self.right and self.bottom <= y <= self.top
+
+    def draw(self, selected=False):
+        fill = BUTTON_HOVER if self.hover or selected else BUTTON_COLOR
+        draw_rectangle(self.left, self.bottom, self.right, self.top, *fill, 255, True)
+        draw_rectangle(self.left, self.bottom, self.right, self.top, *BUTTON_BORDER, 255, False)
+        draw_text(BUTTON_TEXT_SIZE, (self.left + self.right) / 2, (self.bottom + self.top) / 2, self.text, align=0.5)
+
+
 class HUD:
-    def __init__(self, player):
+    def __init__(self, player, chunks):
         self.player = player
-        self.shown_phase = player.phase
+        self.chunks = chunks
+        self.shown_stage = player.stage
         self.shown_hp = player.hp
         self.time = 0
-        self.best = record.load_best()
         self.flash = 0
         self.heart_shake = 0
         self.heal_notice = 0
-        # 배너는 페이즈가 바뀔 때만 나오므로 처음에는 이미 끝난 상태로 둔다.
+        # 배너는 스테이지가 바뀔 때만 나오므로 처음에는 이미 끝난 상태로 둔다.
         self.banner_time = BANNER_HOLD_TIME + BANNER_SHRINK_TIME
 
     def update(self, dt):
@@ -94,47 +140,109 @@ class HUD:
         elif self.player.hp > self.shown_hp:
             self.heal_notice = HEAL_NOTICE_TIME
         self.shown_hp = self.player.hp
-        if self.shown_phase != self.player.phase:
-            self.shown_phase = self.player.phase
+        if self.shown_stage != self.player.stage:
+            self.shown_stage = self.player.stage
             self.flash = FLASH_TIME
             self.banner_time = 0
 
-    def phase_label(self):
-        return f'PHASE {self.player.phase + 1} · {config.PHASES[self.player.phase]["name"]}'
+    def stage_label(self):
+        return f'STAGE {self.player.stage + 1} · {config.STAGES[self.player.stage]["name"]}'
 
-    def draw_phase(self):
+    def draw_stage(self):
         center_x = config.SCREEN_W / 2
-        top_y = config.SCREEN_H - MARGIN - PHASE_SIZE / 2
+        top_y = config.SCREEN_H - MARGIN - STAGE_SIZE / 2
         t = (self.banner_time - BANNER_HOLD_TIME) / BANNER_SHRINK_TIME
         if t >= 1:
-            draw_text(PHASE_SIZE, center_x, top_y, self.phase_label(), align=0.5)
+            draw_text(STAGE_SIZE, center_x, top_y, self.stage_label(), align=0.5)
             return
         t = max(0, t)
         size = BANNER_SIZES[min(len(BANNER_SIZES) - 1, int(t * len(BANNER_SIZES)))]
         y = config.SCREEN_H * 0.72 + (top_y - config.SCREEN_H * 0.72) * t
-        draw_text(size, center_x, y, self.phase_label(), align=0.5)
+        draw_text(size, center_x, y, self.stage_label(), align=0.5)
+
+    def draw_progress(self):
+        left = config.SCREEN_W / 2 - PROGRESS_BAR_W / 2
+        right = left + PROGRESS_BAR_W
+        bottom = config.SCREEN_H - PROGRESS_BAR_TOP
+        draw_rectangle(left, bottom, right, bottom + PROGRESS_BAR_H, *BOSS_BAR_BG, 255, True)
+        draw_rectangle(left, bottom, left + PROGRESS_BAR_W * self.chunks.progress(), bottom + PROGRESS_BAR_H, *PROGRESS_COLOR, 255, True)
+        draw_rectangle(left, bottom, right, bottom + PROGRESS_BAR_H, *BUTTON_BORDER, 255, False)
 
     def draw_dash(self):
         charges = self.player.dash_charges
-        text = f'일섬 {charges}/{config.DASH_MAX_CHARGES}'
-        if charges < config.DASH_MAX_CHARGES:
+        text = f'일섬 {charges}/{self.player.max_dash_charges()}'
+        if charges < self.player.max_dash_charges():
             text += f'  {self.player.dash_recharge:.1f}'
         color = TEXT_COLOR if charges > 0 else DASH_EMPTY_COLOR
         draw_text(DASH_SIZE, MARGIN, MARGIN + DASH_SIZE / 2, text, color)
+        self.draw_skill_slots()
 
-    def draw_boss(self):
-        boss = self.player.boss
+    def draw_skill_slots(self):
+        player = self.player
+        slots = []
+        if record.has_skill('flurry'):
+            slots.append(('Q', player.flurry_cooldown))
+        if record.has_skill('pierce'):
+            slots.append(('E', player.pierce_cooldown))
+        if player.learned_ultimate():
+            slots.append(('좌+우', player.ultimate_cooldown))
+        x = SKILL_SLOT_X
+        y = MARGIN + DASH_SIZE / 2
+        for name, cooldown in slots:
+            text = f'{name} {cooldown:.0f}' if cooldown > 0 else name
+            draw_text(DASH_SIZE, x, y, text, DASH_EMPTY_COLOR if cooldown > 0 else GOLD_COLOR)
+            x += SKILL_SLOT_GAP
+
+    def draw_boss(self, boss, ratio, hint):
+        """보스 이름과 막대. ratio는 막대가 찬 비율(보스의 남은 HP, 중간 보스의 남은 시간)이다."""
         x = config.SCREEN_W / 2
         left = x - BOSS_BAR_W / 2
         right = left + BOSS_BAR_W
         bottom = config.SCREEN_H - BOSS_BAR_TOP
         draw_text(BOSS_NAME_SIZE, x, bottom + BOSS_BAR_H + 16, boss.NAME, align=0.5)
         draw_rectangle(left, bottom, right, bottom + BOSS_BAR_H, *BOSS_BAR_BG, 255, True)
-        draw_rectangle(left, bottom, left + BOSS_BAR_W * boss.hp / config.BOSS_HP, bottom + BOSS_BAR_H, *BOSS_BAR_COLOR, 255, True)
+        draw_rectangle(left, bottom, left + BOSS_BAR_W * ratio, bottom + BOSS_BAR_H, *BOSS_BAR_COLOR, 255, True)
         draw_rectangle(left, bottom, right, bottom + BOSS_BAR_H, 240, 240, 250, 255, False)
         if boss.state == 'intro':
             draw_text(BOSS_INTRO_SIZE, x, config.SCREEN_H * 0.66, f'{boss.NAME} 등장', BOSS_INTRO_COLOR, align=0.5)
-            draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, 'A, D로 움직여 베어라', align=0.5)
+            draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, hint, align=0.5)
+
+    def draw_counter(self, midboss):
+        """중간 보스의 반격 단계. 막대 아래 칸에 튕겨 낸 탄으로 맞힌 횟수를 채우고, 반격이 시작될 때는 화면 가운데에 알린다."""
+        x = config.SCREEN_W / 2
+        top = config.SCREEN_H - BOSS_BAR_TOP - COUNTER_PIP_GAP
+        count = config.BROOM_STUN_HITS
+        for i in range(count):
+            left = x + (i - count / 2) * (COUNTER_PIP_SIZE + COUNTER_PIP_SPACE) + COUNTER_PIP_SPACE / 2
+            bottom = top - COUNTER_PIP_SIZE
+            draw_rectangle(left, bottom, left + COUNTER_PIP_SIZE, top, *(GOLD_COLOR if i < midboss.hits else BOSS_BAR_BG), 255, True)
+            draw_rectangle(left, bottom, left + COUNTER_PIP_SIZE, top, *BUTTON_BORDER, 255, False)
+        if midboss.timer > 0:
+            draw_text(BOSS_INTRO_SIZE, x, config.SCREEN_H * 0.66, '마녀의 반격', BOSS_INTRO_COLOR, align=0.5)
+            draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, f'운석을 피하며 반짝이는 탄을 튕겨 마녀를 {count}번 맞혀라', align=0.5)
+
+    def draw_slash_gauge(self, camera):
+        """노리는 몬스터 머리 위의 베기 게이지. 다가갈수록 커서가 오른쪽으로 가고, 초록 칸 안에서 베면 맞는다."""
+        aim = self.player.gauge_target()
+        if aim is None:
+            return
+        monster, gap, reach = aim
+        left = monster.x - camera.x - GAUGE_W / 2
+        right = left + GAUGE_W
+        bottom = monster.get_bb()[3] - camera.y + GAUGE_GAP
+        top = bottom + GAUGE_H
+        span = reach + config.SLASH_GAUGE_LEAD
+        # 커서는 플레이어가 다가가는 쪽으로 움직인다. 왼쪽을 보면 게이지를 뒤집는다.
+        facing = self.player.facing
+        near = right if facing > 0 else left
+        zone_edge = near - facing * GAUGE_W * reach / span
+        cursor = near - facing * GAUGE_W * gap / span
+        ready = gap <= reach
+        draw_rectangle(left, bottom, right, top, *BOSS_BAR_BG, 255, True)
+        draw_rectangle(min(zone_edge, near), bottom, max(zone_edge, near), top, *(GAUGE_READY_COLOR if ready else GAUGE_ZONE_COLOR), 255, True)
+        draw_rectangle(left, bottom, right, top, *(GOLD_COLOR if ready else BUTTON_BORDER), 255, False)
+        draw_rectangle(cursor - GAUGE_CURSOR_W / 2, bottom - GAUGE_CURSOR_OVER, cursor + GAUGE_CURSOR_W / 2, top + GAUGE_CURSOR_OVER,
+                       *TEXT_COLOR, 255, True)
 
     def draw_bullet_time(self):
         draw_overlay('assets/ui/black.png', BULLET_DIM)
@@ -146,12 +254,13 @@ class HUD:
         draw_rectangle(left, y, left + BULLET_BAR_W * remain, y + BULLET_BAR_H, *BULLET_BAR_COLOR, 255, True)
 
     def draw(self, camera):
-        if self.player.bullet_wall:
+        if self.player.bullet_target:
             self.draw_bullet_time()
+        self.draw_slash_gauge(camera)
 
         full = get_image('assets/ui/heart_full.png')
         empty = get_image('assets/ui/heart_empty.png')
-        for i in range(config.HP_MAX):
+        for i in range(self.player.max_hp):
             left = MARGIN + i * (HP_SIZE + HP_GAP)
             bottom = config.SCREEN_H - MARGIN - HP_SIZE
             if self.heart_shake > 0:
@@ -160,22 +269,30 @@ class HUD:
             image = full if i < self.player.hp else empty
             image.draw_to_origin(left, bottom, HP_SIZE, HP_SIZE)
 
-        self.draw_phase()
+        # 강화 창이 상단 가운데를 가리므로 창을 연 동안은 그리지 않는다.
+        if not self.player.window:
+            self.draw_stage()
 
         right = config.SCREEN_W - MARGIN
-        top = config.SCREEN_H - MARGIN - SCORE_SIZE / 2
-        rate = config.PHASES[self.player.phase]['score_rate']
-        rate_text = f' ×{rate}' if rate > 1 else ''
-        draw_text(SCORE_SIZE, right, top, f'SCORE {self.player.score:,}{rate_text}', align=1)
-        draw_text(SCORE_SIZE, right, top - SCORE_SIZE - 6, f'BEST {max(self.best, self.player.score):,}', align=1)
+        top = config.SCREEN_H - MARGIN - GOLD_SIZE / 2
+        draw_text(GOLD_SIZE, right, top, f'골드 {record.data["gold"]:,}', GOLD_COLOR, align=1)
+        draw_text(GOLD_SIZE, right, top - GOLD_SIZE - 6, f'이번 런 +{self.player.run_gold:,}', align=1)
         if self.player.combo > 0:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2, f'COMBO {self.player.combo}', align=1)
         if self.heal_notice > 0:
-            draw_text(COMBO_SIZE, right, config.SCREEN_H / 2 - COMBO_SIZE - 8, 'HP +1', HEAL_COLOR, align=1)
+            draw_text(COMBO_SIZE, right, config.SCREEN_H / 2 - COMBO_SIZE - 8, 'HP 회복', HEAL_COLOR, align=1)
 
         self.draw_dash()
-        if self.player.boss:
-            self.draw_boss()
+        boss = self.player.boss
+        midboss = self.player.midboss
+        if boss:
+            self.draw_boss(boss, boss.hp / boss.MAX_HP, 'A, D로 움직여 베어라')
+        elif midboss:
+            self.draw_boss(midboss, midboss.remain / config.MIDBOSS_TIME, '마우스를 따라 날아 버티고, 반짝이는 탄은 베어 튕겨 내라')
+            if midboss.state == 'counter':
+                self.draw_counter(midboss)
+        elif not self.player.window:
+            self.draw_progress()
 
         if self.flash > 0:
             draw_overlay('assets/ui/white.png', self.flash / FLASH_TIME)

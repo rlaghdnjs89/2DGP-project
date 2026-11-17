@@ -15,26 +15,29 @@ def direction_to(x0, y0, x1, y1):
 
 
 class Bullet:
-    def __init__(self, x, y, target_x, target_y, owner):
+    def __init__(self, x, y, target_x, target_y, owner, image='assets/monster/bullet.png', speed=config.BULLET_SPEED, frame_w=FRAME_W):
         self.x = x
         self.y = y
         self.owner = owner
         self.player = owner.player
         dx, dy = direction_to(x, y, target_x, target_y)
-        self.vx = dx * config.BULLET_SPEED
-        self.vy = dy * config.BULLET_SPEED
+        self.vx = dx * speed
+        self.vy = dy * speed
         self.reflected = False
         self.time = 0
-        self.strip = Strip('assets/monster/bullet.png', FRAME_W)
+        self.strip = Strip(image, frame_w)
 
     def update(self, dt):
         # 불릿 타임에는 탄막이 멈춘다 (CT-3).
-        if self.player.bullet_wall:
+        if self.player.bullet_target:
             return
         self.time += dt
+        # 쏜 적이 순간이동해도 빗나가지 않게 따라간다. 먼저 쓰러졌으면 그대로 날아가 사라진다.
+        if self.reflected and not self.owner.dead:
+            self.aim_at_owner()
         self.x += self.vx * dt
         self.y += self.vy * dt
-        if abs(self.x - self.player.x) > config.SCREEN_W or not 0 < self.y < config.SCREEN_H:
+        if abs(self.x - self.player.x) > config.SCREEN_W or not config.GROUND_TOP < self.y < config.SCREEN_H:
             game_world.remove_object(self)
 
     def draw(self, camera):
@@ -50,12 +53,17 @@ class Bullet:
         game_world.remove_collision('player:bullet', self)
         game_world.remove_collision('sword:bullet', self)
         game_world.add_collision_pair('reflected:mage', self, None)
-        # 쏜 뒤에 플레이어가 전진했으므로 그대로 뒤집으면 빗나간다. 쏜 마법사를 향해 다시 조준한다.
-        dx, dy = direction_to(self.x, self.y, self.owner.x, self.owner.muzzle_y())
-        self.vx = dx * config.REFLECTED_SPEED
-        self.vy = dy * config.REFLECTED_SPEED
-        self.player.on_parry()
+        # 쏜 뒤에 플레이어가 전진했으므로 그대로 뒤집으면 빗나간다.
+        self.aim_at_owner()
+        self.player.on_parry(self.x, self.y)
         game_world.add_object(Effect('parry', self.x, self.y, scale=PARRY_FX_SCALE), game_world.LAYER_EFFECT)
+
+    def aim_at_owner(self):
+        target_y = self.owner.muzzle_y()
+        if (self.x, self.y) != (self.owner.x, target_y):
+            dx, dy = direction_to(self.x, self.y, self.owner.x, target_y)
+            self.vx = dx * config.REFLECTED_SPEED
+            self.vy = dy * config.REFLECTED_SPEED
 
     def handle_collision(self, group, other):
         if group == 'sword:bullet':

@@ -4,6 +4,7 @@ from pico2d import open_canvas, close_canvas, hide_lattice
 
 import config
 import game_framework
+import record
 import sound
 import title_mode
 
@@ -12,5 +13,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 open_canvas(config.SCREEN_W, config.SCREEN_H, sync=True)
 hide_lattice()
 sound.load()
+record.load()
 game_framework.run(title_mode)
+# 런 도중에 창을 닫아도 모은 골드를 잃지 않게 한다.
+record.save()
 close_canvas()
