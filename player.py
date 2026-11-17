@@ -316,6 +316,7 @@ class Cut:
         self.timer = 0
         self.target = None
         self.layers = ()
+        self.body = None
         self.dim_opacity = 0
         self.ANIMATION = 'charge'
         self.charge_time = load_fx_sheet(CHARGE_FX)[1]['meta']['pixelfx']['act']['hits'][0]['t']
@@ -351,6 +352,9 @@ class Cut:
             for layer in self.layers:
                 game_world.remove_object(layer)
             self.player.cut_target(self.target)
+            # 터지는 빛과 집중선이 플레이어를 가리지 않게 그 위에 다시 그린다. 느린 시간이 끝나면 Player.tick_cut_after가 지운다.
+            self.body = Layer(self.player.draw)
+            game_world.add_object(self.body, game_world.LAYER_EFFECT)
             self.target = None
             self.ANIMATION = 'cut'
             self.player.animation_time = 0
@@ -765,6 +769,7 @@ class Player:
         """터진 뒤의 느린 시간을 실제 시간으로 재고, 이번 프레임의 시간 배율을 돌려준다."""
         self.cut_after_timer -= real_dt
         if self.cut_after_timer <= 0:
+            game_world.remove_object(self.cut_state.body)
             self.change_state(self.run_state if self.on_ground else self.jump_state)
             return 1
         t = 1 - self.cut_after_timer / config.CUT_AFTER_TIME
