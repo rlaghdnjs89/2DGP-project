@@ -229,8 +229,8 @@ BLINK_FX_SPEED = 3
 BLINK_FX_SCALE = 3
 
 # 스테이지 2의 중간 보스 '빗자루 마녀'. 달리기 구간을 이 비율만큼 달리면 나타난다.
-# 버티는 동안에는 벨 수 없다. MIDBOSS_TIME초를 버티면 불릿 타임이 열리고, 좌+우 동시 클릭으로 베어 쓰러뜨린다. 놓치면 마녀는 달아난다.
-# 버티는 시간은 달린 시간에 넣지 않는다.
+# 버티는 동안에는 벨 수 없다. MIDBOSS_TIME초를 버티면 반격 단계가 열리고, 튕겨 낸 탄에 맞아 기절한 마녀를 불릿 타임에 좌+우 동시 클릭으로 베어 쓰러뜨린다.
+# 놓치면 마녀는 달아난다. 버티는 시간은 달린 시간에 넣지 않는다.
 MIDBOSS_STAGE = 1
 MIDBOSS_PROGRESS = 0.5
 MIDBOSS_TIME = 35
@@ -276,6 +276,21 @@ BROOM_SCATTER_SPEED = (240, 420)
 # 터진 자리에서 이 반경 안의 못 튕기는 탄을 가까운 순서로 SPARK_BURST_MAX개까지만 지운다. 전기 장벽과 전기장은 지우지 못한다.
 SPARK_BURST_RADIUS = 200
 SPARK_BURST_MAX = 5
+# 반격 단계. 탄막과 함정이 걷히고, 마녀는 운석을 떨어뜨리며 반짝이는 탄만 하나씩 플레이어를 겨눠 쏜다.
+# 반격 단계에서 튕겨 낸 탄은 마녀를 쫓아가 맞고, BROOM_STUN_HITS번 맞은 마녀는 기절해 불릿 타임이 열린다.
+BROOM_STUN_HITS = 3
+# 반격을 알리는 동안은 공격하지 않는다.
+COUNTER_START_DELAY = 1.5
+COUNTER_SHOT_INTERVAL = (1.2, 1.8)
+# 튕겨 낸 탄이 마녀에게 닿는 범위. 빗자루를 뺀 몸통이다.
+BROOM_HIT_W = 110
+BROOM_HIT_H = 170
+# 운석은 화면 위의 무작위 자리에서 그때 플레이어가 있던 자리를 겨눠 떨어진다. 떨어지기 전 METEOR_WARNING초 동안 지나갈 길이 깜빡인다.
+METEOR_INTERVAL = (0.8, 1.3)
+METEOR_WARNING = 0.6
+METEOR_WARNING_BLINK = 24
+METEOR_SPEED = 750
+METEOR_SIZE = 36
 # 균열 파편 무리. 화면 오른쪽에서 무작위 높이로 쏟아진다.
 # 잇달아 나오는 파편은 높이를 ORB_MIN_GAP 이상 벌려 세로로 늘어선 벽이 되지 않게 한다.
 ORB_SIZE = 40

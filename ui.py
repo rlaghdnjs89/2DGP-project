@@ -28,6 +28,9 @@ BOSS_BAR_COLOR = (232, 56, 79)
 BOSS_NAME_SIZE = 24
 BOSS_INTRO_SIZE = 48
 BOSS_INTRO_COLOR = (255, 90, 90)
+COUNTER_PIP_SIZE = 18
+COUNTER_PIP_SPACE = 10
+COUNTER_PIP_GAP = 12
 BULLET_DIM = 0.35
 BULLET_TEXT_SIZE = 48
 BULLET_BAR_W = 420
@@ -204,6 +207,20 @@ class HUD:
             draw_text(BOSS_INTRO_SIZE, x, config.SCREEN_H * 0.66, f'{boss.NAME} 등장', BOSS_INTRO_COLOR, align=0.5)
             draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, hint, align=0.5)
 
+    def draw_counter(self, midboss):
+        """중간 보스의 반격 단계. 막대 아래 칸에 튕겨 낸 탄으로 맞힌 횟수를 채우고, 반격이 시작될 때는 화면 가운데에 알린다."""
+        x = config.SCREEN_W / 2
+        top = config.SCREEN_H - BOSS_BAR_TOP - COUNTER_PIP_GAP
+        count = config.BROOM_STUN_HITS
+        for i in range(count):
+            left = x + (i - count / 2) * (COUNTER_PIP_SIZE + COUNTER_PIP_SPACE) + COUNTER_PIP_SPACE / 2
+            bottom = top - COUNTER_PIP_SIZE
+            draw_rectangle(left, bottom, left + COUNTER_PIP_SIZE, top, *(GOLD_COLOR if i < midboss.hits else BOSS_BAR_BG), 255, True)
+            draw_rectangle(left, bottom, left + COUNTER_PIP_SIZE, top, *BUTTON_BORDER, 255, False)
+        if midboss.timer > 0:
+            draw_text(BOSS_INTRO_SIZE, x, config.SCREEN_H * 0.66, '마녀의 반격', BOSS_INTRO_COLOR, align=0.5)
+            draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, f'운석을 피하며 반짝이는 탄을 튕겨 마녀를 {count}번 맞혀라', align=0.5)
+
     def draw_slash_gauge(self, camera):
         """노리는 몬스터 머리 위의 베기 게이지. 다가갈수록 커서가 오른쪽으로 가고, 초록 칸 안에서 베면 맞는다."""
         aim = self.player.gauge_target()
@@ -272,6 +289,8 @@ class HUD:
             self.draw_boss(boss, boss.hp / boss.MAX_HP, 'A, D로 움직여 베어라')
         elif midboss:
             self.draw_boss(midboss, midboss.remain / config.MIDBOSS_TIME, '마우스를 따라 날아 버티고, 반짝이는 탄은 베어 튕겨 내라')
+            if midboss.state == 'counter':
+                self.draw_counter(midboss)
         elif not self.player.window:
             self.draw_progress()
 

@@ -774,9 +774,43 @@ def draw_broom_witch(bob, arm_lift, glow, sway):
 
 
 def make_broom_witch():
-    save(strip([draw_broom_witch(math.sin(i / 6 * math.pi * 2) * 2, 0, False, (i % 3) - 1) for i in range(6)]), 'monster/broom_fly.png')
-    save(strip([draw_broom_witch(-2, 10 + i * 3, True, i - 1) for i in range(3)]), 'monster/broom_cast.png')
+    fly = [draw_broom_witch(math.sin(i / 6 * math.pi * 2) * 2, 0, False, (i % 3) - 1) for i in range(6)]
+    cast = [draw_broom_witch(-2, 10 + i * 3, True, i - 1) for i in range(3)]
+    for name, frames in (('fly', fly), ('cast', cast)):
+        save(strip(frames), f'monster/broom_{name}.png')
+        save(strip([tint_all(frame, (255, 255, 255)) for frame in frames]), f'monster/broom_{name}_flash.png')
     save(strip(witch_death_frames(draw_broom_witch(0, 0, False, 0))), 'monster/broom_death.png')
+
+    # 기절한 마녀의 머리 위를 도는 별 셋. 뒤로 돌아간 별은 작게 그린다.
+    frames = []
+    for i in range(6):
+        img = new_frame(56, 20)
+        for k in range(3):
+            a = (k + i / 6) / 3 * math.pi * 2
+            x, y = 28 + math.cos(a) * 22, 10 + math.sin(a) * 6
+            size = 4 if math.sin(a) > 0 else 2.6
+            for b in range(4):
+                tip = (x + math.cos(b * math.pi / 2) * size, y + math.sin(b * math.pi / 2) * size)
+                capsule(img, (x, y), tip, 1.4, 0.5, hex_color('ffe27a'))
+            disc(img, x, y, 1.2, hex_color('ffffff'))
+        frames.append(img)
+    save(strip(frames), 'monster/stun_stars.png')
+
+    # 운석: 오른쪽으로 날아가는 바위와 뒤로 끌리는 불꼬리. 게임에서는 날아가는 방향으로 돌려 그린다.
+    frames = []
+    for i in range(4):
+        img = new_frame(56, 28)
+        flick = (0, 3, -2, 1)[i]
+        sway = (0, 1, 0, -1)[i]
+        capsule(img, (40, 14), (3 + flick, 14 + sway), 10, 2, hex_color('ff5a1f'))
+        capsule(img, (40, 14), (13 + flick, 14 - sway), 7, 1.5, hex_color('ffb02e'))
+        capsule(img, (40, 14), (24 + flick, 14), 4.5, 1, hex_color('fff0b0'))
+        disc(img, 40, 14, 9, hex_color('3a2230'))
+        disc(img, 42, 12, 5, hex_color('6b3a4a'))
+        capsule(img, (35, 16), (40, 18), 1, 1, hex_color('ff7a2f'))
+        capsule(img, (38, 9), (41, 12), 0.8, 0.8, hex_color('ff7a2f'))
+        frames.append(img)
+    save(strip(frames), 'monster/meteor.png')
 
     # 반짝이는 탄: 금빛 탄에서 가로세로 빛살과 대각선 빛살이 번갈아 길어지며 반짝인다. 베어 튕겨 낼 수 있다.
     frames = []

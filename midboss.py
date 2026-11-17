@@ -21,6 +21,17 @@ PARRY_FX_SCALE = 1
 BURST_FX_SPEED = 2
 DEATH_IMAGE = 'assets/monster/broom_death.png'
 DEATH_FPS = 8
+HIT_FX_SPEED = 2
+STUN_IMAGE = 'assets/monster/stun_stars.png'
+STUN_FRAME_W = 56
+STUN_FPS = 10
+# 마녀 중심에서 기절 별까지의 높이. 왕관 바로 위다.
+STUN_Y = 104
+METEOR_IMAGE = 'assets/monster/meteor.png'
+METEOR_FRAME_W = 56
+# 운석 그림에서 바위 중심은 그림 중심보다 이만큼 앞(오른쪽)에 있다.
+METEOR_ROCK_X = 12
+METEOR_WARNING_IMAGE = 'assets/ui/warning.png'
 BOLT_IMAGE = 'assets/monster/bolt.png'
 BOLT_FRAME_W = 32
 BOLT_FPS = 14
@@ -90,15 +101,27 @@ class SparkShot(Shot):
     def __init__(self, witch, x, y, vx, vy):
         super().__init__(witch.player, x, y, vx, vy, SPARK_IMAGE, SPARK_FRAME_W, config.BULLET_SIZE)
         self.witch = witch
+        self.reflected = False
 
-    def reflect(self):
+    def aim_at_witch(self):
         angle = math.atan2(self.witch.y - self.y, self.witch.x - self.x)
         self.vx = math.cos(angle) * config.REFLECTED_SPEED
         self.vy = math.sin(angle) * config.REFLECTED_SPEED
+
+    def update(self, dt):
+        # 반격 단계에서는 위아래로 떠다니는 마녀를 놓치지 않게 매 프레임 마녀를 향한다.
+        if self.reflected and self.witch.state == 'counter':
+            self.aim_at_witch()
+        super().update(dt)
+
+    def reflect(self):
+        self.reflected = True
+        self.aim_at_witch()
         self.strip = Strip(REFLECTED_IMAGE, SHOT_FRAME_W)
         game_world.remove_collision('player:bullet', self)
         game_world.remove_collision('sword:bullet', self)
         game_world.add_collision_pair('reflected:shot', self, None)
+        game_world.add_collision_pair('reflected:witch', self, None)
         self.player.on_parry(self.x, self.y)
         game_world.add_object(Effect('parry', self.x, self.y, scale=PARRY_FX_SCALE), game_world.LAYER_EFFECT)
 
@@ -125,6 +148,49 @@ class SparkShot(Shot):
             self.reflect()
         elif group == 'reflected:shot':
             self.burst()
+
+
+class Meteor(Shot):
+    """화면 위에서 플레이어가 있던 자리를 겨눠 곧게 떨어지는 운석. 떨어지기 전에 지나갈 길이 깜빡인다. 벨 수 없다."""
+
+    def __init__(self, player, x, y, angle):
+        speed = config.METEOR_SPEED
+        super().__init__(player, x, y, math.cos(angle) * speed, math.sin(angle) * speed, METEOR_IMAGE, METEOR_FRAME_W, config.METEOR_SIZE)
+        self.angle = angle
+        self.warning = config.METEOR_WARNING
+
+    def update(self, dt):
+        if self.warning > 0:
+            self.warning -= dt
+            self.x += self.player.speed() * dt
+            if self.warning <= 0:
+                sound.play('flame')
+            return
+        super().update(dt)
+        if self.y - self.size / 2 <= config.GROUND_TOP:
+            sound.play('rock')
+            game_world.remove_object(self)
+            game_world.add_object(Effect('heavy-landing', self.x, config.GROUND_TOP), game_world.LAYER_EFFECT)
+
+    def draw(self, camera):
+        angle = self.angle
+        if self.warning > 0:
+            # 땅에 닿을 때까지의 길을 운석 폭으로 칠한다.
+            length = (self.y - config.GROUND_TOP) / -math.sin(angle)
+            image = get_image(METEOR_WARNING_IMAGE)
+            image.opacify(0.5 + 0.5 * math.sin(self.warning * config.METEOR_WARNING_BLINK))
+            image.composite_draw(angle, '', self.x + math.cos(angle) * length / 2 - camera.x, self.y + math.sin(angle) * length / 2 - camera.y,
+                                 length, self.size)
+            image.opacify(1)
+            return
+        image = self.strip.image
+        w, h = METEOR_FRAME_W, image.h
+        scale = config.SPRITE_SCALE
+        frame = int(self.time * SHOT_FPS) % self.strip.count
+        # 바위 중심이 판정 가운데에 오도록 그림을 날아온 쪽으로 물린다.
+        back = METEOR_ROCK_X * scale
+        image.clip_composite_draw(frame * w, 0, w, h, angle, '', self.x - math.cos(angle) * back - camera.x,
+                                  self.y - math.sin(angle) * back - camera.y, w * scale, h * scale)
 
 
 class Fence:
@@ -215,7 +281,8 @@ class Press:
 
 class BroomWitch:
     """스테이지 2의 중간 보스. 빗자루를 타고 플레이어 앞을 날며 탄을 쏘고, 파편 무리와 전기 함정을 무작위 순서로 불러낸다.
-    버틸 시간이 다 지나면 불릿 타임이 열리고, 그동안 좌+우 동시 클릭으로 벨 수 있다."""
+    버틸 시간이 다 지나면 반격 단계에서 운석을 떨어뜨리며 반짝이는 탄만 쏜다. 튕겨 낸 탄에 BROOM_STUN_HITS번 맞으면 기절해 불릿 타임이 열리고,
+    그동안 좌+우 동시 클릭으로 벨 수 있다."""
     NAME = '빗자루 마녀'
 
     def __init__(self, start_x, player):
@@ -225,6 +292,10 @@ class BroomWitch:
         self.time = 0
         self.timer = 0
         self.remain = config.MIDBOSS_TIME
+        self.hits = 0
+        self.flash = 0
+        self.stun_time = 0
+        self.meteor_timer = 0
         # 마녀는 화면의 같은 자리에 떠 있으므로 화면 좌표로 둔다.
         self.screen_x = BROOM_START_X
         self.y = config.BROOM_HOVER_Y
@@ -238,6 +309,8 @@ class BroomWitch:
         self.orb_range = (0, 0)
         self.orb_y = 0
         self.sprites = {name: Strip(f'assets/monster/broom_{name}.png', BROOM_FRAME_W) for name in ('fly', 'cast')}
+        self.flash_sprites = {name: Strip(f'assets/monster/broom_{name}_flash.png', BROOM_FRAME_W) for name in ('fly', 'cast')}
+        self.stars = Strip(STUN_IMAGE, STUN_FRAME_W)
 
     def rage(self):
         """공격이 거세지는 후반이면 1, 아니면 0. (전반, 후반) 값을 고르는 데 쓴다."""
@@ -251,6 +324,11 @@ class BroomWitch:
         return self.left() + self.screen_x
 
     def update(self, dt):
+        self.flash = max(0, self.flash - dt)
+        if self.state == 'finish':
+            # 기절한 동안은 떠다니지 않고 날던 모습 그대로 굳는다. 머리 위의 별만 돈다.
+            self.stun_time += dt
+            return
         self.time += dt
         if self.state == 'wait':
             # 앞 청크의 낭떠러지와 사역마가 화면 뒤로 다 빠진 뒤에 시작한다.
@@ -262,6 +340,8 @@ class BroomWitch:
         self.y = config.BROOM_HOVER_Y + config.BROOM_HOVER_AMP * math.sin(self.time * config.BROOM_HOVER_SPEED)
         if self.state == 'fight':
             self.fight(dt)
+        elif self.state == 'counter':
+            self.counter(dt)
         elif self.state == 'intro':
             self.timer -= dt
             t = max(0, self.timer / config.MIDBOSS_INTRO_TIME)
@@ -279,7 +359,7 @@ class BroomWitch:
     def fight(self, dt):
         self.remain -= dt
         if self.remain <= 0:
-            self.open_finish()
+            self.start_counter()
             return
         self.shot_timer -= dt
         if self.shot_timer <= 0:
@@ -295,11 +375,59 @@ class BroomWitch:
                 self.orb_timer += self.orb_interval
                 self.send_orb()
 
-    def open_finish(self):
-        """탄막과 함정을 걷고 불릿 타임을 연다. 좌+우 동시 클릭이 들어오면 on_cut, 놓치면 on_bullet_timeout으로 이어진다."""
+    def clear_hazards(self):
         for hazard in self.hazards:
             game_world.remove_object(hazard)
+        self.hazards.clear()
+
+    def start_counter(self):
+        """탄막과 함정을 걷고 반격 단계를 연다. 반격을 알리는 COUNTER_START_DELAY초 동안은 공격하지 않는다."""
+        self.clear_hazards()
         self.remain = 0
+        self.state = 'counter'
+        self.timer = config.COUNTER_START_DELAY
+        self.shot_timer = config.COUNTER_START_DELAY
+        self.meteor_timer = config.COUNTER_START_DELAY
+        game_world.add_collision_pair('reflected:witch', None, self)
+
+    def counter(self, dt):
+        self.timer -= dt
+        self.shot_timer -= dt
+        if self.shot_timer <= 0:
+            sound.play('fire')
+            x, y = self.hand()
+            self.add_shot(x, y, self.aim_at_player(x, y), config.BROOM_SHOT_SPEED, True)
+            self.shot_timer = random.uniform(*config.COUNTER_SHOT_INTERVAL)
+        self.meteor_timer -= dt
+        if self.meteor_timer <= 0:
+            self.drop_meteor()
+            self.meteor_timer = random.uniform(*config.METEOR_INTERVAL)
+
+    def drop_meteor(self):
+        x = self.left() + random.uniform(0, config.SCREEN_W)
+        y = config.SCREEN_H + config.METEOR_SIZE / 2
+        self.add_hazard(Meteor(self.player, x, y, self.aim_at_player(x, y)), 'player:bullet')
+
+    def get_bb(self):
+        half_w = config.BROOM_HIT_W / 2
+        half_h = config.BROOM_HIT_H / 2
+        return self.x - half_w, self.y - half_h, self.x + half_w, self.y + half_h
+
+    def handle_collision(self, group, other):
+        # 반격 단계에서 튕겨 낸 반짝이는 탄에 맞았다.
+        game_world.remove_object(other)
+        self.hits += 1
+        self.flash = config.BOSS_FLASH_TIME
+        sound.play('boss_hit')
+        self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
+        game_world.add_object(Effect('crit-hit', other.x, other.y, speed=HIT_FX_SPEED), game_world.LAYER_EFFECT)
+        if self.hits >= config.BROOM_STUN_HITS:
+            game_world.remove_collision('reflected:witch', self)
+            self.open_finish()
+
+    def open_finish(self):
+        """기절한 마녀를 두고 운석과 탄을 걷은 뒤 불릿 타임을 연다. 좌+우 동시 클릭이 들어오면 on_cut, 놓치면 on_bullet_timeout으로 이어진다."""
+        self.clear_hazards()
         self.state = 'finish'
         self.player.enter_bullet_time(self)
 
@@ -339,12 +467,18 @@ class BroomWitch:
         else:
             self.add_unparryable(Shot(self.player, x, y, vx, vy, SHOT_IMAGE, SHOT_FRAME_W, config.BULLET_SIZE))
 
+    def hand(self):
+        return self.x + config.BROOM_MUZZLE_X, self.y + config.BROOM_MUZZLE_Y
+
+    def aim_at_player(self, x, y):
+        """(x, y)에서 플레이어 몸 가운데를 향하는 각도."""
+        left, bottom, right, top = self.player.get_bb()
+        return math.atan2((bottom + top) / 2 - y, (left + right) / 2 - x)
+
     def fire(self):
         sound.play('fire')
-        x = self.left() + self.screen_x + config.BROOM_MUZZLE_X
-        y = self.y + config.BROOM_MUZZLE_Y
-        left, bottom, right, top = self.player.get_bb()
-        aim = math.atan2((bottom + top) / 2 - y, (left + right) / 2 - x)
+        x, y = self.hand()
+        aim = self.aim_at_player(x, y)
         kind = random.choice(SHOTS)
         # 어느 묶음이든 반짝이는 탄이 하나 섞인다.
         if kind == 'fan':
@@ -429,7 +563,11 @@ class BroomWitch:
     def draw(self, camera):
         if self.state == 'wait':
             return
-        casting = self.state == 'fight' and self.shot_timer <= config.BROOM_CAST_TIME
-        sprite = self.sprites['cast' if casting else 'fly']
+        casting = self.state in ('fight', 'counter') and self.shot_timer <= config.BROOM_CAST_TIME
+        sprite = (self.flash_sprites if self.flash > 0 else self.sprites)['cast' if casting else 'fly']
         # 화면 좌표에도 카메라 흔들림은 그대로 싣는다.
-        sprite.draw(int(self.time * BROOM_FPS) % sprite.count, self.screen_x + camera.base_x - camera.x, self.y - camera.y)
+        x = self.screen_x + camera.base_x - camera.x
+        y = self.y - camera.y
+        sprite.draw(int(self.time * BROOM_FPS) % sprite.count, x, y)
+        if self.state == 'finish':
+            self.stars.draw(int(self.stun_time * STUN_FPS) % self.stars.count, x, y + STUN_Y)
