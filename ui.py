@@ -190,19 +190,19 @@ class HUD:
             draw_text(DASH_SIZE, x, y, text, DASH_EMPTY_COLOR if cooldown > 0 else GOLD_COLOR)
             x += SKILL_SLOT_GAP
 
-    def draw_boss(self):
-        boss = self.player.boss
+    def draw_boss(self, boss, ratio, hint):
+        """보스 이름과 막대. ratio는 막대가 찬 비율(보스의 남은 HP, 중간 보스의 남은 시간)이다."""
         x = config.SCREEN_W / 2
         left = x - BOSS_BAR_W / 2
         right = left + BOSS_BAR_W
         bottom = config.SCREEN_H - BOSS_BAR_TOP
         draw_text(BOSS_NAME_SIZE, x, bottom + BOSS_BAR_H + 16, boss.NAME, align=0.5)
         draw_rectangle(left, bottom, right, bottom + BOSS_BAR_H, *BOSS_BAR_BG, 255, True)
-        draw_rectangle(left, bottom, left + BOSS_BAR_W * boss.hp / boss.MAX_HP, bottom + BOSS_BAR_H, *BOSS_BAR_COLOR, 255, True)
+        draw_rectangle(left, bottom, left + BOSS_BAR_W * ratio, bottom + BOSS_BAR_H, *BOSS_BAR_COLOR, 255, True)
         draw_rectangle(left, bottom, right, bottom + BOSS_BAR_H, 240, 240, 250, 255, False)
         if boss.state == 'intro':
             draw_text(BOSS_INTRO_SIZE, x, config.SCREEN_H * 0.66, f'{boss.NAME} 등장', BOSS_INTRO_COLOR, align=0.5)
-            draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, 'A, D로 움직여 베어라', align=0.5)
+            draw_text(BOSS_NAME_SIZE, x, config.SCREEN_H * 0.58, hint, align=0.5)
 
     def draw_slash_gauge(self, camera):
         """노리는 몬스터 머리 위의 베기 게이지. 다가갈수록 커서가 오른쪽으로 가고, 초록 칸 안에서 베면 맞는다."""
@@ -266,8 +266,12 @@ class HUD:
             draw_text(COMBO_SIZE, right, config.SCREEN_H / 2 - COMBO_SIZE - 8, 'HP 회복', HEAL_COLOR, align=1)
 
         self.draw_dash()
-        if self.player.boss:
-            self.draw_boss()
+        boss = self.player.boss
+        midboss = self.player.midboss
+        if boss:
+            self.draw_boss(boss, boss.hp / boss.MAX_HP, 'A, D로 움직여 베어라')
+        elif midboss:
+            self.draw_boss(midboss, midboss.remain / config.MIDBOSS_TIME, 'W, A, S, D로 날아 끝까지 버텨라')
         elif not self.player.window:
             self.draw_progress()
 

@@ -742,6 +742,75 @@ def make_witch():
     save(strip(frames), 'monster/witch_circle.png')
 
 
+# 빗자루 마녀(스테이지 2 중간 보스)와 그 공격 ---------------------------------------
+
+BROOM_FRAME = 128
+BROOM = {
+    'handle': hex_color('7a4a2a'),
+    'handle_light': hex_color('b07a44'),
+    'bristle': hex_color('e9b949'),
+    'bristle_dark': hex_color('a8741c'),
+}
+
+
+def draw_broom_witch(bob, arm_lift, glow, sway):
+    """빗자루에 걸터앉아 뒤따라오는 플레이어(왼쪽)를 돌아본다. 빗자루는 달리는 방향(오른쪽)을 향한다."""
+    img = new_frame(BROOM_FRAME, WITCH_FRAME_H)
+    witch = draw_witch(bob, arm_lift, glow)
+    img.paste(witch, ((BROOM_FRAME - WITCH_FRAME) // 2, 0), witch)
+    broom = new_frame(BROOM_FRAME, WITCH_FRAME_H)
+    y = WITCH_FRAME_H - 24 + bob
+    capsule(broom, (28, y), (124, y - 4), 2.4, 1.6, BROOM['handle'])
+    capsule(broom, (30, y - 1), (122, y - 5), 0.7, 0.7, BROOM['handle_light'])
+    polygon(broom, [(31, y - 4), (31, y + 4), (5, y + 11 + sway), (2, y + 1 + sway), (6, y - 9 + sway)], BROOM['bristle'])
+    polygon(broom, [(31, y), (31, y + 4), (5, y + 11 + sway), (3, y + 4 + sway)], BROOM['bristle_dark'])
+    rect(broom, 28, y - 5, 32, y + 5, W['glow'])
+    img.alpha_composite(outlined(broom, W['outline']))
+    return img
+
+
+def make_broom_witch():
+    save(strip([draw_broom_witch(math.sin(i / 6 * math.pi * 2) * 2, 0, False, (i % 3) - 1) for i in range(6)]), 'monster/broom_fly.png')
+    save(strip([draw_broom_witch(-2, 10 + i * 3, True, i - 1) for i in range(3)]), 'monster/broom_cast.png')
+
+    # 균열 파편: 검은 탄을 키워 가시를 두른 모습. 가시가 돌며 날아온다.
+    frames = []
+    for i in range(4):
+        img = new_frame(24, 24)
+        for k in range(8):
+            a = (k + i / 4) / 8 * math.pi * 2
+            side = a + math.pi / 2
+            tip = (12 + math.cos(a) * 11.5, 12 + math.sin(a) * 11.5)
+            polygon(img, [tip, (12 + math.cos(a) * 6 + math.cos(side) * 3, 12 + math.sin(a) * 6 + math.sin(side) * 3),
+                          (12 + math.cos(a) * 6 - math.cos(side) * 3, 12 + math.sin(a) * 6 - math.sin(side) * 3)], hex_color('ff3b6b'))
+        disc(img, 12, 12, 8.5, hex_color('ff3b6b'))
+        disc(img, 12, 12, 6.8, hex_color('1a0f28'))
+        disc(img, 12, 12, 3.6, hex_color('5a3a8a'))
+        rect(img, 8, 11, 13, 13, hex_color('ffe9ff'))
+        frames.append(img)
+    save(strip(frames), 'monster/rift_orb.png')
+
+    # 번개 한 토막. 양 끝이 가운데 높이에서 만나 이어 붙여도 끊기지 않는다.
+    rng = random.Random(77)
+    frames = []
+    for _ in range(4):
+        img = new_frame(32, 16)
+        points = [(0, 8)] + [(x, 8 + rng.uniform(-5, 5)) for x in (6, 12, 19, 26)] + [(32, 8)]
+        branch = points[rng.randint(1, 4)]
+        twig = (branch[0] + 7, branch[1] + rng.choice((-6, 6)))
+        capsule(img, branch, twig, 1.2, 0.6, (255, 79, 216, 150))
+        for a, b in zip(points, points[1:]):
+            capsule(img, a, b, 2.8, 2.8, (255, 79, 216, 150))
+        for a, b in zip(points, points[1:]):
+            capsule(img, a, b, 1.1, 1.1, hex_color('fff0ff'))
+        frames.append(img)
+    save(strip(frames), 'monster/bolt.png')
+
+    shock = new_frame(1, 1)
+    shock.putpixel((0, 0), (214, 70, 255, 70))
+    save(shock, 'monster/shock.png')
+
+
 # 발판 --------------------------------------------------------------------
 
 def periodic_noise(w, h, cell_x, cell_y, rng):
@@ -1208,6 +1277,7 @@ if __name__ == '__main__':
     make_boss()
     make_boss_wave()
     make_witch()
+    make_broom_witch()
     make_executor()
     make_platforms()
     make_obstacles()

@@ -16,6 +16,7 @@ FRAME_W = 64
 ANIMATION_FPS = {'run': 16, 'idle': 6, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'charge': 10, 'cut': 16}
 OTHER_BUTTON = {SDL_BUTTON_LEFT: SDL_BUTTON_RIGHT, SDL_BUTTON_RIGHT: SDL_BUTTON_LEFT}
 MOVE_KEYS = {SDLK_a: -1, SDLK_d: 1}
+FLY_KEYS = {SDLK_s: -1, SDLK_w: 1}
 ULTIMATES = ('fire3', 'ice3', 'bolt3')
 CHARGE_FX = 'charge-up'
 IMPLOSION_FX = 'implosion'
@@ -112,6 +113,26 @@ class Dive:
         player.vy = -config.DIVE_SPEED
         if player.on_ground:
             player.land_dive()
+
+
+class Fly:
+    """중간 보스전의 비행. 움직임은 Player.fly가 맡고, 여기서는 점프와 슬라이딩을 받지 않게만 한다."""
+    ANIMATION = 'dash'
+
+    def __init__(self, player):
+        self.player = player
+
+    def enter(self):
+        pass
+
+    def update(self, dt):
+        player = self.player
+        if player.midboss:
+            player.try_attack()
+        else:
+            # 비행이 끝나면 떨어지는 동안 공중 점프를 쓸 수 있다.
+            player.air_jumps = config.AIR_JUMPS
+            player.change_state(player.jump_state)
 
 
 class Slash:
@@ -385,6 +406,7 @@ class Player:
         self.stage = stage
         record.data['best_stage'] = max(record.data['best_stage'], self.stage + 1)
         self.boss = None
+        self.midboss = None
         self.altar = None
         self.window = None
         self.next_wall = None
@@ -411,6 +433,7 @@ class Player:
         self.slash_state = Slash(self)
         self.dash_state = Dash(self)
         self.dive_state = Dive(self)
+        self.fly_state = Fly(self)
         self.flurry_state = Flurry(self)
         self.pierce_state = Pierce(self)
         self.cut_state = Cut(self)
@@ -630,6 +653,15 @@ class Player:
         self.boss = None
         self.facing = 1
 
+    def enter_midboss(self, midboss):
+        sound.play('boss_roar')
+        self.midboss = midboss
+        self.vy = 0
+        self.hang_timer = 0
+
+    def end_midboss(self):
+        self.midboss = None
+
     def at_altar(self):
         return self.altar is not None and self.altar.is_stopped()
 
@@ -719,6 +751,12 @@ class Player:
             else:
                 self.held_move.discard(event.key)
             return
+        if event.type in (SDL_KEYDOWN, SDL_KEYUP) and event.key in FLY_KEYS:
+            # W, S는 비행 중에는 누르고 있는 동안 위아래로 움직이는 키다. 점프와 슬라이딩 입력으로도 아래에서 그대로 받는다.
+            if event.type == SDL_KEYDOWN:
+                self.held_move.add(event.key)
+            else:
+                self.held_move.discard(event.key)
         if self.at_altar():
             # 안전 구역에서는 원석 조작만 받는다.
             self.altar.handle_event(event)
@@ -762,6 +800,8 @@ class Player:
         if self.state is self.dash_state or self.state is self.pierce_state:
             self.trail.append((self.x, self.y, 0))
         self.face_boss()
+        if self.midboss and self.state in (self.run_state, self.jump_state, self.slide_state, self.dive_state, self.hit_state):
+            self.change_state(self.fly_state)
         self.state.update(dt)
         self.jump_buffer = max(0, self.jump_buffer - dt)
         self.slide_buffer = max(0, self.slide_buffer - dt)
@@ -781,7 +821,9 @@ class Player:
 
         self.x += self.speed() * dt
         self.prev_y = self.y
-        if self.hang_timer > 0:
+        if self.midboss:
+            self.fly(dt)
+        elif self.hang_timer > 0:
             self.hang_timer -= dt
         else:
             # 등가속도 공식을 그대로 써서 프레임 수와 무관하게 점프 높이가 같게 한다.
@@ -801,6 +843,20 @@ class Player:
             self.x = min(self.x, self.bullet_target.x - config.PLAYER_W / 2 - config.BOSS_CONTACT_GAP)
         # 다음 충돌 처리에서 지면에 닿으면 다시 True가 된다.
         self.on_ground = False
+
+    def held_axis(self, keys):
+        return sum(direction for key, direction in keys.items() if key in self.held_move)
+
+    def fly(self, dt):
+        """중력 없이 W, S, A, D로 화면 안을 떠다닌다. 지면 아래로는 내려가지 않아 떨어져 죽지 않는다."""
+        half_w = config.PLAYER_W / 2
+        # 카메라는 이번 프레임 끝에 달리는 속도만큼 흘러가므로 그 뒤의 화면을 기준으로 가둔다.
+        left = self.camera.base_x + self.speed() * dt
+        self.x += self.held_axis(MOVE_KEYS) * config.FLY_SPEED * dt
+        self.x = max(left + half_w, min(self.x, left + config.FLY_MAX_SCREEN_X))
+        self.y += self.held_axis(FLY_KEYS) * config.FLY_SPEED * dt
+        self.y = max(config.GROUND_TOP, min(self.y, config.SCREEN_H - config.PLAYER_H))
+        self.vy = 0
 
     def face_boss(self):
         # 돌진 중에는 처음 노린 쪽을 그대로 본다.
@@ -855,6 +911,10 @@ class Player:
         sprite.draw(frame, self.x - camera.x, self.y + config.SPRITE_CENTER_Y - camera.y, opacity, self.facing < 0)
 
     def get_bb(self):
+        if self.midboss:
+            half_w = config.FLY_HITBOX_W / 2
+            bottom = self.y + (config.PLAYER_H - config.FLY_HITBOX_H) / 2
+            return self.x - half_w, bottom, self.x + half_w, bottom + config.FLY_HITBOX_H
         half_w = config.PLAYER_W / 2
         h = config.SLIDE_H if self.state is self.slide_state else config.PLAYER_H
         return self.x - half_w, self.y, self.x + half_w, self.y + h
@@ -886,7 +946,7 @@ class Player:
         if self.boss:
             if self.state is self.hit_state or self.state is self.dive_state:
                 return 0
-            return sum(MOVE_KEYS[key] for key in self.held_move) * config.BOSS_FIGHT_MOVE_SPEED
+            return self.held_axis(MOVE_KEYS) * config.BOSS_FIGHT_MOVE_SPEED
         run_speed = config.SCROLL_SPEED * config.STAGES[self.stage]['speed']
         return run_speed * self.altar.speed_ratio() if self.altar else run_speed
 

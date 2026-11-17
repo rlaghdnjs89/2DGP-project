@@ -230,6 +230,86 @@ WITCH_HOLE_H = 120
 BLINK_FX_SPEED = 3
 BLINK_FX_SCALE = 3
 
+# 스테이지 2의 중간 보스 '빗자루 마녀'. 달리기 구간을 이 비율만큼 달리면 나타난다.
+# 쓰러뜨릴 수 없고, MIDBOSS_TIME초를 버티면 물러난다. 버티는 시간은 달린 시간에 넣지 않는다.
+MIDBOSS_STAGE = 1
+MIDBOSS_PROGRESS = 0.5
+MIDBOSS_TIME = 35
+MIDBOSS_INTRO_TIME = 1.5
+MIDBOSS_LEAVE_TIME = 1.2
+# 중간 보스전 동안은 중력이 사라져 W, S, A, D로 화면 안을 날아다닌다.
+FLY_SPEED = 430
+# 마녀 앞까지만 날 수 있다. 오른쪽에서 들어오는 장벽과 파편이 닿기 전에 볼 시간이 남는다.
+FLY_MAX_SCREEN_X = SCREEN_W - 290
+# 탄막 사이를 빠져나갈 수 있도록 비행 중에는 몸 가운데만 맞는다.
+FLY_HITBOX_W = 36
+FLY_HITBOX_H = 60
+# 버틸 시간이 절반 남으면 공격이 거세진다. 아래에서 값이 둘인 것은 (전반, 후반)이다.
+MIDBOSS_RAGE_RATIO = 0.5
+# 공격과 공격 사이에 쉬는 시간. 회전 전기, 전기 장벽, 전기장은 서로 겹치면 피할 길이 없어 하나씩만 나온다.
+MIDBOSS_WAVE_REST = (1.0, 0.3)
+MIDBOSS_FIRST_WAVE = 1.0
+BROOM_SCREEN_X = SCREEN_W - 150
+BROOM_HOVER_Y = 420
+BROOM_HOVER_AMP = 180
+BROOM_HOVER_SPEED = 0.8
+# 마녀 그림의 중심에서 잰 손의 위치다.
+BROOM_MUZZLE_X = -44
+BROOM_MUZZLE_Y = 22
+# 마녀는 다른 공격이 나오는 동안에도 이 간격(최소, 최대)으로 탄을 쏜다. 쏘기 전 BROOM_CAST_TIME초 동안 손이 빛난다.
+BROOM_SHOT_INTERVAL = ((1.4, 2.2), (0.9, 1.5))
+BROOM_CAST_TIME = 0.35
+BROOM_SHOT_SPEED = 430
+# 부채꼴 탄. 플레이어를 겨눈 탄을 가운데 두고 퍼진다. 500px 거리에서 탄 사이가 100px로, 비행 판정(60px)이 빠져나갈 수 있다.
+BROOM_FAN_COUNT = (5, 7)
+BROOM_FAN_SPREAD = 0.2
+# 같은 방향으로 빠르기가 다른 탄을 쏴 차례로 닿게 한다.
+BROOM_AIMED_SPEEDS = (380, 500, 620)
+# 왼쪽으로 흩뿌리는 탄.
+BROOM_SCATTER_COUNT = 6
+BROOM_SCATTER_ANGLE = 0.6
+BROOM_SCATTER_SPEED = (300, 520)
+# 균열 파편 무리. 화면 오른쪽에서 무작위 높이로 쏟아진다.
+# 잇달아 나오는 파편은 높이를 ORB_MIN_GAP 이상 벌려 세로로 늘어선 벽이 되지 않게 한다.
+ORB_SIZE = 40
+ORB_SPEED = (300, 560)
+ORB_DRIFT = 60
+ORB_MIN_GAP = 150
+SWARM_TIME = 5
+SWARM_INTERVAL = (0.14, 0.1)
+# 무리가 끝난 뒤 남은 파편이 지나갈 시간.
+SWARM_CLEAR_TIME = 1.5
+# 회전 전기. 화면 가운데에서 십자 모양으로 돈다. 경고 시간 동안은 흐릿하게 돌기만 하고 닿아도 맞지 않는다.
+# 팔 사이에서 같은 방향으로 돌며 피한다. 중심에서 250px 안은 어느 방향으로든 화면 안이고, 그 거리에서 팔의 속도는 260px/s 이하다.
+ROTOR_Y = 420
+ROTOR_ARMS = 4
+ROTOR_LENGTH = 760
+ROTOR_THICKNESS = 20
+ROTOR_WARNING = 1.2
+ROTOR_TIME = 5.5
+ROTOR_SPIN = (0.8, 1.05)
+ROTOR_WARNING_OPACITY = 0.3
+# 전기 장벽. 틈 하나를 남기고 화면 높이를 막은 채 오른쪽에서 밀려온다.
+# 다음 틈은 FENCE_SHIFT(최소, 최대)만큼 위나 아래에 있다. 장벽 사이 시간(후반 0.9초) 동안 390px를 움직일 수 있다.
+FENCE_COUNT = (3, 4)
+FENCE_SPEED = (340, 420)
+FENCE_SPACING = (460, 380)
+FENCE_GAP = 200
+FENCE_SHIFT = (120, 280)
+FENCE_W = 36
+# 전기장. 화면 위아래에서 밀려 들어와 통로만 남기고 덮었다가 물러난다. 통로로는 파편이 날아온다.
+# 화면 끝에 붙어 있으면 밀려오자마자 닿으므로, 덮일 자리를 경고 시간 동안 먼저 깜빡여 보여 준다.
+PRESS_CORRIDOR = (240, 200)
+PRESS_WARNING = 0.8
+PRESS_WARNING_OPACITY = 0.3
+PRESS_WARNING_BLINK = 18
+PRESS_IN_TIME = 1.2
+PRESS_HOLD_TIME = 2.6
+PRESS_OUT_TIME = 0.6
+PRESS_ORB_INTERVAL = 0.55
+# 이보다 얕게 덮일 쪽은 내지 않는다.
+PRESS_MIN_DEPTH = 30
+
 # 개발자 테스트에서는 이만큼의 골드로 시작해 강화와 스킬을 모두 살 수 있다.
 DEV_GOLD = 99_999_999
 

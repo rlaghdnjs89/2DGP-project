@@ -4,6 +4,7 @@ from collections import namedtuple
 import config
 import game_world
 from boss import Executor, Warden, Witch
+from midboss import BroomWitch
 from monster import Familiar, Goblin, Grunt, Mage
 from obstacle import (Boulder, EvolutionAltar, Ground, Platform, Rubble, StageGate, Wall, make_barricade, make_beam,
                       make_high_obstacle, make_low_obstacle, make_spikes)
@@ -85,6 +86,8 @@ class ChunkManager:
         self.stage = player.stage
         self.run_time = 0
         self.altar_placed = False
+        # 중간 보스가 아직 안 나왔으면 'ahead', 나와서 평지를 잇는 중이면 'active', 지나갔으면 'done'이다.
+        self.midboss = 'ahead'
         self.patterns_until_cliff = random.randint(config.CLIFF_EVERY_MIN, config.CLIFF_EVERY_MAX)
         self.end_x = 0
         if dev_to_boss is None:
@@ -182,8 +185,22 @@ class ChunkManager:
         tiers = next(tiers for start, tiers in reversed(config.STAGES[self.stage]['pattern_tiers']) if self.progress() >= start)
         return random.choice([pattern for tier in tiers for pattern in config.PATTERNS[tier] if pattern != self.last_chunk])
 
+    def spawn_flat(self, length):
+        self.add_ground(self.end_x, self.end_x + length)
+        self.end_x += length
+
     def spawn_run_chunk(self):
-        if not config.STAGES[self.stage]['pattern_tiers']:
+        if self.midboss == 'active':
+            # 날아다니는 동안에는 평지만 잇고, 비행이 끝난 뒤에도 내려앉을 평지를 한 번 더 깐다.
+            if not self.player.midboss:
+                self.midboss = 'done'
+            self.spawn_flat(config.SCREEN_W)
+        elif self.midboss == 'ahead' and self.stage == config.MIDBOSS_STAGE and self.progress() >= config.MIDBOSS_PROGRESS:
+            self.midboss = 'active'
+            game_world.add_object(BroomWitch(self.end_x, self.player), game_world.LAYER_MONSTER)
+            # 마녀는 카메라가 이 평지의 시작에 닿으면 나타난다. 그때까지 다음 청크가 붙지 않도록 화면 두 개 길이로 깐다.
+            self.spawn_flat(2 * config.SCREEN_W)
+        elif not config.STAGES[self.stage]['pattern_tiers']:
             name = random.choice([island for island in config.ISLAND_CHUNKS if island != self.last_chunk])
             self.spawn_chunk(build_island(name), name)
         elif self.patterns_until_cliff == 0:
@@ -196,8 +213,8 @@ class ChunkManager:
 
     def update(self, camera, dt):
         # 아레나를 붙인 뒤 다음 스테이지의 관문을 지나기 전까지는 달린 시간을 세지 않는다.
-        # 개발자 테스트에서 시작 원석에 멈춰 있는 동안도 세지 않는다.
-        if not self.player.boss and not self.player.altar and self.player.stage == self.stage:
+        # 개발자 테스트에서 시작 원석에 멈춰 있는 동안과 중간 보스전 동안도 세지 않는다.
+        if not self.player.boss and not self.player.midboss and not self.player.altar and self.player.stage == self.stage:
             self.run_time += dt
         if self.end_x <= camera.x + config.SCREEN_W:
             if self.run_time < config.STAGE_RUN_TIME:
