@@ -38,7 +38,7 @@ time = 0
 run_sprite = None
 reset_armed = False
 dev_open = False
-# (버튼, 시작 스테이지 번호, 보스로 바로 갈지)
+# (버튼, 시작 스테이지 번호, 원석 다음에 나올 것)
 dev_starts = []
 dev_reset_button = None
 
@@ -50,11 +50,13 @@ def init():
     reset_armed = False
     dev_open = False
     dev_starts = []
-    for row, to_boss in enumerate((False, True)):
+    for row, (goal, label) in enumerate((('run', '스테이지'), ('midboss', '중간 보스'), ('boss', '보스'))):
         for stage in range(len(config.STAGES)):
+            # 중간 보스는 스테이지 2에만 있다.
+            if goal == 'midboss' and stage != config.MIDBOSS_STAGE:
+                continue
             x = config.SCREEN_W / 2 + (stage - (len(config.STAGES) - 1) / 2) * DEV_BUTTON_GAP
-            text = f'보스 {stage + 1}' if to_boss else f'스테이지 {stage + 1}'
-            dev_starts.append((Button(x, config.SCREEN_H * (0.56 - row * 0.12), DEV_BUTTON_W, DEV_BUTTON_H, text), stage, to_boss))
+            dev_starts.append((Button(x, config.SCREEN_H * (0.6 - row * 0.11), DEV_BUTTON_W, DEV_BUTTON_H, f'{label} {stage + 1}'), stage, goal))
     dev_reset_button = Button(config.SCREEN_W / 2, config.SCREEN_H * 0.26, DEV_RESET_W, DEV_BUTTON_H, '테스트 강화 초기화')
     camera = Camera()
     time = 0
@@ -76,11 +78,11 @@ def handle_dev_event(event):
             record.reset_dev()
             sound.play('upgrade')
             return
-        for button, stage, to_boss in dev_starts:
+        for button, stage, goal in dev_starts:
             if button.contains(x, y):
                 sound.play('ui_start')
                 record.start_dev()
-                play_mode.dev_start = (stage, to_boss)
+                play_mode.dev_start = (stage, goal)
                 game_framework.change_mode(play_mode)
                 return
 

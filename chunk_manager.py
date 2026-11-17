@@ -78,8 +78,9 @@ BOSSES = (Warden, Witch, Executor)
 
 
 class ChunkManager:
-    def __init__(self, player, dev_to_boss=None):
-        """dev_to_boss가 None이 아니면 개발자 테스트다. 원석에서 시작해 강화를 고르고, True면 원석 다음이 바로 보스 아레나다."""
+    def __init__(self, player, dev_goal=None):
+        """dev_goal이 None이 아니면 개발자 테스트다. 원석에서 시작해 강화를 고르고, 원석 다음에 나올 것을 고른다.
+        'run'이면 달리기 구간의 처음, 'midboss'면 중간 보스, 'boss'면 보스 아레나다."""
         self.player = player
         self.objects = []
         self.last_chunk = None
@@ -90,17 +91,19 @@ class ChunkManager:
         self.midboss = 'ahead'
         self.patterns_until_cliff = random.randint(config.CLIFF_EVERY_MIN, config.CLIFF_EVERY_MAX)
         self.end_x = 0
-        if dev_to_boss is None:
+        if dev_goal is None:
             # 시작 지점에서 반응할 시간을 주도록 첫 화면은 평지로 둔다.
             self.add_ground(0, config.SCREEN_W)
             self.end_x = config.SCREEN_W
             return
         self.spawn_altar()
-        if dev_to_boss:
+        if dev_goal == 'boss':
             self.run_time = config.STAGE_RUN_TIME
         else:
             # 스테이지 끝의 원석은 따로 나와야 한다.
             self.altar_placed = False
+            if dev_goal == 'midboss':
+                self.run_time = config.STAGE_RUN_TIME * config.MIDBOSS_PROGRESS
 
     def add_ground(self, left, right):
         ground = Ground(left, right, self.stage)
