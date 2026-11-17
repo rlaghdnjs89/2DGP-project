@@ -1,6 +1,6 @@
 import math
 
-from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDLK_SPACE, SDLK_a,
+from pico2d import (SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, SDL_KEYDOWN, SDL_KEYUP, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION, SDLK_SPACE, SDLK_a,
                     SDLK_d, SDLK_e, SDLK_q, SDLK_s, SDLK_w, get_time)
 
 import config
@@ -10,13 +10,12 @@ import skills
 import sound
 from coin import Coin
 from sprite import Effect, Strip, load_fx_sheet
-from ui import draw_overlay
+from ui import draw_overlay, mouse_pos
 
 FRAME_W = 64
 ANIMATION_FPS = {'run': 16, 'idle': 6, 'rise': 8, 'fall': 8, 'slide': 10, 'slash': 16, 'dash': 16, 'hit': 16, 'charge': 10, 'cut': 16}
 OTHER_BUTTON = {SDL_BUTTON_LEFT: SDL_BUTTON_RIGHT, SDL_BUTTON_RIGHT: SDL_BUTTON_LEFT}
 MOVE_KEYS = {SDLK_a: -1, SDLK_d: 1}
-FLY_KEYS = {SDLK_s: -1, SDLK_w: 1}
 ULTIMATES = ('fire3', 'ice3', 'bolt3')
 CHARGE_FX = 'charge-up'
 IMPLOSION_FX = 'implosion'
@@ -418,6 +417,8 @@ class Player:
         self.triple_count = 0
         self.triple_timer = 0
         self.held_move = set()
+        # 마지막으로 본 마우스 커서의 화면 좌표. 아직 움직인 적이 없으면 None이다.
+        self.mouse = None
         self.bullet_target = None
         self.bullet_timer = 0
         self.cut_after_timer = 0
@@ -751,12 +752,9 @@ class Player:
             else:
                 self.held_move.discard(event.key)
             return
-        if event.type in (SDL_KEYDOWN, SDL_KEYUP) and event.key in FLY_KEYS:
-            # W, S는 비행 중에는 누르고 있는 동안 위아래로 움직이는 키다. 점프와 슬라이딩 입력으로도 아래에서 그대로 받는다.
-            if event.type == SDL_KEYDOWN:
-                self.held_move.add(event.key)
-            else:
-                self.held_move.discard(event.key)
+        if event.type == SDL_MOUSEMOTION:
+            # 비행이 시작되는 순간부터 커서를 따라가도록 항상 기록한다. 원석의 버튼도 이 이벤트를 쓰므로 아래로 그대로 넘긴다.
+            self.mouse = mouse_pos(event)
         if self.at_altar():
             # 안전 구역에서는 원석 조작만 받는다.
             self.altar.handle_event(event)
@@ -848,13 +846,21 @@ class Player:
         return sum(direction for key, direction in keys.items() if key in self.held_move)
 
     def fly(self, dt):
-        """중력 없이 W, S, A, D로 화면 안을 떠다닌다. 지면 아래로는 내려가지 않아 떨어져 죽지 않는다."""
+        """중력 없이 마우스 커서를 따라 화면 안을 떠다닌다. 지면 아래로는 내려가지 않아 떨어져 죽지 않는다."""
         half_w = config.PLAYER_W / 2
-        # 카메라는 이번 프레임 끝에 달리는 속도만큼 흘러가므로 그 뒤의 화면을 기준으로 가둔다.
+        # 카메라는 이번 프레임 끝에 달리는 속도만큼 흘러가므로 그 뒤의 화면을 기준으로 삼는다.
         left = self.camera.base_x + self.speed() * dt
-        self.x += self.held_axis(MOVE_KEYS) * config.FLY_SPEED * dt
+        if self.mouse:
+            # 몸 가운데가 커서에 오도록 따라간다.
+            dx = left + self.mouse[0] - self.x
+            dy = self.mouse[1] - config.PLAYER_H / 2 - self.y
+            distance = math.hypot(dx, dy)
+            step = config.FLY_SPEED * dt
+            if distance > step:
+                dx, dy = dx * step / distance, dy * step / distance
+            self.x += dx
+            self.y += dy
         self.x = max(left + half_w, min(self.x, left + config.FLY_MAX_SCREEN_X))
-        self.y += self.held_axis(FLY_KEYS) * config.FLY_SPEED * dt
         self.y = max(config.GROUND_TOP, min(self.y, config.SCREEN_H - config.PLAYER_H))
         self.vy = 0
 

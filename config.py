@@ -237,8 +237,8 @@ MIDBOSS_PROGRESS = 0.5
 MIDBOSS_TIME = 35
 MIDBOSS_INTRO_TIME = 1.5
 MIDBOSS_LEAVE_TIME = 1.2
-# 중간 보스전 동안은 중력이 사라져 W, S, A, D로 화면 안을 날아다닌다.
-FLY_SPEED = 430
+# 중간 보스전 동안은 중력이 사라져 마우스 커서를 따라 화면 안을 날아다닌다. 커서로 곧장 옮기면 장벽을 건너뛰므로 이 속도로 따라간다.
+FLY_SPEED = 600
 # 마녀 앞까지만 날 수 있다. 오른쪽에서 들어오는 장벽과 파편이 닿기 전에 볼 시간이 남는다.
 FLY_MAX_SCREEN_X = SCREEN_W - 290
 # 탄막 사이를 빠져나갈 수 있도록 비행 중에는 몸 가운데만 맞는다.
@@ -290,7 +290,7 @@ ROTOR_TIME = 5.5
 ROTOR_SPIN = (0.8, 1.05)
 ROTOR_WARNING_OPACITY = 0.3
 # 전기 장벽. 틈 하나를 남기고 화면 높이를 막은 채 오른쪽에서 밀려온다.
-# 다음 틈은 FENCE_SHIFT(최소, 최대)만큼 위나 아래에 있다. 장벽 사이 시간(후반 0.9초) 동안 390px를 움직일 수 있다.
+# 다음 틈은 FENCE_SHIFT(최소, 최대)만큼 위나 아래에 있다. 장벽 사이 시간(후반 0.9초) 동안 540px를 움직일 수 있다.
 FENCE_COUNT = (3, 4)
 FENCE_SPEED = (340, 420)
 FENCE_SPACING = (460, 380)

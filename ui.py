@@ -271,7 +271,7 @@ class HUD:
         if boss:
             self.draw_boss(boss, boss.hp / boss.MAX_HP, 'A, D로 움직여 베어라')
         elif midboss:
-            self.draw_boss(midboss, midboss.remain / config.MIDBOSS_TIME, 'W, A, S, D로 날아 끝까지 버텨라')
+            self.draw_boss(midboss, midboss.remain / config.MIDBOSS_TIME, '마우스를 따라 날아 끝까지 버텨라')
         elif not self.player.window:
             self.draw_progress()
 
