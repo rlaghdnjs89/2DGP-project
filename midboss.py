@@ -4,7 +4,7 @@ import random
 import config
 import game_world
 import sound
-from sprite import Strip, get_image
+from sprite import Effect, Strip, get_image
 
 BROOM_FRAME_W = 128
 BROOM_FPS = 8
@@ -14,6 +14,11 @@ SHOT_FRAME_W = 16
 ORB_IMAGE = 'assets/monster/rift_orb.png'
 ORB_FRAME_W = 24
 SHOT_FPS = 12
+SPARK_IMAGE = 'assets/monster/bullet_spark.png'
+SPARK_FRAME_W = 24
+REFLECTED_IMAGE = 'assets/monster/bullet_reflected.png'
+PARRY_FX_SCALE = 1
+BURST_FX_SPEED = 2
 BOLT_IMAGE = 'assets/monster/bolt.png'
 BOLT_FRAME_W = 32
 BOLT_FPS = 14
@@ -75,6 +80,49 @@ class Shot:
 
     def handle_collision(self, group, other):
         pass
+
+
+class SparkShot(Shot):
+    """반짝이는 탄. 베면 마녀 쪽으로 튕겨 나가고, 튕겨 나간 탄이 못 튕기는 탄에 닿으면 터져 주변의 못 튕기는 탄까지 지운다."""
+
+    def __init__(self, witch, x, y, vx, vy):
+        super().__init__(witch.player, x, y, vx, vy, SPARK_IMAGE, SPARK_FRAME_W, config.BULLET_SIZE)
+        self.witch = witch
+
+    def reflect(self):
+        angle = math.atan2(self.witch.y - self.y, self.witch.x - self.x)
+        self.vx = math.cos(angle) * config.REFLECTED_SPEED
+        self.vy = math.sin(angle) * config.REFLECTED_SPEED
+        self.strip = Strip(REFLECTED_IMAGE, SHOT_FRAME_W)
+        game_world.remove_collision('player:bullet', self)
+        game_world.remove_collision('sword:bullet', self)
+        game_world.add_collision_pair('reflected:shot', self, None)
+        self.player.on_parry(self.x, self.y)
+        game_world.add_object(Effect('parry', self.x, self.y, scale=PARRY_FX_SCALE), game_world.LAYER_EFFECT)
+
+    def burst(self):
+        reflected, shots = game_world.collision_pairs['reflected:shot']
+        # 한 프레임에 여러 탄과 겹쳐도 한 번만 터진다.
+        if self not in reflected:
+            return
+        game_world.remove_object(self)
+
+        def distance(shot):
+            return math.hypot(shot.x - self.x, shot.y - self.y)
+
+        near = sorted((shot for shot in shots if distance(shot) <= config.SPARK_BURST_RADIUS), key=distance)
+        for shot in near[:config.SPARK_BURST_MAX]:
+            game_world.remove_object(shot)
+            game_world.add_object(Effect('parry', shot.x, shot.y, scale=PARRY_FX_SCALE), game_world.LAYER_EFFECT)
+        sound.play('kill')
+        self.player.camera.shake(config.BOSS_BLOCK_SHAKE_TIME, config.BOSS_BLOCK_SHAKE_AMP)
+        game_world.add_object(Effect('plasma-explosion', self.x, self.y, speed=BURST_FX_SPEED), game_world.LAYER_EFFECT)
+
+    def handle_collision(self, group, other):
+        if group == 'sword:bullet':
+            self.reflect()
+        elif group == 'reflected:shot':
+            self.burst()
 
 
 class Fence:
@@ -195,6 +243,10 @@ class BroomWitch:
     def left(self):
         return self.player.camera.base_x
 
+    @property
+    def x(self):
+        return self.left() + self.screen_x
+
     def update(self, dt):
         self.time += dt
         if self.state == 'wait':
@@ -253,9 +305,18 @@ class BroomWitch:
         game_world.add_object(hazard, game_world.LAYER_EFFECT)
         game_world.add_collision_pair(group, None, hazard)
 
-    def add_shot(self, x, y, angle, speed):
-        shot = Shot(self.player, x, y, math.cos(angle) * speed, math.sin(angle) * speed, SHOT_IMAGE, SHOT_FRAME_W, config.BULLET_SIZE)
+    def add_unparryable(self, shot):
         self.add_hazard(shot, 'player:bullet')
+        game_world.add_collision_pair('reflected:shot', None, shot)
+
+    def add_shot(self, x, y, angle, speed, spark=False):
+        vx, vy = math.cos(angle) * speed, math.sin(angle) * speed
+        if spark:
+            shot = SparkShot(self, x, y, vx, vy)
+            self.add_hazard(shot, 'player:bullet')
+            game_world.add_collision_pair('sword:bullet', None, shot)
+        else:
+            self.add_unparryable(Shot(self.player, x, y, vx, vy, SHOT_IMAGE, SHOT_FRAME_W, config.BULLET_SIZE))
 
     def fire(self):
         sound.play('fire')
@@ -264,17 +325,20 @@ class BroomWitch:
         left, bottom, right, top = self.player.get_bb()
         aim = math.atan2((bottom + top) / 2 - y, (left + right) / 2 - x)
         kind = random.choice(SHOTS)
+        # 어느 묶음이든 반짝이는 탄이 하나 섞인다.
         if kind == 'fan':
             count = config.BROOM_FAN_COUNT[self.rage()]
+            # 플레이어를 겨눈 가운데 탄이 반짝인다.
             for i in range(count):
-                self.add_shot(x, y, aim + (i - count // 2) * config.BROOM_FAN_SPREAD, config.BROOM_SHOT_SPEED)
+                self.add_shot(x, y, aim + (i - count // 2) * config.BROOM_FAN_SPREAD, config.BROOM_SHOT_SPEED, i == count // 2)
         elif kind == 'aimed':
+            # 맨 앞에서 오는 가장 빠른 탄이 반짝여, 튕겨 내면 뒤따르는 탄과 부딪힌다.
             for speed in config.BROOM_AIMED_SPEEDS:
-                self.add_shot(x, y, aim, speed)
+                self.add_shot(x, y, aim, speed, speed == max(config.BROOM_AIMED_SPEEDS))
         else:
-            for _ in range(config.BROOM_SCATTER_COUNT):
+            for i in range(config.BROOM_SCATTER_COUNT):
                 angle = math.pi + random.uniform(-config.BROOM_SCATTER_ANGLE, config.BROOM_SCATTER_ANGLE)
-                self.add_shot(x, y, angle, random.uniform(*config.BROOM_SCATTER_SPEED))
+                self.add_shot(x, y, angle, random.uniform(*config.BROOM_SCATTER_SPEED), i == 0)
 
     def start_orbs(self, time, interval, low, high):
         self.orb_time = time
@@ -292,7 +356,7 @@ class BroomWitch:
         self.orb_y = y
         orb = Shot(self.player, self.left() + config.SCREEN_W + config.ORB_SIZE, y, -random.uniform(*config.ORB_SPEED),
                    random.uniform(-config.ORB_DRIFT, config.ORB_DRIFT), ORB_IMAGE, ORB_FRAME_W, config.ORB_SIZE)
-        self.add_hazard(orb, 'player:bullet')
+        self.add_unparryable(orb)
 
     def start_wave(self):
         self.wave = random.choice([wave for wave in WAVES if wave != self.wave])

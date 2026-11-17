@@ -257,16 +257,20 @@ BROOM_MUZZLE_Y = 22
 # 마녀는 다른 공격이 나오는 동안에도 이 간격(최소, 최대)으로 탄을 쏜다. 쏘기 전 BROOM_CAST_TIME초 동안 손이 빛난다.
 BROOM_SHOT_INTERVAL = ((1.4, 2.2), (0.9, 1.5))
 BROOM_CAST_TIME = 0.35
-BROOM_SHOT_SPEED = 430
+BROOM_SHOT_SPEED = 340
 # 부채꼴 탄. 플레이어를 겨눈 탄을 가운데 두고 퍼진다. 500px 거리에서 탄 사이가 100px로, 비행 판정(60px)이 빠져나갈 수 있다.
 BROOM_FAN_COUNT = (5, 7)
 BROOM_FAN_SPREAD = 0.2
 # 같은 방향으로 빠르기가 다른 탄을 쏴 차례로 닿게 한다.
-BROOM_AIMED_SPEEDS = (380, 500, 620)
+BROOM_AIMED_SPEEDS = (300, 400, 500)
 # 왼쪽으로 흩뿌리는 탄.
 BROOM_SCATTER_COUNT = 6
 BROOM_SCATTER_ANGLE = 0.6
-BROOM_SCATTER_SPEED = (300, 520)
+BROOM_SCATTER_SPEED = (240, 420)
+# 반짝이는 탄은 베면 REFLECTED_SPEED로 마녀 쪽으로 튕겨 나가고, 못 튕기는 탄(검은 탄, 균열 파편)에 닿으면 터진다.
+# 터진 자리에서 이 반경 안의 못 튕기는 탄을 가까운 순서로 SPARK_BURST_MAX개까지만 지운다. 전기 장벽과 전기장은 지우지 못한다.
+SPARK_BURST_RADIUS = 200
+SPARK_BURST_MAX = 5
 # 균열 파편 무리. 화면 오른쪽에서 무작위 높이로 쏟아진다.
 # 잇달아 나오는 파편은 높이를 ORB_MIN_GAP 이상 벌려 세로로 늘어선 벽이 되지 않게 한다.
 ORB_SIZE = 40

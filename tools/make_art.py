@@ -773,6 +773,20 @@ def make_broom_witch():
     save(strip([draw_broom_witch(math.sin(i / 6 * math.pi * 2) * 2, 0, False, (i % 3) - 1) for i in range(6)]), 'monster/broom_fly.png')
     save(strip([draw_broom_witch(-2, 10 + i * 3, True, i - 1) for i in range(3)]), 'monster/broom_cast.png')
 
+    # 반짝이는 탄: 금빛 탄에서 가로세로 빛살과 대각선 빛살이 번갈아 길어지며 반짝인다. 베어 튕겨 낼 수 있다.
+    frames = []
+    for i in range(4):
+        img = new_frame(24, 24)
+        for length, turn in (((11.5, 9.5, 7.5, 9.5)[i], 0), ((7, 9, 11, 9)[i], math.pi / 4)):
+            for k in range(4):
+                a = turn + k * math.pi / 2
+                capsule(img, (12, 12), (12 + math.cos(a) * length, 12 + math.sin(a) * length), 2.2, 0.7, hex_color('fff6c8'))
+        disc(img, 12, 12, 5.6, hex_color('ff9d2e'))
+        disc(img, 12, 12, 4.2, hex_color('ffe27a'))
+        disc(img, 12, 12, 2.4, hex_color('ffffff'))
+        frames.append(img)
+    save(strip(frames), 'monster/bullet_spark.png')
+
     # 균열 파편: 검은 탄을 키워 가시를 두른 모습. 가시가 돌며 날아온다.
     frames = []
     for i in range(4):
