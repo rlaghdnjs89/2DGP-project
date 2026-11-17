@@ -410,9 +410,10 @@ class Player:
         self.y = config.GROUND_TOP
         self.prev_y = self.y
         self.vy = 0
-        # 1이면 오른쪽, -1이면 왼쪽을 본다. 달리기 구간에서는 늘 오른쪽이고 보스전에서는 보스 쪽을 본다.
+        # 1이면 오른쪽, -1이면 왼쪽을 본다. 달리기 구간에서는 늘 오른쪽이고 보스전에서는 가는 쪽, 멈추면 보스 쪽을 본다.
         self.facing = 1
         self.on_ground = True
+        self.on_boss_head = False
         self.air_jumps = config.AIR_JUMPS
         self.jump_buffer = 0
         self.slide_buffer = 0
@@ -628,8 +629,8 @@ class Player:
         sound.play('kill')
         game_world.add_object(Effect('crit-hit', self.x, self.y + config.PLAYER_H / 2, speed=DASH_KILL_FX_SPEED), game_world.LAYER_EFFECT)
         boss = self.boss
-        # 공중의 마녀처럼 높이가 다르면 닿지 않는다.
-        if boss and self.y <= boss.y + boss.H and self.y + config.PLAYER_H >= boss.y:
+        # 등진 보스나 공중의 마녀처럼 높이가 다른 보스에게는 닿지 않는다.
+        if boss and self.faces_boss() and self.y <= boss.y + boss.H and self.y + config.PLAYER_H >= boss.y:
             boss.on_pierce_hit()
         self.hang_timer = config.DASH_HANG_TIME
         self.change_state(self.jump_state)
@@ -637,12 +638,21 @@ class Player:
     def forward_limit(self):
         """스킬로 앞으로 튀어 나갈 때 넘으면 안 되는 위치."""
         if self.boss:
-            return self.boss.dash_x()
+            if self.faces_boss():
+                return self.boss.dash_x()
+            # 보스를 등지면 아레나 끝까지 갈 수 있다.
+            half_w = config.PLAYER_W / 2
+            if self.facing > 0:
+                return self.boss.arena_right() - half_w - config.BOSS_CONTACT_GAP
+            return self.camera.base_x + half_w
         if self.altar:
             return self.altar.stop_x()
         if self.next_wall:
             return self.next_wall.x - config.PLAYER_W / 2 - config.BOSS_CONTACT_GAP
         return math.inf
+
+    def faces_boss(self):
+        return (self.boss.x - self.x) * self.facing > 0
 
     def finish_dash(self, target):
         target.on_dash_hit()
@@ -805,6 +815,9 @@ class Player:
             # 불릿 타임 중 마우스는 동시 클릭 판정에만 쓰고 다른 입력은 받지 않는다 (CT-2, Q3).
             if event.type == SDL_MOUSEBUTTONDOWN:
                 if self.is_simultaneous_click(event.button):
+                    # 천검난무는 끝날 때 이펙트를 지우는데, 절단으로 넘어가면 끝나지 않으므로 여기서 지운다.
+                    if self.state is self.flurry_state:
+                        game_world.remove_object(self.flurry_state.effect)
                     self.change_state(self.cut_state)
             elif event.type == SDL_KEYUP and event.key == SDLK_s:
                 self.s_held = False
@@ -837,7 +850,7 @@ class Player:
         self.trail = [(x, y, age + dt) for x, y, age in self.trail if age + dt < config.TRAIL_TIME]
         if self.state is self.dash_state or self.state is self.pierce_state:
             self.trail.append((self.x, self.y, 0))
-        self.face_boss()
+        self.update_facing()
         if self.midboss and self.state in (self.run_state, self.jump_state, self.slide_state, self.dive_state, self.hit_state):
             self.change_state(self.fly_state)
         self.state.update(dt)
@@ -852,6 +865,8 @@ class Player:
         self.ultimate_cooldown = max(0, self.ultimate_cooldown - dt)
         self.cast_timer = max(0, self.cast_timer - dt)
         self.invincible_timer = max(0, self.invincible_timer - dt)
+        # 머리 위에 서 있으면 아래 stay_in_arena가 다시 True로 바꾼다.
+        self.on_boss_head = False
 
         # 돌진 중에는 상태가 위치를 직접 정하고, 절단 중에는 그 자리에 떠서 힘을 모은다.
         if self.state in (self.dash_state, self.pierce_state, self.cut_state):
@@ -904,9 +919,17 @@ class Player:
         self.y = max(config.GROUND_TOP, min(self.y, config.SCREEN_H - config.PLAYER_H))
         self.vy = 0
 
-    def face_boss(self):
-        # 돌진 중에는 처음 노린 쪽을 그대로 본다.
-        if self.boss and self.state not in (self.dash_state, self.pierce_state) and self.x != self.boss.x:
+    def update_facing(self):
+        """보스전에서 움직이는 동안에는 가는 쪽을, 멈추면 보스 쪽을 본다. 돌진 중에는 처음 노린 쪽을 그대로 본다."""
+        if not self.boss or self.state in (self.dash_state, self.pierce_state):
+            return
+        move = self.speed()
+        if move == 0 and self.on_boss_head:
+            # 머리 위에서 키를 떼면 보스 중심에서 먼 쪽으로 미끄러져 내려온다.
+            move = self.x - self.boss.x
+        if move:
+            self.facing = 1 if move > 0 else -1
+        elif self.x != self.boss.x:
             self.facing = 1 if self.boss.x > self.x else -1
 
     def stay_in_arena(self, dt):
@@ -927,6 +950,7 @@ class Player:
             # 머리 위에 내려앉으면 누르는 쪽으로 걸어가고, 누르지 않으면 가까운 쪽으로 미끄러져 내려온다.
             self.y = top + gap
             self.vy = 0
+            self.on_boss_head = True
             if self.speed() == 0:
                 self.x += side * config.BOSS_SLIDE_SPEED * dt
         elif self.prev_y + config.PLAYER_H <= bottom - gap:
@@ -938,6 +962,9 @@ class Player:
 
     def animation_name(self):
         if self.state is self.jump_state:
+            # 머리 위에서는 걷거나 미끄러져 내려오므로 늘 움직인다.
+            if self.on_boss_head:
+                return 'run'
             return 'rise' if self.vy > 0 else 'fall'
         if self.state is self.run_state and self.speed() == 0:
             return 'idle'
