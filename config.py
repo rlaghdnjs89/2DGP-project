@@ -244,7 +244,7 @@ FLY_HITBOX_W = 36
 FLY_HITBOX_H = 60
 # 버틸 시간이 절반 남으면 공격이 거세진다. 아래에서 값이 둘인 것은 (전반, 후반)이다.
 MIDBOSS_RAGE_RATIO = 0.5
-# 공격과 공격 사이에 쉬는 시간. 회전 전기, 전기 장벽, 전기장은 서로 겹치면 피할 길이 없어 하나씩만 나온다.
+# 공격과 공격 사이에 쉬는 시간. 전기 장벽과 전기장은 겹치면 피할 길이 없어 하나씩만 나온다.
 MIDBOSS_WAVE_REST = (1.0, 0.3)
 MIDBOSS_FIRST_WAVE = 1.0
 BROOM_SCREEN_X = SCREEN_W - 150
@@ -277,16 +277,6 @@ SWARM_TIME = 5
 SWARM_INTERVAL = (0.14, 0.1)
 # 무리가 끝난 뒤 남은 파편이 지나갈 시간.
 SWARM_CLEAR_TIME = 1.5
-# 회전 전기. 화면 가운데에서 십자 모양으로 돈다. 경고 시간 동안은 흐릿하게 돌기만 하고 닿아도 맞지 않는다.
-# 팔 사이에서 같은 방향으로 돌며 피한다. 중심에서 250px 안은 어느 방향으로든 화면 안이고, 그 거리에서 팔의 속도는 260px/s 이하다.
-ROTOR_Y = 420
-ROTOR_ARMS = 4
-ROTOR_LENGTH = 760
-ROTOR_THICKNESS = 20
-ROTOR_WARNING = 1.2
-ROTOR_TIME = 5.5
-ROTOR_SPIN = (0.8, 1.05)
-ROTOR_WARNING_OPACITY = 0.3
 # 전기 장벽. 틈 하나를 남기고 화면 높이를 막은 채 오른쪽에서 밀려온다.
 # 다음 틈은 FENCE_SHIFT(최소, 최대)만큼 위나 아래에 있다. 장벽 사이 시간(후반 0.9초) 동안 540px를 움직일 수 있다.
 FENCE_COUNT = (3, 4)

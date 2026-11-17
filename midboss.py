@@ -21,9 +21,7 @@ SHOCK_IMAGE = 'assets/monster/shock.png'
 # 전기장 안쪽에 이 간격으로 흐린 번개 줄을 그린다.
 PRESS_LINE_GAP = 70
 PRESS_LINE_OPACITY = 0.45
-# 팔에 닿았는지 이 간격으로 점을 찍어 확인한다. 비행 판정의 폭보다 촘촘해 빠뜨리지 않는다.
-ROTOR_CHECK_STEP = 12
-WAVES = ('swarm', 'rotor', 'fences', 'press')
+WAVES = ('swarm', 'fences', 'press')
 SHOTS = ('fan', 'aimed', 'scatter')
 
 # 중간 보스전의 탄과 함정은 월드 좌표에 두고, 매 프레임 플레이어가 달리는 만큼 함께 밀어 화면에 붙어 있게 한다.
@@ -165,53 +163,6 @@ class Press:
         pass
 
 
-class Rotor:
-    """한 점을 축으로 도는 전기 팔. 사각 판정으로는 나타낼 수 없어 닿았는지를 직접 확인한다."""
-
-    def __init__(self, player, x, y, spin):
-        self.player = player
-        self.x = x
-        self.y = y
-        self.spin = spin
-        self.angle = random.uniform(0, math.pi * 2)
-        self.time = 0
-        self.live = False
-        self.hub = Strip(ORB_IMAGE, ORB_FRAME_W)
-
-    def arms(self):
-        for i in range(config.ROTOR_ARMS):
-            angle = self.angle + i * math.pi * 2 / config.ROTOR_ARMS
-            yield math.cos(angle), math.sin(angle)
-
-    def update(self, dt):
-        self.time += dt
-        self.x += self.player.speed() * dt
-        self.angle += self.spin * dt
-        if self.time >= config.ROTOR_WARNING + config.ROTOR_TIME:
-            game_world.remove_object(self)
-        elif self.time >= config.ROTOR_WARNING:
-            if not self.live:
-                self.live = True
-                sound.play('zap')
-            if self.touches(self.player.get_bb()):
-                self.player.take_damage()
-
-    def touches(self, bb):
-        left, bottom, right, top = bb
-        half = config.ROTOR_THICKNESS / 2
-        for dx, dy in self.arms():
-            for r in range(0, config.ROTOR_LENGTH, ROTOR_CHECK_STEP):
-                if left - half <= self.x + dx * r <= right + half and bottom - half <= self.y + dy * r <= top + half:
-                    return True
-        return False
-
-    def draw(self, camera):
-        opacity = 1 if self.live else config.ROTOR_WARNING_OPACITY
-        for dx, dy in self.arms():
-            draw_bolt(camera, self.x, self.y, self.x + dx * config.ROTOR_LENGTH, self.y + dy * config.ROTOR_LENGTH, self.time, opacity)
-        self.hub.draw(int(self.time * SHOT_FPS) % self.hub.count, self.x - camera.x, self.y - camera.y, opacity)
-
-
 class BroomWitch:
     """스테이지 2의 중간 보스. 빗자루를 타고 플레이어 앞을 날며 탄을 쏘고, 파편 무리와 전기 함정을 무작위 순서로 불러낸다."""
     NAME = '빗자루 마녀'
@@ -300,8 +251,7 @@ class BroomWitch:
     def add_hazard(self, hazard, group):
         self.hazards.append(hazard)
         game_world.add_object(hazard, game_world.LAYER_EFFECT)
-        if group:
-            game_world.add_collision_pair(group, None, hazard)
+        game_world.add_collision_pair(group, None, hazard)
 
     def add_shot(self, x, y, angle, speed):
         shot = Shot(self.player, x, y, math.cos(angle) * speed, math.sin(angle) * speed, SHOT_IMAGE, SHOT_FRAME_W, config.BULLET_SIZE)
@@ -348,8 +298,6 @@ class BroomWitch:
         self.wave = random.choice([wave for wave in WAVES if wave != self.wave])
         if self.wave == 'swarm':
             length = self.start_swarm()
-        elif self.wave == 'rotor':
-            length = self.start_rotor()
         elif self.wave == 'fences':
             length = self.start_fences()
         else:
@@ -360,11 +308,6 @@ class BroomWitch:
         half = config.ORB_SIZE / 2
         self.start_orbs(config.SWARM_TIME, config.SWARM_INTERVAL[self.rage()], config.GROUND_TOP + half, config.SCREEN_H - half)
         return config.SWARM_TIME + config.SWARM_CLEAR_TIME
-
-    def start_rotor(self):
-        spin = config.ROTOR_SPIN[self.rage()] * random.choice((-1, 1))
-        self.add_hazard(Rotor(self.player, self.left() + config.SCREEN_W / 2, config.ROTOR_Y, spin), None)
-        return config.ROTOR_WARNING + config.ROTOR_TIME
 
     def start_fences(self):
         sound.play('zap')
